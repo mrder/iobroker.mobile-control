@@ -37,4 +37,8 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun clearCache() {
         appDatabase.clearAllTables()
     }
+
+    override fun observeLastConnectionAt(): Flow<Long?> = settingsDataStore.observeLastConnectionAt()
+
+    override suspend fun setLastConnectionAt(epochMillis: Long) = settingsDataStore.setLastConnectionAt(epochMillis)
 }

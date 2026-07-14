@@ -1,5 +1,8 @@
 package com.mobilecontrol.app.domain.model
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class PairingQrPayload(
     val version: Int,
     val serverUrl: String,

@@ -1,6 +1,5 @@
 package com.mobilecontrol.app.di
 
-import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import com.mobilecontrol.app.BuildConfig
 import com.mobilecontrol.app.data.remote.ApiService
 import com.mobilecontrol.app.data.remote.AppInfoInterceptor
@@ -17,6 +16,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
+import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 

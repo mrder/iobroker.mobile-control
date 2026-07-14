@@ -19,4 +19,7 @@ interface SettingsRepository {
     suspend fun hasPin(): Boolean
 
     suspend fun clearCache()
+
+    fun observeLastConnectionAt(): Flow<Long?>
+    suspend fun setLastConnectionAt(epochMillis: Long)
 }

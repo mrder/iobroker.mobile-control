@@ -41,7 +41,8 @@
     "connectionType": "local",
     "dataSource": "push",
     "adminUI": {
-      "config": "custom"
+      "config": "json",
+      "tab": "custom"
     },
     "dependencies": [
       {
@@ -50,7 +51,7 @@
     ],
     "globalDependencies": [
       {
-        "admin": ">=6.13.16"
+        "admin": ">=7.0.0"
       }
     ]
   },

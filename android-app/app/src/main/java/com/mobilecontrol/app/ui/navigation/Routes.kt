@@ -18,11 +18,9 @@ object Routes {
     const val NOTIFICATIONS = "start/notifications"
     const val SETTINGS = "start/settings"
 
+    // The editor screen doubles as the live view (toggle via its edit-mode action) - a separate
+    // read-only route was dropped as unnecessary duplication for MVP.
     const val DASHBOARD_EDITOR = "dashboard_editor/{dashboardId}"
     fun dashboardEditor(id: String) = "dashboard_editor/$id"
     const val DASHBOARD_EDITOR_ARG = "dashboardId"
-
-    const val DASHBOARD_VIEW = "dashboard_view/{dashboardId}"
-    fun dashboardView(id: String) = "dashboard_view/$id"
-    const val DASHBOARD_VIEW_ARG = "dashboardId"
 }

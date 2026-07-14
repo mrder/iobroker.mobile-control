@@ -10,9 +10,9 @@ coverage/
 /iobroker-data/
 /*.log
 
-# Admin UI (React) build output
-admin/build/
-admin/node_modules/
+# Admin UI (React tab) - source and node_modules are excluded (node_modules/ above already
+# covers admin/tab-src/node_modules/); the BUILT tab.html + tab-assets/ ARE committed on
+# purpose so the adapter works without a JS build toolchain on the target ioBroker system.
 
 # Android / Gradle
 android-app/.gradle/

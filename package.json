@@ -22,13 +22,16 @@
   ],
   "main": "build/main.js",
   "files": [
-    "admin/build",
+    "admin/tab.html",
+    "admin/tab-assets",
+    "admin/jsonConfig.json",
     "admin/mobile-control.png",
     "build/",
     "io-package.json",
     "LICENSE"
   ],
   "scripts": {
+    "prepare": "npm run build",
     "prebuild": "rimraf build",
     "build": "tsc -p tsconfig.build.json",
     "watch": "tsc -p tsconfig.build.json --watch",

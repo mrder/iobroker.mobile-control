@@ -59,10 +59,6 @@ fun PinEntryScreen(
         }
     }
 
-    LaunchedEffect(wrongPin) {
-        if (!wrongPin && mode == PinMode.VERIFY) return@LaunchedEffect
-    }
-
     // wrongPin flipping back to false after a successful verifyPin() call is our unlock signal.
     var verifyAttempted by remember { mutableStateOf(false) }
     LaunchedEffect(wrongPin, verifyAttempted) {
@@ -72,6 +68,16 @@ fun PinEntryScreen(
     }
     LaunchedEffect(setupComplete) {
         if (setupComplete) onUnlocked()
+    }
+
+    var biometricRetryTrigger by remember { mutableStateOf(0) }
+    LaunchedEffect(biometricRetryTrigger) {
+        if (biometricRetryTrigger > 0 && activity != null) {
+            if (BiometricPromptHelper.authenticate(activity, "App entsperren")) {
+                viewModel.onBiometricSuccess()
+                onUnlocked()
+            }
+        }
     }
 
     Scaffold { padding ->
@@ -128,9 +134,7 @@ fun PinEntryScreen(
 
             if (mode == PinMode.VERIFY && biometricEnabled && activity != null) {
                 OutlinedButton(
-                    onClick = {
-                        viewModel.viewModelScopeAuthenticate(activity) { onUnlocked() }
-                    },
+                    onClick = { biometricRetryTrigger++ },
                     modifier = Modifier.padding(top = 24.dp),
                 ) {
                     Text(stringResource(R.string.lock_use_biometric))

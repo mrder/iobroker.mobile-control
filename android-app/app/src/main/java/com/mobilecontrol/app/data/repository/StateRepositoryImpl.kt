@@ -1,5 +1,6 @@
 package com.mobilecontrol.app.data.repository
 
+import com.mobilecontrol.app.data.local.SettingsDataStore
 import com.mobilecontrol.app.data.local.dao.StateCacheDao
 import com.mobilecontrol.app.data.local.entity.StateCacheEntity
 import com.mobilecontrol.app.data.remote.ApiService
@@ -31,6 +32,7 @@ class StateRepositoryImpl @Inject constructor(
     private val stateCacheDao: StateCacheDao,
     private val networkMonitor: NetworkMonitor,
     private val revocationNotifier: RevocationNotifier,
+    private val settingsDataStore: SettingsDataStore,
 ) : StateRepository {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -63,7 +65,10 @@ class StateRepositoryImpl @Inject constructor(
 
     private suspend fun handleWsEvent(event: WsEvent) {
         when (event) {
-            is WsEvent.Connected -> _connectionState.value = ConnectionState.CONNECTED
+            is WsEvent.Connected -> {
+                _connectionState.value = ConnectionState.CONNECTED
+                settingsDataStore.setLastConnectionAt(System.currentTimeMillis())
+            }
             is WsEvent.Disconnected -> {
                 _connectionState.value = if (!isOnline) {
                     ConnectionState.OFFLINE

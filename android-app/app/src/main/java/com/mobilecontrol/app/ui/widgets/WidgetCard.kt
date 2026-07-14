@@ -8,10 +8,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudOff
-import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.HourglassEmpty
+import androidx.compose.material.icons.filled.Help
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.QuestionMark
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -53,13 +51,15 @@ fun WidgetCard(
         Column(modifier = Modifier.padding(12.dp).fillMaxSize()) {
             Text(text = title, style = MaterialTheme.typography.labelLarge)
             Box(modifier = Modifier.padding(top = 4.dp), contentAlignment = Alignment.CenterStart) {
+                // Non-interactive states replace the widget body entirely. Command
+                // pending/confirmed/failed still render the widget's own content (e.g. the switch
+                // stays visible and usable) - those types are expected to show their own overlay
+                // icon for the command status, on top of the border color set above.
                 when (state) {
                     WidgetState.Loading -> Text("…", style = MaterialTheme.typography.bodyMedium)
                     is WidgetState.Offline -> StatusRow(Icons.Filled.CloudOff, "Offline")
                     is WidgetState.NoPermission -> StatusRow(Icons.Filled.Lock, "Kein Zugriff")
-                    is WidgetState.ObjectMissing -> StatusRow(Icons.Filled.QuestionMark, "Objekt nicht gefunden")
-                    is WidgetState.CommandFailed -> StatusRow(Icons.Filled.Error, "Fehlgeschlagen")
-                    is WidgetState.CommandPending -> StatusRow(Icons.Filled.HourglassEmpty, "Wird gesendet…")
+                    is WidgetState.ObjectMissing -> StatusRow(Icons.Filled.Help, "Objekt nicht gefunden")
                     else -> content()
                 }
             }

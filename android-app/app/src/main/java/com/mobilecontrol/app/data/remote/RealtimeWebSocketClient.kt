@@ -77,9 +77,10 @@ class RealtimeWebSocketClient @Inject constructor(
         val restBase = serverConfigHolder.baseUrl ?: return
         val token = tokenStore.getAccessToken() ?: return
 
-        val scheme = if (restBase.scheme == "https") "wss" else "ws"
+        // OkHttp's HttpUrl only accepts http/https schemes (it rejects ws/wss outright) - this is
+        // intentional on OkHttp's part: newWebSocket() performs the protocol upgrade internally
+        // over a plain http(s) URL, there is no separate ws(s) scheme to build here.
         val wsUrl = restBase.resolve("ws/v1")?.newBuilder()
-            ?.scheme(scheme)
             ?.addQueryParameter("access_token", token)
             ?.build() ?: return
 

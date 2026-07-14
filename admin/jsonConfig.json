@@ -1,0 +1,82 @@
+{
+    "i18n": false,
+    "type": "panel",
+    "items": {
+        "_connectionHeader": {
+            "type": "header",
+            "text": "Verbindung",
+            "sm": 12
+        },
+        "port": {
+            "type": "number",
+            "label": "Port",
+            "min": 1,
+            "max": 65535,
+            "sm": 4
+        },
+        "bindAddress": {
+            "type": "text",
+            "label": "Bind-Adresse",
+            "help": "0.0.0.0 = alle Netzwerkschnittstellen",
+            "sm": 4
+        },
+        "localOnlyByDefault": {
+            "type": "checkbox",
+            "label": "Neue Freigaben standardmäßig nur lokal (LOCAL_ONLY)",
+            "sm": 4
+        },
+        "publicUrl": {
+            "type": "text",
+            "label": "Öffentliche Server-URL",
+            "help": "Wird in den Pairing-QR-Code eingebettet. Bei Fernzugriff die VPN- oder Reverse-Proxy-Adresse eintragen, z.B. https://home.example.net/mobile-control",
+            "sm": 12,
+            "newLine": true
+        },
+        "_pairingHeader": {
+            "type": "header",
+            "text": "Pairing & Sicherheit",
+            "sm": 12,
+            "newLine": true
+        },
+        "requireAdminApproval": {
+            "type": "checkbox",
+            "label": "Admin-Bestätigung für neue Geräte erforderlich",
+            "sm": 6
+        },
+        "pairingTtlMinutes": {
+            "type": "number",
+            "label": "Pairing-Ablaufzeit (Minuten)",
+            "min": 1,
+            "max": 120,
+            "sm": 6,
+            "newLine": true
+        },
+        "accessTokenTtlMinutes": {
+            "type": "number",
+            "label": "Access-Token-Gültigkeit (Minuten)",
+            "min": 1,
+            "max": 120,
+            "sm": 4
+        },
+        "refreshTokenTtlDays": {
+            "type": "number",
+            "label": "Refresh-Token-Gültigkeit (Tage)",
+            "min": 1,
+            "max": 365,
+            "sm": 4
+        },
+        "rateLimitPerMinute": {
+            "type": "number",
+            "label": "Rate-Limit (Kommandos pro Gerät und Minute)",
+            "min": 1,
+            "max": 1000,
+            "sm": 4
+        },
+        "_manageHint": {
+            "type": "staticText",
+            "text": "Benutzer, Rollen, Geräte, Objektfreigaben, Sessions und Audit-Log werden im Tab \"Mobile Control\" verwaltet.",
+            "sm": 12,
+            "newLine": true
+        }
+    }
+}
