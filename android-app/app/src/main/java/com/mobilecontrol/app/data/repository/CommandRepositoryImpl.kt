@@ -75,7 +75,21 @@ class CommandRepositoryImpl @Inject constructor(
         val current = _commandStates.value[commandId]
         if (current != null && !current.isTerminal) {
             _commandStates.value = _commandStates.value + (commandId to CommandStatus.TIMEOUT)
+            notifyCommandFailure(CommandStatus.TIMEOUT)
         }
+    }
+
+    private fun notifyCommandFailure(status: CommandStatus) {
+        notificationRepository.push(
+            AppNotification(
+                id = UUID.randomUUID().toString(),
+                title = "Befehl nicht ausgeführt",
+                body = "Ein Befehl wurde vom Server nicht bestätigt (${status.name}).",
+                timestamp = System.currentTimeMillis(),
+                severity = AppNotification.Severity.ERROR,
+                read = false,
+            ),
+        )
     }
 
     private companion object {

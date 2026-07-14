@@ -15,6 +15,8 @@ import com.mobilecontrol.app.data.remote.toKotlinValue
 import com.mobilecontrol.app.domain.model.LiveValue
 import com.mobilecontrol.app.domain.repository.AppNotification
 import com.mobilecontrol.app.domain.repository.ConnectionState
+import com.mobilecontrol.app.domain.repository.DiagnosticsRepository
+import com.mobilecontrol.app.domain.repository.LogEntry
 import com.mobilecontrol.app.domain.repository.NotificationRepository
 import com.mobilecontrol.app.domain.repository.StateRepository
 import java.util.UUID
@@ -37,6 +39,7 @@ class StateRepositoryImpl @Inject constructor(
     private val revocationNotifier: RevocationNotifier,
     private val settingsDataStore: SettingsDataStore,
     private val notificationRepository: NotificationRepository,
+    private val diagnosticsRepository: DiagnosticsRepository,
 ) : StateRepository {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -72,6 +75,7 @@ class StateRepositoryImpl @Inject constructor(
             is WsEvent.Connected -> {
                 _connectionState.value = ConnectionState.CONNECTED
                 settingsDataStore.setLastConnectionAt(System.currentTimeMillis())
+                diagnosticsRepository.log(LogEntry.Level.INFO, "WebSocket connected")
             }
             is WsEvent.Disconnected -> {
                 val previous = _connectionState.value
@@ -82,6 +86,10 @@ class StateRepositoryImpl @Inject constructor(
                 } else {
                     ConnectionState.DISCONNECTED
                 }
+                diagnosticsRepository.log(
+                    LogEntry.Level.WARN,
+                    "WebSocket disconnected (willReconnect=${event.willReconnect}, online=$isOnline)",
+                )
                 if (previous == ConnectionState.CONNECTED) {
                     notify("Verbindung getrennt", "Die Verbindung zum Server wurde unterbrochen.", AppNotification.Severity.WARNING)
                 }
@@ -142,7 +150,10 @@ class StateRepositoryImpl @Inject constructor(
         }
 
         val result = safeApiCall { apiService.getStates(objectIds.joinToString(",")) }
-        val body = result.getOrElse { return Result.failure(it) }
+        val body = result.getOrElse {
+            diagnosticsRepository.log(LogEntry.Level.ERROR, "GET /states failed: ${it.message}")
+            return Result.failure(it)
+        }
 
         val fresh = body.states.mapValues { (objectId, dto) ->
             val timestamp = parseIsoToEpochMillis(dto.timestamp)

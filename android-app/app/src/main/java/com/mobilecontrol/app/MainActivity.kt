@@ -2,21 +2,17 @@ package com.mobilecontrol.app
 
 import android.os.Bundle
 import android.view.WindowManager
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
+import androidx.fragment.app.FragmentActivity
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.mobilecontrol.app.ui.lock.AppLockManager
 import com.mobilecontrol.app.ui.navigation.AppNavGraph
 import com.mobilecontrol.app.ui.navigation.Routes
 import com.mobilecontrol.app.ui.theme.MobileControlTheme
 import dagger.hilt.android.AndroidEntryPoint
-import javax.inject.Inject
 
 // Settings is intentionally not listed here: it lives inside Start's nested bottom-nav NavHost,
 // which the top-level NavController never sees as a distinct route. SettingsScreen instead calls
@@ -24,10 +20,11 @@ import javax.inject.Inject
 // routes, so route-prefix matching works fine for them.
 private val SECURE_SCREEN_PREFIXES = listOf(Routes.ONBOARDING_GRAPH)
 
+// FragmentActivity (not plain ComponentActivity) is required here: androidx.biometric.BiometricPrompt
+// hosts its dialog via a headless Fragment internally, and PinEntryScreen casts LocalContext.current
+// to FragmentActivity to invoke it.
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
-
-    @Inject lateinit var appLockManager: AppLockManager
+class MainActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -51,15 +48,5 @@ class MainActivity : ComponentActivity() {
                 AppNavGraph(navController = navController)
             }
         }
-
-        // Re-lock whenever the app is backgrounded; PIN/biometric gate is enforced by AppNavGraph
-        // routing back to Routes.LOCK based on AppLockManager.isLocked.
-        lifecycle.addObserver(
-            LifecycleEventObserver { _, event ->
-                if (event == Lifecycle.Event.ON_STOP) {
-                    appLockManager.lock()
-                }
-            },
-        )
     }
 }

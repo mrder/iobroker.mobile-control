@@ -5,7 +5,9 @@ import com.mobilecontrol.app.data.local.SettingsDataStore
 import com.mobilecontrol.app.data.local.TokenStore
 import com.mobilecontrol.app.domain.model.DeviceProfile
 import com.mobilecontrol.app.domain.repository.SettingsRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 class SettingsRepositoryImpl @Inject constructor(
@@ -34,7 +36,7 @@ class SettingsRepositoryImpl @Inject constructor(
 
     override suspend fun hasPin(): Boolean = tokenStore.getPinHash() != null
 
-    override suspend fun clearCache() {
+    override suspend fun clearCache() = withContext(Dispatchers.IO) {
         appDatabase.clearAllTables()
     }
 

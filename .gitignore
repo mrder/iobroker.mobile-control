@@ -30,6 +30,7 @@ android-app/*/release/
 Thumbs.db
 .vscode/
 .idea/
+.claude/
 
 # Secrets
 *.env

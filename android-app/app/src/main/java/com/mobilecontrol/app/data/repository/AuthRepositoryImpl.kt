@@ -12,6 +12,8 @@ import com.mobilecontrol.app.data.remote.dto.RefreshRequestDto
 import com.mobilecontrol.app.data.remote.safeApiCall
 import com.mobilecontrol.app.domain.model.Session
 import com.mobilecontrol.app.domain.repository.AuthRepository
+import com.mobilecontrol.app.domain.repository.DiagnosticsRepository
+import com.mobilecontrol.app.domain.repository.LogEntry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -29,6 +31,7 @@ class AuthRepositoryImpl @Inject constructor(
     private val keystoreManager: KeystoreManager,
     private val serverConfigHolder: ServerConfigHolder,
     private val settingsDataStore: SettingsDataStore,
+    private val diagnosticsRepository: DiagnosticsRepository,
 ) : AuthRepository {
 
     private val _session = MutableStateFlow<Session?>(null)
@@ -61,7 +64,10 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun login(deviceId: String): Result<Session> {
         val challengeResult = safeApiCall { apiService.authChallenge(ChallengeRequestDto(deviceId)) }
-        val challenge = challengeResult.getOrElse { return Result.failure(it) }
+        val challenge = challengeResult.getOrElse {
+            diagnosticsRepository.log(LogEntry.Level.ERROR, "POST /auth/challenge failed: ${it.message}")
+            return Result.failure(it)
+        }
 
         val nonceBytes = Base64.decode(challenge.nonce, Base64.NO_WRAP)
         val signatureBytes = keystoreManager.sign(nonceBytes)
@@ -70,7 +76,11 @@ class AuthRepositoryImpl @Inject constructor(
         val loginResult = safeApiCall {
             apiService.authLogin(LoginRequestDto(deviceId, challenge.challengeId, signatureBase64))
         }
-        val tokens = loginResult.getOrElse { return Result.failure(it) }
+        val tokens = loginResult.getOrElse {
+            diagnosticsRepository.log(LogEntry.Level.ERROR, "POST /auth/login failed: ${it.message}")
+            return Result.failure(it)
+        }
+        diagnosticsRepository.log(LogEntry.Level.INFO, "Login successful")
 
         val expiresAt = System.currentTimeMillis() + tokens.expiresIn * 1000
         tokenStore.saveTokens(tokens.accessToken, tokens.refreshToken, expiresAt)
@@ -92,7 +102,10 @@ class AuthRepositoryImpl @Inject constructor(
         val refreshToken = tokenStore.getRefreshToken() ?: return Result.failure(IllegalStateException("No refresh token"))
 
         val result = safeApiCall { apiService.authRefresh(RefreshRequestDto(deviceId, refreshToken)) }
-        val tokens = result.getOrElse { return Result.failure(it) }
+        val tokens = result.getOrElse {
+            diagnosticsRepository.log(LogEntry.Level.ERROR, "POST /auth/refresh failed: ${it.message}")
+            return Result.failure(it)
+        }
 
         val expiresAt = System.currentTimeMillis() + tokens.expiresIn * 1000
         tokenStore.saveTokens(tokens.accessToken, tokens.refreshToken, expiresAt)

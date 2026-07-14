@@ -3,6 +3,8 @@ package com.mobilecontrol.app.data.crypto
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.security.KeyPairGenerator
 import java.security.KeyStore
 import java.security.Signature
@@ -31,7 +33,7 @@ class KeystoreManager @Inject constructor() {
      * Generates a fresh non-exportable EC P-256 key pair, replacing any previous one (e.g. on re-pairing).
      * Returns the public key encoded as base64 SPKI (X.509), matching what the claim endpoint expects.
      */
-    fun generateKeyPair(): String {
+    suspend fun generateKeyPair(): String = withContext(Dispatchers.Default) {
         if (hasKeyPair()) {
             keyStore.deleteEntry(KEY_ALIAS)
         }
@@ -46,7 +48,7 @@ class KeystoreManager @Inject constructor() {
             .build()
         generator.initialize(spec)
         val keyPair = generator.generateKeyPair()
-        return Base64.encodeToString(keyPair.public.encoded, Base64.NO_WRAP)
+        Base64.encodeToString(keyPair.public.encoded, Base64.NO_WRAP)
     }
 
     fun publicKeyBase64(): String? {
@@ -55,13 +57,13 @@ class KeystoreManager @Inject constructor() {
     }
 
     /** Signs raw bytes (e.g. the decoded auth-challenge nonce) with SHA256withECDSA using the Keystore-held private key. */
-    fun sign(data: ByteArray): ByteArray {
+    suspend fun sign(data: ByteArray): ByteArray = withContext(Dispatchers.Default) {
         val privateKey = keyStore.getKey(KEY_ALIAS, null) as? java.security.PrivateKey
             ?: error("No key pair present - device is not paired")
         val signature = Signature.getInstance("SHA256withECDSA")
         signature.initSign(privateKey)
         signature.update(data)
-        return signature.sign()
+        signature.sign()
     }
 
     fun deleteKeyPair() {

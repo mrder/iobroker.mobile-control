@@ -8,11 +8,6 @@ data class LiveValue(
     val acknowledged: Boolean,
 )
 
-data class CommandResult(
-    val commandId: String,
-    val status: CommandStatus,
-)
-
 enum class CommandStatus {
     ACCEPTED,
     EXECUTED,

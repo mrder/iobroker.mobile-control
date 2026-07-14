@@ -1,6 +1,8 @@
 package com.mobilecontrol.app.data.crypto
 
 import android.util.Base64
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.security.MessageDigest
@@ -28,8 +30,8 @@ class ServerFingerprintChecker @Inject constructor() {
 
     private val plainClient = OkHttpClient.Builder().build()
 
-    suspend fun check(serverUrl: String, expectedFingerprint: String): FingerprintCheckResult {
-        return try {
+    suspend fun check(serverUrl: String, expectedFingerprint: String): FingerprintCheckResult = withContext(Dispatchers.IO) {
+        try {
             val request = Request.Builder().url(serverUrl).head().build()
             val response = plainClient.newCall(request).execute()
             val leafCert = response.handshake?.peerCertificates?.firstOrNull() as? X509Certificate
