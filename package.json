@@ -1,0 +1,64 @@
+{
+  "name": "iobroker.mobile-control",
+  "version": "0.1.0",
+  "description": "Sichere Schnittstelle zwischen ioBroker und der Mobile-Control Android-App: Benutzer, Rollen, Geräte-Pairing, gefilterter Objektkatalog, persönliche Dashboards, Aktorsteuerung.",
+  "author": {
+    "name": "YOUR_GITHUB_USER"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/YOUR_GITHUB_USER/iobroker.mobile-control",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/YOUR_GITHUB_USER/iobroker.mobile-control.git"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "ioBroker",
+    "smart home",
+    "mobile",
+    "dashboard"
+  ],
+  "main": "build/main.js",
+  "files": [
+    "admin/build",
+    "admin/mobile-control.png",
+    "build/",
+    "io-package.json",
+    "LICENSE"
+  ],
+  "scripts": {
+    "prebuild": "rimraf build",
+    "build": "tsc -p tsconfig.build.json",
+    "watch": "tsc -p tsconfig.build.json --watch",
+    "test:unit": "mocha --config test/.mocharc.json",
+    "test": "npm run build && npm run test:unit",
+    "lint": "eslint src test --ext .ts"
+  },
+  "dependencies": {
+    "@iobroker/adapter-core": "^3.2.2",
+    "ajv": "^8.17.1",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "qrcode": "^1.5.4",
+    "uuid": "^9.0.1",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/mocha": "^10.0.9",
+    "@types/node": "^20.16.11",
+    "@types/qrcode": "^1.5.5",
+    "@types/uuid": "^9.0.8",
+    "@types/ws": "^8.5.12",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "eslint": "^8.57.1",
+    "mocha": "^10.7.3",
+    "rimraf": "^5.0.10",
+    "ts-node": "^10.9.2",
+    "typescript": "~5.5.4"
+  }
+}

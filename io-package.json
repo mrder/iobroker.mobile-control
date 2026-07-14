@@ -1,0 +1,231 @@
+{
+  "common": {
+    "name": "mobile-control",
+    "version": "0.1.0",
+    "news": {
+      "0.1.0": {
+        "en": "initial MVP release",
+        "de": "erste MVP-Version"
+      }
+    },
+    "title": "Mobile Control",
+    "titleLang": {
+      "en": "Mobile Control",
+      "de": "Mobile Control"
+    },
+    "desc": {
+      "en": "Secure gateway between ioBroker and the Mobile Control Android app: users, roles, device pairing, filtered object catalog, personal dashboards, actuator control.",
+      "de": "Sichere Schnittstelle zwischen ioBroker und der Mobile-Control Android-App: Benutzer, Rollen, Geräte-Pairing, gefilterter Objektkatalog, persönliche Dashboards, Aktorsteuerung."
+    },
+    "authors": [
+      "YOUR_GITHUB_USER"
+    ],
+    "keywords": [
+      "mobile",
+      "dashboard",
+      "app",
+      "android",
+      "remote"
+    ],
+    "license": "MIT",
+    "platform": "Javascript/Node.js",
+    "main": "build/main.js",
+    "icon": "mobile-control.png",
+    "enabled": true,
+    "extIcon": "https://raw.githubusercontent.com/YOUR_GITHUB_USER/iobroker.mobile-control/main/admin/mobile-control.png",
+    "readme": "https://github.com/YOUR_GITHUB_USER/iobroker.mobile-control/blob/main/README.md",
+    "loglevel": "info",
+    "mode": "daemon",
+    "type": "general",
+    "compact": true,
+    "connectionType": "local",
+    "dataSource": "push",
+    "adminUI": {
+      "config": "custom"
+    },
+    "dependencies": [
+      {
+        "js-controller": ">=5.0.19"
+      }
+    ],
+    "globalDependencies": [
+      {
+        "admin": ">=6.13.16"
+      }
+    ]
+  },
+  "native": {
+    "port": 8095,
+    "bindAddress": "0.0.0.0",
+    "publicUrl": "",
+    "jwtSecret": "",
+    "accessTokenTtlMinutes": 10,
+    "refreshTokenTtlDays": 30,
+    "pairingTtlMinutes": 10,
+    "requireAdminApproval": true,
+    "rateLimitPerMinute": 60,
+    "localOnlyByDefault": false
+  },
+  "objects": [],
+  "instanceObjects": [
+    {
+      "_id": "info",
+      "type": "channel",
+      "common": { "name": { "en": "Information", "de": "Information" } },
+      "native": {}
+    },
+    {
+      "_id": "info.connection",
+      "type": "state",
+      "common": {
+        "role": "indicator.connected",
+        "name": { "en": "Any device connected", "de": "Gerät verbunden" },
+        "type": "boolean",
+        "read": true,
+        "write": false,
+        "def": false
+      },
+      "native": {}
+    },
+    {
+      "_id": "info.apiStatus",
+      "type": "state",
+      "common": {
+        "role": "indicator",
+        "name": { "en": "REST API status", "de": "REST-API-Status" },
+        "type": "string",
+        "read": true,
+        "write": false,
+        "def": "stopped"
+      },
+      "native": {}
+    },
+    {
+      "_id": "info.websocketStatus",
+      "type": "state",
+      "common": {
+        "role": "indicator",
+        "name": { "en": "WebSocket gateway status", "de": "WebSocket-Status" },
+        "type": "string",
+        "read": true,
+        "write": false,
+        "def": "stopped"
+      },
+      "native": {}
+    },
+    {
+      "_id": "info.activeDevices",
+      "type": "state",
+      "common": {
+        "role": "value",
+        "name": { "en": "Active devices", "de": "Aktive Geräte" },
+        "type": "number",
+        "read": true,
+        "write": false,
+        "def": 0
+      },
+      "native": {}
+    },
+    {
+      "_id": "info.activeSessions",
+      "type": "state",
+      "common": {
+        "role": "value",
+        "name": { "en": "Active sessions", "de": "Aktive Sitzungen" },
+        "type": "number",
+        "read": true,
+        "write": false,
+        "def": 0
+      },
+      "native": {}
+    },
+    {
+      "_id": "info.securityStatus",
+      "type": "state",
+      "common": {
+        "role": "indicator",
+        "name": { "en": "Security status", "de": "Sicherheitsstatus" },
+        "type": "string",
+        "read": true,
+        "write": false,
+        "def": "ok"
+      },
+      "native": {}
+    },
+    {
+      "_id": "control",
+      "type": "channel",
+      "common": { "name": { "en": "Control", "de": "Steuerung" } },
+      "native": {}
+    },
+    {
+      "_id": "control.enabled",
+      "type": "state",
+      "common": {
+        "role": "switch.enable",
+        "name": { "en": "Adapter enabled", "de": "Adapter aktiviert" },
+        "type": "boolean",
+        "read": true,
+        "write": true,
+        "def": true
+      },
+      "native": {}
+    },
+    {
+      "_id": "control.remoteAccessEnabled",
+      "type": "state",
+      "common": {
+        "role": "switch.enable",
+        "name": { "en": "Remote access enabled", "de": "Fernzugriff aktiviert" },
+        "type": "boolean",
+        "read": true,
+        "write": true,
+        "def": false
+      },
+      "native": {}
+    },
+    {
+      "_id": "control.revokeAllSessions",
+      "type": "state",
+      "common": {
+        "role": "button",
+        "name": { "en": "Revoke all sessions", "de": "Alle Sitzungen widerrufen" },
+        "type": "boolean",
+        "read": false,
+        "write": true,
+        "def": false
+      },
+      "native": {}
+    },
+    {
+      "_id": "storage",
+      "type": "channel",
+      "common": { "name": { "en": "Internal storage (do not edit)", "de": "Interner Speicher (nicht bearbeiten)" } },
+      "native": {}
+    },
+    {
+      "_id": "devices",
+      "type": "channel",
+      "common": { "name": { "en": "Devices", "de": "Geräte" } },
+      "native": {}
+    },
+    {
+      "_id": "users",
+      "type": "channel",
+      "common": { "name": { "en": "Users", "de": "Benutzer" } },
+      "native": {}
+    },
+    {
+      "_id": "alarms",
+      "type": "channel",
+      "common": { "name": { "en": "Alarms", "de": "Meldungen" } },
+      "native": {}
+    },
+    {
+      "_id": "audit",
+      "type": "channel",
+      "common": { "name": { "en": "Audit log", "de": "Audit-Protokoll" } },
+      "native": {}
+    }
+  ]
+}
