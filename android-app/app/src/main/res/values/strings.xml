@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Mobile Control for ioBroker</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_welcome_title">Willkommen bei Mobile Control</string>
+    <string name="onboarding_welcome_body">Steuere deine ioBroker-Installation sicher über eigene Dashboards. Scanne zum Start den Pairing-QR-Code aus der Admin-Oberfläche.</string>
+    <string name="onboarding_welcome_cta">QR-Code scannen</string>
+    <string name="onboarding_scan_title">Pairing-Code scannen</string>
+    <string name="onboarding_scan_hint">Richte die Kamera auf den QR-Code in der ioBroker-Admin-Oberfläche.</string>
+    <string name="onboarding_scan_camera_permission">Kamerazugriff wird benötigt, um den Pairing-Code zu scannen.</string>
+    <string name="onboarding_server_check_title">Server wird geprüft</string>
+    <string name="onboarding_server_check_fingerprint_mismatch">Achtung: Der Server-Fingerabdruck stimmt nicht mit dem erwarteten Wert überein. Fortfahren nur, wenn du dem Netzwerk vertraust.</string>
+    <string name="onboarding_key_generation_title">Sicherheitsschlüssel wird erzeugt</string>
+    <string name="onboarding_key_generation_body">Ein Schlüsselpaar wird sicher im Android Keystore dieses Geräts erzeugt. Der private Schlüssel verlässt das Gerät nie.</string>
+    <string name="onboarding_pairing_wait_title">Warte auf Bestätigung durch Administrator</string>
+    <string name="onboarding_pairing_wait_body">Bitte bestätige die Kopplung dieses Geräts in der ioBroker-Admin-Oberfläche.</string>
+    <string name="onboarding_pairing_rejected">Die Kopplungsanfrage wurde abgelehnt.</string>
+    <string name="onboarding_pairing_expired">Die Kopplungsanfrage ist abgelaufen. Bitte scanne den QR-Code erneut.</string>
+    <string name="onboarding_pairing_timeout">Zeitüberschreitung beim Warten auf die Bestätigung.</string>
+
+    <!-- Lock -->
+    <string name="lock_pin_title">PIN eingeben</string>
+    <string name="lock_pin_setup_title">PIN einrichten</string>
+    <string name="lock_biometric_title">Mit Biometrie entsperren</string>
+    <string name="lock_use_biometric">Biometrie verwenden</string>
+    <string name="lock_wrong_pin">Falsche PIN</string>
+
+    <!-- Start -->
+    <string name="start_tab_dashboards">Dashboards</string>
+    <string name="start_tab_objects">Objekte</string>
+    <string name="start_tab_notifications">Meldungen</string>
+    <string name="start_tab_settings">Einstellungen</string>
+
+    <!-- Dashboards -->
+    <string name="dashboards_title">Dashboards</string>
+    <string name="dashboards_empty">Noch kein Dashboard vorhanden.</string>
+    <string name="dashboards_create">Dashboard erstellen</string>
+    <string name="dashboards_rename">Umbenennen</string>
+    <string name="dashboards_duplicate">Duplizieren</string>
+    <string name="dashboards_delete">Löschen</string>
+    <string name="dashboards_set_start">Als Startdashboard festlegen</string>
+    <string name="dashboard_editor_add_widget">Widget hinzufügen</string>
+    <string name="dashboard_editor_remove_widget">Widget entfernen</string>
+    <string name="dashboard_editor_save">Speichern</string>
+    <string name="dashboard_editor_revision_conflict_title">Server hat neuere Version</string>
+    <string name="dashboard_editor_revision_conflict_body">Das Dashboard wurde inzwischen an anderer Stelle geändert. Möchtest du deine Änderungen trotzdem speichern (überschreiben) oder deine Änderungen verwerfen?</string>
+    <string name="dashboard_editor_overwrite">Überschreiben</string>
+    <string name="dashboard_editor_discard">Verwerfen</string>
+
+    <!-- Object browser -->
+    <string name="objects_title">Objektkatalog</string>
+    <string name="objects_search_hint">Name oder Pfad suchen</string>
+    <string name="objects_filter_room">Raum</string>
+    <string name="objects_filter_role">Rolle</string>
+    <string name="objects_filter_writable_only">Nur schreibbare Objekte</string>
+    <string name="objects_empty">Keine Objekte gefunden.</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Einstellungen</string>
+    <string name="settings_server_info">Serverinformation</string>
+    <string name="settings_last_connection">Letzte Verbindung</string>
+    <string name="settings_logout">Gerät abmelden</string>
+    <string name="settings_logout_confirm">Dieses Gerät wird abgemeldet und alle lokalen Zugangsdaten gelöscht. Fortfahren?</string>
+    <string name="settings_clear_cache">Cache leeren</string>
+    <string name="settings_app_version">App-Version</string>
+    <string name="settings_api_version">API-Version</string>
+    <string name="settings_logs">Protokoll</string>
+
+    <!-- Revocation -->
+    <string name="revoked_title">Zugriff widerrufen</string>
+    <string name="revoked_body">Der Zugriff dieses Geräts wurde vom Administrator widerrufen. Lokale Zugangsdaten wurden gelöscht.</string>
+    <string name="revoked_restart_pairing">Erneut koppeln</string>
+
+    <!-- Common -->
+    <string name="common_retry">Erneut versuchen</string>
+    <string name="common_cancel">Abbrechen</string>
+    <string name="common_ok">OK</string>
+    <string name="common_offline">Offline</string>
+    <string name="common_loading">Lädt…</string>
+    <string name="common_error_generic">Es ist ein Fehler aufgetreten.</string>
+</resources>

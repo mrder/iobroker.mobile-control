@@ -1,0 +1,97 @@
+package com.mobilecontrol.app.data.local
+
+import android.content.Context
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import com.mobilecontrol.app.domain.model.DeviceProfile
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import javax.inject.Inject
+import javax.inject.Singleton
+
+private val Context.dataStore by preferencesDataStore(name = "mobile_control_settings")
+
+@Singleton
+class SettingsDataStore @Inject constructor(
+    @ApplicationContext private val context: Context,
+) {
+    private object Keys {
+        val DEVICE_ID = stringPreferencesKey("device_id")
+        val DEVICE_NAME = stringPreferencesKey("device_name")
+        val INSTANCE_ID = stringPreferencesKey("instance_id")
+        val SERVER_URL = stringPreferencesKey("server_url")
+        val SERVER_FINGERPRINT = stringPreferencesKey("server_fingerprint")
+        val PAIRED_AT = longPreferencesKey("paired_at")
+
+        val APP_LOCK_ENABLED = booleanPreferencesKey("app_lock_enabled")
+        val BIOMETRIC_ENABLED = booleanPreferencesKey("biometric_enabled")
+        val START_DASHBOARD_ID = stringPreferencesKey("start_dashboard_id")
+        val LAST_CONNECTION_AT = longPreferencesKey("last_connection_at")
+    }
+
+    fun observeDeviceProfile(): Flow<DeviceProfile?> = context.dataStore.data.map { prefs ->
+        val deviceId = prefs[Keys.DEVICE_ID] ?: return@map null
+        DeviceProfile(
+            deviceId = deviceId,
+            deviceName = prefs[Keys.DEVICE_NAME].orEmpty(),
+            instanceId = prefs[Keys.INSTANCE_ID].orEmpty(),
+            serverUrl = prefs[Keys.SERVER_URL].orEmpty(),
+            serverFingerprint = prefs[Keys.SERVER_FINGERPRINT].orEmpty(),
+            pairedAt = prefs[Keys.PAIRED_AT] ?: 0L,
+        )
+    }
+
+    suspend fun saveDeviceProfile(profile: DeviceProfile) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.DEVICE_ID] = profile.deviceId
+            prefs[Keys.DEVICE_NAME] = profile.deviceName
+            prefs[Keys.INSTANCE_ID] = profile.instanceId
+            prefs[Keys.SERVER_URL] = profile.serverUrl
+            prefs[Keys.SERVER_FINGERPRINT] = profile.serverFingerprint
+            prefs[Keys.PAIRED_AT] = profile.pairedAt
+        }
+    }
+
+    suspend fun clearDeviceProfile() {
+        context.dataStore.edit { prefs ->
+            prefs.remove(Keys.DEVICE_ID)
+            prefs.remove(Keys.DEVICE_NAME)
+            prefs.remove(Keys.INSTANCE_ID)
+            prefs.remove(Keys.SERVER_URL)
+            prefs.remove(Keys.SERVER_FINGERPRINT)
+            prefs.remove(Keys.PAIRED_AT)
+            prefs.remove(Keys.START_DASHBOARD_ID)
+        }
+    }
+
+    fun observeAppLockEnabled(): Flow<Boolean> = context.dataStore.data.map { it[Keys.APP_LOCK_ENABLED] ?: true }
+
+    suspend fun setAppLockEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.APP_LOCK_ENABLED] = enabled }
+    }
+
+    fun observeBiometricEnabled(): Flow<Boolean> = context.dataStore.data.map { it[Keys.BIOMETRIC_ENABLED] ?: false }
+
+    suspend fun setBiometricEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.BIOMETRIC_ENABLED] = enabled }
+    }
+
+    fun observeStartDashboardId(): Flow<String?> = context.dataStore.data.map { it[Keys.START_DASHBOARD_ID] }
+
+    suspend fun setStartDashboardId(id: String) {
+        context.dataStore.edit { it[Keys.START_DASHBOARD_ID] = id }
+    }
+
+    suspend fun getStartDashboardId(): String? = observeStartDashboardId().first()
+
+    suspend fun setLastConnectionAt(epochMillis: Long) {
+        context.dataStore.edit { it[Keys.LAST_CONNECTION_AT] = epochMillis }
+    }
+
+    fun observeLastConnectionAt(): Flow<Long?> = context.dataStore.data.map { it[Keys.LAST_CONNECTION_AT] }
+}
