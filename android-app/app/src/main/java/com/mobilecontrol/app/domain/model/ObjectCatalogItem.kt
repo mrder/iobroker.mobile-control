@@ -14,6 +14,14 @@ data class ObjectCatalogItem(
     val canRead: Boolean,
     val canWrite: Boolean,
     val hasHistory: Boolean,
+    val min: Double? = null,
+    val max: Double? = null,
+    val step: Double? = null,
+    /** Empty means "no restriction". */
+    val allowedValues: List<String> = emptyList(),
+    val localOnly: Boolean = false,
+    /** One of NONE/DIALOG/BIOMETRIC/REAUTHENTICATE/LOCAL_NETWORK_ONLY/BLOCKED_ON_MOBILE, see ApiErrorCode-adjacent server contract. */
+    val confirmPolicy: String = "NONE",
     val suggestedWidgets: List<String>,
 ) {
     /** First path segment is used as a room heuristic since the server does not expose an explicit room field. */

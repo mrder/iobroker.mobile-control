@@ -7,5 +7,5 @@ interface CommandRepository {
     /** Pending/recent commands keyed by commandId, for widgets to render PENDING/CONFIRMED/FAILED overlays. */
     val commandStates: StateFlow<Map<String, CommandStatus>>
 
-    suspend fun sendCommand(objectId: String, value: Any?): Result<String>
+    suspend fun sendCommand(objectId: String, value: Any?, confirmed: Boolean = false): Result<String>
 }

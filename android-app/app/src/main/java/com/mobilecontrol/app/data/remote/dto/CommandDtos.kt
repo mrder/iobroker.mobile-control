@@ -10,6 +10,8 @@ data class CommandRequestDto(
     val value: JsonElement?,
     val timestamp: String,
     val nonce: String,
+    /** Set true after the user completed a DIALOG/BIOMETRIC/REAUTHENTICATE confirmation client-side. */
+    val confirmed: Boolean? = null,
 )
 
 @Serializable

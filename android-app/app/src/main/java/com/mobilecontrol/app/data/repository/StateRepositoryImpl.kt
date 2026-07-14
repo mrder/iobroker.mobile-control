@@ -155,17 +155,21 @@ class StateRepositoryImpl @Inject constructor(
             return Result.failure(it)
         }
 
-        val fresh = body.states.mapValues { (objectId, dto) ->
+        // Entries the server couldn't resolve come back as `null` (stale/unauthorized UUID) - skip
+        // those instead of surfacing a fake value; the corresponding widget falls back to its
+        // OBJECT_MISSING/NO_PERMISSION state because no LiveValue ever appears for that id.
+        val fresh = body.states.mapNotNull { (objectId, dto) ->
+            if (dto == null) return@mapNotNull null
             val timestamp = parseIsoToEpochMillis(dto.timestamp)
             val lastChange = parseIsoToEpochMillis(dto.lastChange, timestamp)
-            LiveValue(
+            objectId to LiveValue(
                 objectId = objectId,
                 value = dto.value.toKotlinValue(),
                 timestamp = timestamp,
                 lastChange = lastChange,
                 acknowledged = dto.ack,
             )
-        }
+        }.toMap()
         _liveValues.value = _liveValues.value + fresh
         stateCacheDao.upsertAll(
             fresh.map { (id, live) ->

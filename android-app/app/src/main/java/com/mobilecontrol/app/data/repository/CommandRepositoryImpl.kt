@@ -48,7 +48,7 @@ class CommandRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun sendCommand(objectId: String, value: Any?): Result<String> {
+    override suspend fun sendCommand(objectId: String, value: Any?, confirmed: Boolean): Result<String> {
         val commandId = UUID.randomUUID().toString()
         _commandStates.value = _commandStates.value + (commandId to CommandStatus.ACCEPTED)
 
@@ -58,6 +58,7 @@ class CommandRepositoryImpl @Inject constructor(
             value = value.toJsonElement(),
             timestamp = Instant.now().toString(),
             nonce = UUID.randomUUID().toString(),
+            confirmed = confirmed,
         )
 
         val result = safeApiCall { apiService.sendCommand(request) }

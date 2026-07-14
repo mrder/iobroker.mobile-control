@@ -5,6 +5,7 @@ import com.mobilecontrol.app.data.local.entity.CatalogObjectEntity
 import com.mobilecontrol.app.data.remote.ApiService
 import com.mobilecontrol.app.data.remote.dto.ObjectDto
 import com.mobilecontrol.app.data.remote.safeApiCall
+import com.mobilecontrol.app.data.remote.toKotlinValue
 import com.mobilecontrol.app.domain.model.ObjectCatalogItem
 import com.mobilecontrol.app.domain.model.ValueType
 import com.mobilecontrol.app.domain.repository.ObjectCatalogRepository
@@ -38,6 +39,12 @@ private fun ObjectDto.toEntity() = CatalogObjectEntity(
     canRead = read,
     canWrite = write,
     hasHistory = history,
+    min = min,
+    max = max,
+    step = step,
+    allowedValues = allowedValues.orEmpty().mapNotNull { it.toKotlinValue()?.toString() },
+    localOnly = localOnly,
+    confirmPolicy = confirmPolicy,
     suggestedWidgets = suggestedWidgets,
 )
 
@@ -56,5 +63,11 @@ private fun CatalogObjectEntity.toDomain() = ObjectCatalogItem(
     canRead = canRead,
     canWrite = canWrite,
     hasHistory = hasHistory,
+    min = min,
+    max = max,
+    step = step,
+    allowedValues = allowedValues,
+    localOnly = localOnly,
+    confirmPolicy = confirmPolicy,
     suggestedWidgets = suggestedWidgets,
 )

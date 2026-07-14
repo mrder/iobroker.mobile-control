@@ -12,7 +12,10 @@ import com.mobilecontrol.app.data.local.entity.StateCacheEntity
 
 @Database(
     entities = [CatalogObjectEntity::class, DashboardEntity::class, StateCacheEntity::class],
-    version = 1,
+    // v2: added min/max/step/allowedValues/localOnly/confirmPolicy to CatalogObjectEntity.
+    // No real installs exist yet (pre-1.0), so DatabaseModule uses fallbackToDestructiveMigration()
+    // instead of a real Migration - replace with a proper migration before shipping past 1.0.
+    version = 2,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)

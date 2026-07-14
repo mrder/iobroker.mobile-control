@@ -5,7 +5,9 @@ import kotlinx.serialization.json.JsonElement
 
 @Serializable
 data class StatesResponseDto(
-    val states: Map<String, StateValueDto> = emptyMap(),
+    // Server sends `null` for object ids it can't resolve (e.g. stale/unauthorized UUID) -
+    // the value type MUST be nullable or decoding the whole response throws.
+    val states: Map<String, StateValueDto?> = emptyMap(),
 )
 
 @Serializable
