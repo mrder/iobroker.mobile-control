@@ -15,7 +15,8 @@
     "declaration": false,
     "sourceMap": true,
     "outDir": "build",
-    "rootDir": "."
+    "rootDir": ".",
+    "types": ["node", "mocha", "@iobroker/types"]
   },
   "include": ["src/**/*.ts", "test/**/*.ts"],
   "exclude": ["node_modules", "build", "admin", "android-app"]

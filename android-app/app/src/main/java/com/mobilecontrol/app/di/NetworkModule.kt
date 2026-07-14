@@ -32,9 +32,7 @@ object NetworkModule {
         encodeDefaults = true
     }
 
-    @Provides
-    @Singleton
-    fun provideServerConfigHolder(): ServerConfigHolder = ServerConfigHolder()
+    // ServerConfigHolder is constructor-injected (@Inject) directly - no @Provides needed here.
 
     @Provides
     @Singleton

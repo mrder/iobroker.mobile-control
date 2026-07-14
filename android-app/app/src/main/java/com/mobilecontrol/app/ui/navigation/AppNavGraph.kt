@@ -1,10 +1,17 @@
 package com.mobilecontrol.app.ui.navigation
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
@@ -26,8 +33,6 @@ import com.mobilecontrol.app.ui.onboarding.QrScanScreen
 import com.mobilecontrol.app.ui.onboarding.ServerCheckScreen
 import com.mobilecontrol.app.ui.onboarding.WelcomeScreen
 import com.mobilecontrol.app.ui.start.StartScreen
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 
 @Composable
 fun AppNavGraph(navController: NavHostController = rememberNavController()) {
@@ -73,7 +78,13 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
         }
     }
 
-    val start = resolvedStart ?: return
+    val start = resolvedStart
+    if (start == null) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        return
+    }
 
     NavHost(navController = navController, startDestination = start) {
         composable(Routes.WELCOME) {

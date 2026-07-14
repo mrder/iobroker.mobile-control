@@ -26,6 +26,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mobilecontrol.app.R
+import com.mobilecontrol.app.ui.theme.SecureScreen
 import java.text.DateFormat
 import java.util.Date
 
@@ -35,6 +36,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
     onLoggedOut: () -> Unit,
 ) {
+    SecureScreen()
     val state by viewModel.uiState.collectAsState()
     var showLogoutConfirm by remember { mutableStateOf(false) }
     var showLogs by remember { mutableStateOf(false) }

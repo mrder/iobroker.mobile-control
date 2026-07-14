@@ -9,7 +9,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.mobilecontrol.app.ui.lock.AppLockManager
@@ -19,7 +18,11 @@ import com.mobilecontrol.app.ui.theme.MobileControlTheme
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
-private val SECURE_SCREEN_PREFIXES = listOf(Routes.ONBOARDING_GRAPH, Routes.SETTINGS)
+// Settings is intentionally not listed here: it lives inside Start's nested bottom-nav NavHost,
+// which the top-level NavController never sees as a distinct route. SettingsScreen instead calls
+// ui.theme.SecureScreen() itself to set FLAG_SECURE. Onboarding/pairing screens ARE top-level
+// routes, so route-prefix matching works fine for them.
+private val SECURE_SCREEN_PREFIXES = listOf(Routes.ONBOARDING_GRAPH)
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {

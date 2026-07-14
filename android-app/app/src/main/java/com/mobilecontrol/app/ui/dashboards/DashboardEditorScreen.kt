@@ -104,11 +104,15 @@ fun DashboardEditorScreen(
                     Text("Noch keine Widgets in diesem Layout.")
                 }
             } else {
+                // The grid always renders at most 4 physical columns regardless of the layout's
+                // configured column count (which can go up to 12 for "expanded") - widget spans are
+                // clamped to the same number so a wide widget can never exceed the visible grid.
+                val displayColumns = layout.columns.coerceIn(1, 4)
                 LazyVerticalGrid(
-                    columns = GridCells.Fixed(layout.columns.coerceAtMost(4).coerceAtLeast(1)),
+                    columns = GridCells.Fixed(displayColumns),
                     contentPadding = PaddingValues(8.dp),
                 ) {
-                    items(layout.widgets, key = { it.id }, span = { GridItemSpan(it.w.coerceAtMost(layout.columns)) }) { widget ->
+                    items(layout.widgets, key = { it.id }, span = { GridItemSpan(it.w.coerceIn(1, displayColumns)) }) { widget ->
                         WidgetCell(
                             widget = widget,
                             state = state,
