@@ -7,7 +7,9 @@ import com.mobilecontrol.app.data.remote.dto.CommandRequestDto
 import com.mobilecontrol.app.data.remote.safeApiCall
 import com.mobilecontrol.app.data.remote.toJsonElement
 import com.mobilecontrol.app.domain.model.CommandStatus
+import com.mobilecontrol.app.domain.repository.AppNotification
 import com.mobilecontrol.app.domain.repository.CommandRepository
+import com.mobilecontrol.app.domain.repository.NotificationRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -24,6 +26,7 @@ import javax.inject.Singleton
 class CommandRepositoryImpl @Inject constructor(
     private val apiService: ApiService,
     private val webSocketClient: RealtimeWebSocketClient,
+    private val notificationRepository: NotificationRepository,
 ) : CommandRepository {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -37,6 +40,9 @@ class CommandRepositoryImpl @Inject constructor(
                 if (event is WsEvent.CommandResult) {
                     val status = CommandStatus.fromWireName(event.status)
                     _commandStates.value = _commandStates.value + (event.commandId to status)
+                    if (status == CommandStatus.REJECTED || status == CommandStatus.BLOCKED) {
+                        notifyCommandFailure(status)
+                    }
                 }
             }
         }

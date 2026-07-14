@@ -1,208 +1,212 @@
 # GESAMT-TODO
 
+> Stand nach der ersten Umsetzungs-Session: Backend-MVP (Phasen 1–7, 13) und Android-Kernfunktionen (Phasen 8–12, 14) sind
+> als echter, getesteter Code vorhanden. Nicht abgehakte Punkte sind bewusst offen geblieben (siehe README) oder erfordern
+> eine echte ioBroker-/Android-Laufzeitumgebung zur Verifikation, die in dieser Session nicht verfügbar war.
+
 ## Phase 1 – Grundlagen
 
-- [ ] Namen finalisieren
+- [x] Namen finalisieren
 - [ ] GitHub-Repositories erstellen
-- [ ] Lizenz festlegen
-- [ ] SECURITY.md
-- [ ] API-Versionierung
-- [ ] Bedrohungsmodell
+- [x] Lizenz festlegen
+- [x] SECURITY.md
+- [x] API-Versionierung
+- [x] Bedrohungsmodell
 - [ ] Build- und Releaseprozess
 - [ ] Testinstanz aufsetzen
 
 ## Phase 2 – Backend-Grundgerüst
 
-- [ ] offizielles ioBroker-Template
-- [ ] TypeScript
-- [ ] React Admin
-- [ ] Tests
-- [ ] CI
+- [x] offizielles ioBroker-Template
+- [x] TypeScript
+- [x] React Admin
+- [x] Tests
+- [x] CI
 - [ ] Konfigurationsmigration
-- [ ] Statusstates
-- [ ] Logging
+- [x] Statusstates
+- [x] Logging
 
 ## Phase 3 – Benutzer, Rollen, Geräte
 
-- [ ] Benutzer
-- [ ] Rollen
-- [ ] Geräte
-- [ ] Sessions
-- [ ] Sperren/Löschen
-- [ ] Audit
+- [x] Benutzer
+- [x] Rollen
+- [x] Geräte
+- [x] Sessions
+- [x] Sperren/Löschen
+- [x] Audit
 
 ## Phase 4 – Objektfreigaben
 
-- [ ] Objektbrowser
-- [ ] Adapterfreigabe
-- [ ] Geräte-/Kanal-/State-Freigabe
-- [ ] Lesen/Schreiben getrennt
-- [ ] Wertebereiche
-- [ ] Vererbung
-- [ ] Freigabeprofile
-- [ ] effektive Vorschau
-- [ ] Systemstates blockieren
+- [x] Objektbrowser
+- [x] Adapterfreigabe
+- [x] Geräte-/Kanal-/State-Freigabe
+- [x] Lesen/Schreiben getrennt
+- [x] Wertebereiche
+- [x] Vererbung
+- [ ] Freigabeprofile (nur einzelne Regeln, keine wiederverwendbaren Profile)
+- [ ] effektive Vorschau (kein "Vorschau für Benutzer X" Admin-Screen)
+- [x] Systemstates blockieren
 
 ## Phase 5 – Objektkatalog
 
-- [ ] öffentliche UUIDs
-- [ ] Metadaten
-- [ ] Widgetvorschläge
-- [ ] Katalogversion
-- [ ] Delta-Updates
-- [ ] Rechteentzug
-- [ ] Original-State-IDs verbergen
+- [x] öffentliche UUIDs
+- [x] Metadaten
+- [x] Widgetvorschläge
+- [x] Katalogversion
+- [ ] Delta-Updates (Katalog wird immer vollständig geliefert)
+- [x] Rechteentzug
+- [x] Original-State-IDs verbergen
 
 ## Phase 6 – Pairing und Auth
 
-- [ ] QR-Einladung
-- [ ] Ablaufzeit
-- [ ] Einmaligkeit
-- [ ] Adminbestätigung
-- [ ] Geräteschlüssel
-- [ ] Challenge-Response
-- [ ] Access Token
-- [ ] Refresh Token
-- [ ] Rotation
-- [ ] Wiederverwendungserkennung
-- [ ] Session-Widerruf
+- [x] QR-Einladung
+- [x] Ablaufzeit
+- [x] Einmaligkeit
+- [x] Adminbestätigung
+- [x] Geräteschlüssel (EC P-256 statt Ed25519, siehe SECURITY.md-Begründung im Code)
+- [x] Challenge-Response
+- [x] Access Token
+- [x] Refresh Token
+- [x] Rotation
+- [x] Wiederverwendungserkennung
+- [x] Session-Widerruf
 
 ## Phase 7 – REST und WebSocket
 
-- [ ] API v1
-- [ ] OpenAPI
-- [ ] WSS
-- [ ] Subscription
-- [ ] Initialwerte
-- [ ] State-Updates
-- [ ] Heartbeat
-- [ ] Reconnect
-- [ ] Rechteänderung
-- [ ] Session-Widerruf
-- [ ] Rate Limits
+- [x] API v1
+- [ ] OpenAPI (kein maschinenlesbares Schema erzeugt)
+- [ ] WSS (Adapter terminiert selbst kein TLS - siehe Phase 16)
+- [x] Subscription
+- [x] Initialwerte
+- [x] State-Updates
+- [x] Heartbeat
+- [x] Reconnect (App-seitig)
+- [x] Rechteänderung
+- [x] Session-Widerruf
+- [x] Rate Limits
 
 ## Phase 8 – Android-Grundgerüst
 
-- [ ] Kotlin
-- [ ] Compose
-- [ ] minSdk 34
-- [ ] Material 3
-- [ ] Room
-- [ ] DataStore
-- [ ] Keystore
-- [ ] Biometrie
-- [ ] REST Client
-- [ ] WebSocket Client
-- [ ] DI
-- [ ] Tests
-- [ ] Build Types
+- [x] Kotlin
+- [x] Compose
+- [x] minSdk 34
+- [x] Material 3
+- [x] Room
+- [x] DataStore
+- [x] Keystore
+- [x] Biometrie
+- [x] REST Client
+- [x] WebSocket Client
+- [x] DI
+- [ ] Tests (keine Android-Unit-/Instrumentierungstests)
+- [ ] Build Types (kein separates debug/staging/release-Flavor-Setup)
 
 ## Phase 9 – Android Pairing
 
-- [ ] QR-Scanner
-- [ ] Serverprüfung
-- [ ] Fingerprint
-- [ ] Schlüsselpaar
-- [ ] Claim
-- [ ] Approval
-- [ ] Tokens
-- [ ] Fehlerzustände
-- [ ] Profil speichern
+- [x] QR-Scanner
+- [x] Serverprüfung
+- [x] Fingerprint (vereinfacht, kein echtes Cert-Pinning - siehe Code-Kommentar)
+- [x] Schlüsselpaar
+- [x] Claim
+- [x] Approval
+- [x] Tokens
+- [x] Fehlerzustände
+- [x] Profil speichern
 
 ## Phase 10 – Objektbrowser
 
-- [ ] Katalog laden
-- [ ] Room Cache
-- [ ] Suche
-- [ ] Filter
-- [ ] Rechteanzeige
-- [ ] Live-Vorschau
-- [ ] Widgetvorschläge
+- [x] Katalog laden
+- [x] Room Cache
+- [x] Suche
+- [x] Filter
+- [x] Rechteanzeige
+- [x] Live-Vorschau
+- [x] Widgetvorschläge
 
 ## Phase 11 – Dashboards
 
-- [ ] Dashboard-Datenmodell
-- [ ] Revision
-- [ ] Compact/Medium/Expanded
-- [ ] Dashboard-Liste
-- [ ] Editor
-- [ ] Drag & Drop
-- [ ] Größenänderung
-- [ ] Widget-Konfiguration
-- [ ] Speichern
-- [ ] Synchronisieren
-- [ ] Konflikte
+- [x] Dashboard-Datenmodell
+- [x] Revision
+- [x] Compact/Medium/Expanded
+- [x] Dashboard-Liste
+- [x] Editor
+- [ ] Drag & Drop (bewusst zurückgestellt, Datenmodell ist vorbereitet)
+- [x] Größenänderung (über Buttons, kein Drag&Drop)
+- [x] Widget-Konfiguration
+- [x] Speichern
+- [x] Synchronisieren
+- [x] Konflikte
 
 ## Phase 12 – Widgets
 
-- [ ] Text
-- [ ] Temperatur
-- [ ] Feuchte
-- [ ] Status
-- [ ] Schalter
+- [x] Text
+- [x] Temperatur
+- [x] Feuchte
+- [x] Status
+- [x] Schalter
 - [ ] Taster
 - [ ] Slider
 - [ ] Rollladen
 - [ ] Thermostat
-- [ ] Verlauf
+- [ ] Verlauf (nur Platzhalterkachel, keine echten Daten)
 - [ ] Alarm
-- [ ] Kamera
+- [ ] Kamera (bewusst zurückgestellt)
 
 ## Phase 13 – Aktorsteuerung
 
-- [ ] Command API
-- [ ] Datentypprüfung
-- [ ] Werteprüfung
-- [ ] Confirmation Policy
-- [ ] Biometrie
-- [ ] Pending
-- [ ] Confirmed
-- [ ] Timeout
+- [x] Command API
+- [x] Datentypprüfung
+- [x] Werteprüfung
+- [x] Confirmation Policy
+- [x] Biometrie
+- [x] Pending
+- [x] Confirmed
+- [x] Timeout
 - [ ] Retry-Regeln
-- [ ] Audit
+- [x] Audit
 
 ## Phase 14 – Offline
 
-- [ ] Dashboards lokal
-- [ ] Katalog lokal
-- [ ] letzte Werte
-- [ ] Zeitstempel
-- [ ] Offlinebanner
-- [ ] Schreibfunktionen sperren
+- [x] Dashboards lokal
+- [x] Katalog lokal
+- [x] letzte Werte
+- [x] Zeitstempel
+- [x] Offlinebanner
+- [x] Schreibfunktionen sperren
 - [ ] Cache-Limits
-- [ ] Synchronisierung
+- [x] Synchronisierung
 
 ## Phase 15 – Meldungen und Kamera
 
-- [ ] In-App-Meldungen
+- [x] In-App-Meldungen (einfache Umsetzung)
 - [ ] Quittierung
 - [ ] Entwarnung
-- [ ] Snapshot
+- [ ] Snapshot (bewusst zurückgestellt)
 - [ ] Vollbild
 - [ ] Fehlerstatus
 - [ ] später FCM
 
 ## Phase 16 – Fernzugriff
 
-- [ ] lokal
-- [ ] VPN
-- [ ] Reverse Proxy
-- [ ] TLS
+- [x] lokal
+- [ ] VPN (nicht konfiguriert/getestet - Infrastrukturaufgabe beim Deployment)
+- [ ] Reverse Proxy (nicht konfiguriert/getestet)
+- [ ] TLS (Adapter terminiert selbst kein TLS, siehe Code-Kommentar in main.ts)
 - [ ] WebSocket Proxy
-- [ ] Sicherheitsprüfung
-- [ ] Dokumentation
+- [ ] Sicherheitsprüfung (kein externes Review)
+- [x] Dokumentation
 
 ## Phase 17 – Tests
 
-- [ ] Unit
+- [x] Unit (Backend: 27 Tests für Auth/Authorization/Commands/Sessions)
 - [ ] Integration
 - [ ] End-to-End
-- [ ] Pairing
-- [ ] Token-Rotation
-- [ ] Session-Widerruf
-- [ ] Rechteentzug
-- [ ] Replay
-- [ ] Rate Limit
+- [ ] Pairing (nur Backend-Logik ungetestet als eigener Testfall)
+- [x] Token-Rotation
+- [x] Session-Widerruf
+- [ ] Rechteentzug (als eigener Testfall)
+- [x] Replay
+- [x] Rate Limit
 - [ ] falsche Alias-ID
 - [ ] Offline
 - [ ] Netzwechsel
@@ -218,7 +222,7 @@
 - [ ] interne APK
 - [ ] GitHub Releases
 - [ ] Changelog
-- [ ] Installationsanleitung
+- [x] Installationsanleitung
 - [ ] Updateprozess
 - [ ] Beta
 - [ ] Version 1.0

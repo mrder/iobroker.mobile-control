@@ -13,8 +13,11 @@ import com.mobilecontrol.app.data.remote.parseIsoToEpochMillis
 import com.mobilecontrol.app.data.remote.safeApiCall
 import com.mobilecontrol.app.data.remote.toKotlinValue
 import com.mobilecontrol.app.domain.model.LiveValue
+import com.mobilecontrol.app.domain.repository.AppNotification
 import com.mobilecontrol.app.domain.repository.ConnectionState
+import com.mobilecontrol.app.domain.repository.NotificationRepository
 import com.mobilecontrol.app.domain.repository.StateRepository
+import java.util.UUID
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -33,6 +36,7 @@ class StateRepositoryImpl @Inject constructor(
     private val networkMonitor: NetworkMonitor,
     private val revocationNotifier: RevocationNotifier,
     private val settingsDataStore: SettingsDataStore,
+    private val notificationRepository: NotificationRepository,
 ) : StateRepository {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -70,12 +74,16 @@ class StateRepositoryImpl @Inject constructor(
                 settingsDataStore.setLastConnectionAt(System.currentTimeMillis())
             }
             is WsEvent.Disconnected -> {
+                val previous = _connectionState.value
                 _connectionState.value = if (!isOnline) {
                     ConnectionState.OFFLINE
                 } else if (event.willReconnect) {
                     ConnectionState.CONNECTING
                 } else {
                     ConnectionState.DISCONNECTED
+                }
+                if (previous == ConnectionState.CONNECTED) {
+                    notify("Verbindung getrennt", "Die Verbindung zum Server wurde unterbrochen.", AppNotification.Severity.WARNING)
                 }
             }
 
@@ -107,6 +115,7 @@ class StateRepositoryImpl @Inject constructor(
             is WsEvent.PermissionsChanged -> {
                 // Permission set narrowed/widened server-side; the catalog/object browser should
                 // refetch on next visibility. No direct action needed from the realtime layer itself.
+                notify("Berechtigungen geändert", "Der Server hat deine Zugriffsrechte aktualisiert.", AppNotification.Severity.INFO)
             }
 
             is WsEvent.Heartbeat -> Unit
@@ -179,5 +188,18 @@ class StateRepositoryImpl @Inject constructor(
     override fun disconnect() {
         webSocketClient.disconnect()
         _connectionState.value = ConnectionState.DISCONNECTED
+    }
+
+    private fun notify(title: String, body: String, severity: AppNotification.Severity) {
+        notificationRepository.push(
+            AppNotification(
+                id = UUID.randomUUID().toString(),
+                title = title,
+                body = body,
+                timestamp = System.currentTimeMillis(),
+                severity = severity,
+                read = false,
+            ),
+        )
     }
 }
