@@ -111,3 +111,31 @@ export interface Overview {
     activeSessions: number;
     connectedDevices: number;
 }
+
+export type ExposureRuleTemplate = Omit<ExposureRule, 'id' | 'roleId' | 'userId' | 'deviceId' | 'createdAt'>;
+
+export interface ExposureProfile {
+    id: string;
+    name: string;
+    description: string | null;
+    rules: ExposureRuleTemplate[];
+    createdAt: number;
+}
+
+export interface CatalogObject {
+    id: string;
+    name: string;
+    path: string[];
+    role: string;
+    valueType: string;
+    unit: string | null;
+    read: boolean;
+    write: boolean;
+    history: boolean;
+    suggestedWidgets: string[];
+}
+
+export interface EffectiveCatalog {
+    version: number;
+    objects: CatalogObject[];
+}

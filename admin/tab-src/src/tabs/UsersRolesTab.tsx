@@ -15,17 +15,29 @@ import {
     IconButton,
     Grid,
     Paper,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    Chip,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 import { callAdapter } from '../connection';
-import type { Role, User } from '../types';
+import type { Role, User, Device, EffectiveCatalog } from '../types';
 
 export default function UsersRolesTab(): JSX.Element {
     const [roles, setRoles] = useState<Role[]>([]);
     const [users, setUsers] = useState<User[]>([]);
+    const [devices, setDevices] = useState<Device[]>([]);
     const [newRoleName, setNewRoleName] = useState('');
     const [newUserName, setNewUserName] = useState('');
     const [newUserRole, setNewUserRole] = useState('');
+
+    const [previewUser, setPreviewUser] = useState<User | null>(null);
+    const [previewDeviceId, setPreviewDeviceId] = useState('');
+    const [previewCatalog, setPreviewCatalog] = useState<EffectiveCatalog | null>(null);
+    const [previewLoading, setPreviewLoading] = useState(false);
 
     const loadRoles = (): void => {
         void callAdapter<Role[]>('listRoles').then(setRoles);
@@ -33,11 +45,35 @@ export default function UsersRolesTab(): JSX.Element {
     const loadUsers = (): void => {
         void callAdapter<User[]>('listUsers').then(setUsers);
     };
+    const loadDevices = (): void => {
+        void callAdapter<Device[]>('listDevices').then(setDevices);
+    };
 
     useEffect(() => {
         loadRoles();
         loadUsers();
+        loadDevices();
     }, []);
+
+    const fetchPreview = (userId: string, deviceId: string): void => {
+        setPreviewLoading(true);
+        callAdapter<EffectiveCatalog>('previewCatalog', { userId, deviceId: deviceId || undefined })
+            .then(setPreviewCatalog)
+            .finally(() => setPreviewLoading(false));
+    };
+
+    const openPreview = (user: User): void => {
+        setPreviewUser(user);
+        setPreviewDeviceId('');
+        setPreviewCatalog(null);
+        fetchPreview(user.id, '');
+    };
+
+    const runPreview = (deviceId: string): void => {
+        if (!previewUser) return;
+        setPreviewDeviceId(deviceId);
+        fetchPreview(previewUser.id, deviceId);
+    };
 
     const createRole = async (): Promise<void> => {
         if (!newRoleName.trim()) return;
@@ -173,6 +209,9 @@ export default function UsersRolesTab(): JSX.Element {
                                         />
                                     </TableCell>
                                     <TableCell align="right">
+                                        <IconButton size="small" onClick={() => openPreview(user)} title="Effektive Freigaben ansehen">
+                                            <VisibilityIcon fontSize="small" />
+                                        </IconButton>
                                         <IconButton size="small" onClick={() => deleteUser(user.id)}>
                                             <DeleteIcon fontSize="small" />
                                         </IconButton>
@@ -183,6 +222,57 @@ export default function UsersRolesTab(): JSX.Element {
                     </Table>
                 </Paper>
             </Grid>
+
+            <Dialog open={!!previewUser} onClose={() => setPreviewUser(null)} maxWidth="sm" fullWidth>
+                <DialogTitle>Effektive Freigaben – {previewUser?.name}</DialogTitle>
+                <DialogContent>
+                    <Select
+                        size="small"
+                        fullWidth
+                        value={previewDeviceId}
+                        onChange={(e) => runPreview(e.target.value)}
+                        sx={{ mb: 2 }}
+                    >
+                        <MenuItem value="">Rollenbasiert (kein bestimmtes Gerät)</MenuItem>
+                        {devices
+                            .filter((d) => d.userId === previewUser?.id)
+                            .map((d) => (
+                                <MenuItem key={d.id} value={d.id}>
+                                    {d.name}
+                                </MenuItem>
+                            ))}
+                    </Select>
+                    {previewLoading && <Typography variant="body2">Lädt…</Typography>}
+                    {!previewLoading && previewCatalog && (
+                        <Table size="small">
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell>Objekt</TableCell>
+                                    <TableCell>Rechte</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {previewCatalog.objects.map((o) => (
+                                    <TableRow key={o.id}>
+                                        <TableCell>{o.name}</TableCell>
+                                        <TableCell>
+                                            <Chip size="small" label={[o.read && 'R', o.write && 'W', o.history && 'H'].filter(Boolean).join('') || '–'} />
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                                {previewCatalog.objects.length === 0 && (
+                                    <TableRow>
+                                        <TableCell colSpan={2}>Keine sichtbaren Objekte.</TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    )}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setPreviewUser(null)}>Schließen</Button>
+                </DialogActions>
+            </Dialog>
         </Grid>
     );
 }

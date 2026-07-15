@@ -10,6 +10,7 @@ import type {
     CommandRecord,
     Dashboard,
     Device,
+    ExposureProfile,
     ExposureRule,
     PairingClaim,
     PairingInvite,
@@ -26,6 +27,7 @@ import { PairingService } from './pairing';
 import { AuthService } from './auth';
 import { SessionsService } from './sessions';
 import { ExposureService } from './exposure';
+import { ExposureProfilesService, type OwnerType } from './exposure/profiles';
 import { AuthorizationService } from './authorization';
 import { CatalogService } from './catalog';
 import { DashboardsService } from './dashboards';
@@ -63,6 +65,7 @@ class MobileControlAdapter extends utils.Adapter {
     private authService!: AuthService;
     private sessionsService!: SessionsService;
     private exposureService!: ExposureService;
+    private exposureProfilesService!: ExposureProfilesService;
     private authorizationService!: AuthorizationService;
     private catalogService!: CatalogService;
     private dashboardsService!: DashboardsService;
@@ -107,6 +110,7 @@ class MobileControlAdapter extends utils.Adapter {
         const claimsStore = new CollectionStore<PairingClaim>(this, 'pairingClaims');
         const sessionsStore = new CollectionStore<Session>(this, 'sessions');
         const exposureStore = new CollectionStore<ExposureRule>(this, 'exposureRules');
+        const exposureProfilesStore = new CollectionStore<ExposureProfile>(this, 'exposureProfiles');
         const mappingsStore = new CollectionStore<PublicObjectMapping>(this, 'objectMappings');
         const dashboardsStore = new CollectionStore<Dashboard>(this, 'dashboards');
         const commandsStore = new CollectionStore<CommandRecord>(this, 'commands');
@@ -120,6 +124,7 @@ class MobileControlAdapter extends utils.Adapter {
             claimsStore.init(),
             sessionsStore.init(),
             exposureStore.init(),
+            exposureProfilesStore.init(),
             mappingsStore.init(),
             dashboardsStore.init(),
             commandsStore.init(),
@@ -142,6 +147,7 @@ class MobileControlAdapter extends utils.Adapter {
             requireAdminApproval: config.requireAdminApproval,
         });
         this.exposureService = new ExposureService(this, exposureStore);
+        this.exposureProfilesService = new ExposureProfilesService(exposureProfilesStore, this.exposureService);
         this.authorizationService = new AuthorizationService(this.exposureService);
         this.catalogService = new CatalogService(this.exposureService, this.authorizationService, mappingsStore);
         this.dashboardsService = new DashboardsService(dashboardsStore, mappingsStore, this.authorizationService, this.usersService);
@@ -331,6 +337,24 @@ class MobileControlAdapter extends utils.Adapter {
                 case 'browseObjectTree':
                     respond(await this.exposureService.browseObjectTree());
                     break;
+                // BACKEND-KONZEPT.md §4 "effektive Vorschau": lets an admin see exactly what a
+                // given user (optionally narrowed to one of their devices) would receive from
+                // GET /api/v1/catalog, without needing that user's own session/token.
+                case 'previewCatalog': {
+                    const previewUserId = String(body.userId);
+                    const previewUser = this.usersService.require(previewUserId);
+                    const previewDeviceId = body.deviceId ? String(body.deviceId) : '';
+                    const previewDevice = previewDeviceId ? this.devicesService.get(previewDeviceId) : undefined;
+                    const previewRoleId = previewDevice?.roleId ?? previewUser.roleId;
+                    respond(
+                        await this.catalogService.effectiveCatalog({
+                            userId: previewUserId,
+                            deviceId: previewDeviceId,
+                            roleId: previewRoleId,
+                        }),
+                    );
+                    break;
+                }
                 case 'listExposureRules':
                     respond(this.exposureService.list());
                     break;
@@ -352,6 +376,47 @@ class MobileControlAdapter extends utils.Adapter {
                     await this.exposureService.delete(String(body.id));
                     respond({ ok: true });
                     break;
+
+                case 'listExposureProfiles':
+                    respond(this.exposureProfilesService.list());
+                    break;
+                case 'createExposureProfileFromOwner':
+                    respond(
+                        await this.exposureProfilesService.createFromOwner(
+                            String(body.name),
+                            body.description ? String(body.description) : null,
+                            body.ownerType as OwnerType,
+                            String(body.ownerId),
+                        ),
+                    );
+                    break;
+                case 'renameExposureProfile':
+                    respond(
+                        await this.exposureProfilesService.rename(
+                            String(body.id),
+                            String(body.name),
+                            body.description ? String(body.description) : null,
+                        ),
+                    );
+                    break;
+                case 'deleteExposureProfile':
+                    await this.exposureProfilesService.delete(String(body.id));
+                    respond({ ok: true });
+                    break;
+                case 'applyExposureProfile': {
+                    const applied = await this.exposureProfilesService.applyTo(
+                        String(body.profileId),
+                        body.ownerType as OwnerType,
+                        String(body.ownerId),
+                    );
+                    await this.auditService.log({
+                        action: 'exposure.profile_applied',
+                        result: 'success',
+                        detail: `profile=${String(body.profileId)} owner=${String(body.ownerType)}:${String(body.ownerId)} rules=${applied.length}`,
+                    });
+                    respond(applied);
+                    break;
+                }
 
                 case 'listSessions':
                     respond(this.sessionsService.list());

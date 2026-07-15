@@ -5,10 +5,11 @@ import OverviewTab from './tabs/OverviewTab';
 import UsersRolesTab from './tabs/UsersRolesTab';
 import DevicesPairingTab from './tabs/DevicesPairingTab';
 import ExposureTab from './tabs/ExposureTab';
+import ProfilesTab from './tabs/ProfilesTab';
 import SessionsTab from './tabs/SessionsTab';
 import AuditTab from './tabs/AuditTab';
 
-const TAB_LABELS = ['Übersicht', 'Benutzer & Rollen', 'Geräte & Pairing', 'Objektfreigaben', 'Sessions', 'Audit'];
+const TAB_LABELS = ['Übersicht', 'Benutzer & Rollen', 'Geräte & Pairing', 'Objektfreigaben', 'Freigabeprofile', 'Sessions', 'Audit'];
 
 export default function App(): JSX.Element {
     const [tab, setTab] = useState(0);
@@ -65,8 +66,9 @@ export default function App(): JSX.Element {
                         {tab === 1 && <UsersRolesTab />}
                         {tab === 2 && <DevicesPairingTab />}
                         {tab === 3 && <ExposureTab />}
-                        {tab === 4 && <SessionsTab />}
-                        {tab === 5 && <AuditTab />}
+                        {tab === 4 && <ProfilesTab />}
+                        {tab === 5 && <SessionsTab />}
+                        {tab === 6 && <AuditTab />}
                     </>
                 )}
             </Box>

@@ -116,6 +116,17 @@ export interface PublicObjectMapping {
     createdAt: number;
 }
 
+/** An ExposureRule without an owner (roleId/userId/deviceId) - filled in when a profile is applied. */
+export type ExposureRuleTemplate = Omit<ExposureRule, 'id' | 'roleId' | 'userId' | 'deviceId' | 'createdAt'>;
+
+export interface ExposureProfile {
+    id: string;
+    name: string;
+    description: string | null;
+    rules: ExposureRuleTemplate[];
+    createdAt: number;
+}
+
 export interface CatalogObject {
     id: string;
     name: string;
