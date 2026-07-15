@@ -48,7 +48,9 @@ Siehe [android-app/README.md](android-app/README.md) – eigenständiges Android
 - [docs/BACKEND-KONZEPT.md](docs/BACKEND-KONZEPT.md) – Adapter-Architektur
 - [docs/ANDROID-APP-KONZEPT.md](docs/ANDROID-APP-KONZEPT.md) – App-Architektur
 - [docs/API-VERTRAG.md](docs/API-VERTRAG.md) – REST-/WebSocket-Vertrag
+- [docs/openapi.yaml](docs/openapi.yaml) – maschinenlesbare OpenAPI-3.0-Spezifikation des REST-Teils
 - [docs/SECURITY.md](docs/SECURITY.md) – Sicherheitsmodell
+- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) – Reverse-Proxy/VPN/TLS-Anleitung, OWASP-Abgleich
 - [docs/ROADMAP.md](docs/ROADMAP.md) – Versionen und Meilensteine
 - [docs/TODO.md](docs/TODO.md) – Entwicklungsstand
 

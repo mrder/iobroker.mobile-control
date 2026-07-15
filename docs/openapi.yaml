@@ -1,0 +1,513 @@
+openapi: 3.0.3
+info:
+  title: ioBroker Mobile Control API
+  version: "1.0"
+  description: |
+    REST contract of the `iobroker.mobile-control` adapter, matching `docs/API-VERTRAG.md`
+    and the implementation in `src/api/router.ts`. The adapter never exposes the raw
+    ioBroker object tree or arbitrary state ids - only public object UUIDs from the
+    filtered catalog. WebSocket contract (`/ws/v1`) is documented separately in
+    `docs/API-VERTRAG.md` §8, since OpenAPI does not model WebSocket message flows.
+servers:
+  - url: /api/v1
+
+tags:
+  - name: pairing
+  - name: auth
+  - name: catalog
+  - name: commands
+  - name: dashboards
+
+paths:
+  /pairing/claim:
+    post:
+      tags: [pairing]
+      summary: Claim a scanned pairing invitation and register this device
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClaimRequest'
+      responses:
+        '200':
+          description: Claim accepted (still needs status polling)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClaimResponse'
+        '400':
+          $ref: '#/components/responses/Error'
+
+  /pairing/status/{claimId}:
+    get:
+      tags: [pairing]
+      summary: Poll the approval status of a pairing claim
+      security: []
+      parameters:
+        - name: claimId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: |
+            Status of the claim. Tokens are included exactly once - the first time this
+            endpoint is polled after the claim has been approved. Subsequent polls only
+            return `{"status":"approved"}` without tokens.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PairingStatusResponse'
+        '404':
+          $ref: '#/components/responses/Error'
+
+  /auth/challenge:
+    post:
+      tags: [auth]
+      summary: Request a signing challenge for an approved device
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [deviceId]
+              properties:
+                deviceId: { type: string }
+      responses:
+        '200':
+          description: Challenge issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChallengeResponse'
+        '403':
+          $ref: '#/components/responses/Error'
+
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: Exchange a signed challenge for access/refresh tokens
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [deviceId, challengeId, signature]
+              properties:
+                deviceId: { type: string }
+                challengeId: { type: string }
+                signature:
+                  type: string
+                  description: base64, DER-encoded ECDSA/SHA-256 signature over the raw challenge nonce bytes
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          $ref: '#/components/responses/Error'
+
+  /auth/refresh:
+    post:
+      tags: [auth]
+      summary: Rotate the refresh token and obtain a new access token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [deviceId, refreshToken]
+              properties:
+                deviceId: { type: string }
+                refreshToken: { type: string }
+      responses:
+        '200':
+          description: New token pair. Reusing an already-rotated-away refresh token
+            revokes the entire session/token family (see docs/SECURITY.md).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          $ref: '#/components/responses/Error'
+
+  /catalog:
+    get:
+      tags: [catalog]
+      summary: Effective, filtered object catalog for the authenticated user/device
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Catalog
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogResponse'
+        '401':
+          $ref: '#/components/responses/Error'
+
+  /states:
+    get:
+      tags: [catalog]
+      summary: Current values of one or more public object UUIDs
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: ids
+          in: query
+          required: true
+          description: Comma-separated list of public object UUIDs
+          schema:
+            type: string
+      responses:
+        '200':
+          description: |
+            Values keyed by the requested UUID. A key maps to `null` when the object can't be
+            resolved for this caller (unknown/unauthorized) - callers must not assume every
+            requested id is present with a non-null value.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  states:
+                    type: object
+                    additionalProperties:
+                      nullable: true
+                      $ref: '#/components/schemas/StateValue'
+        '401':
+          $ref: '#/components/responses/Error'
+
+  /commands:
+    post:
+      tags: [commands]
+      summary: Execute an actuator command
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommandRequest'
+      responses:
+        '200':
+          description: |
+            Command accepted for processing. This is NOT the final outcome - subscribe to
+            `command_result` over `/ws/v1` for `executed`/`confirmed`/`timeout`/`rejected`.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [accepted]
+        '400':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '428':
+          description: "CONFIRMATION_REQUIRED - resend with confirmed=true after the user confirms client-side"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '429':
+          $ref: '#/components/responses/Error'
+
+  /dashboards:
+    get:
+      tags: [dashboards]
+      summary: List the authenticated user's dashboards
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Dashboards
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  dashboards:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Dashboard'
+    post:
+      tags: [dashboards]
+      summary: Create a new (empty) dashboard
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dashboard'
+
+  /dashboards/{id}:
+    put:
+      tags: [dashboards]
+      summary: Update a dashboard (optimistic concurrency via revision)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [revision]
+              properties:
+                name: { type: string }
+                layouts:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/DashboardLayout'
+                isStartDashboard: { type: boolean }
+                revision:
+                  type: integer
+                  description: must equal the dashboard's current revision, or the request fails with REVISION_CONFLICT
+      responses:
+        '200':
+          description: Updated dashboard (revision incremented by 1)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dashboard'
+        '409':
+          description: REVISION_CONFLICT - the dashboard was modified concurrently
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+    delete:
+      tags: [dashboards]
+      summary: Delete a dashboard
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '204':
+          description: Deleted
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    Error:
+      description: Error response
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorBody'
+
+  schemas:
+    ErrorBody:
+      type: object
+      properties:
+        error:
+          type: string
+          enum:
+            - AUTH_REQUIRED
+            - TOKEN_EXPIRED
+            - DEVICE_REVOKED
+            - SESSION_REVOKED
+            - OBJECT_NOT_FOUND
+            - READ_FORBIDDEN
+            - WRITE_FORBIDDEN
+            - VALUE_INVALID
+            - CONFIRMATION_REQUIRED
+            - LOCAL_ONLY
+            - RATE_LIMITED
+            - COMMAND_TIMEOUT
+            - REVISION_CONFLICT
+            - SERVER_UNAVAILABLE
+            - PAIRING_INVALID
+            - PAIRING_EXPIRED
+            - CHALLENGE_INVALID
+            - SIGNATURE_INVALID
+            - NOT_FOUND
+            - VALIDATION_ERROR
+            - REPLAY_DETECTED
+        message:
+          type: string
+
+    ClaimRequest:
+      type: object
+      required: [pairingId, pairingSecret, deviceName, platform, appVersion, publicKey]
+      properties:
+        pairingId: { type: string }
+        pairingSecret: { type: string }
+        deviceName: { type: string }
+        platform: { type: string, example: android }
+        appVersion: { type: string }
+        publicKey:
+          type: string
+          description: base64 SPKI-encoded EC P-256 public key
+
+    ClaimResponse:
+      type: object
+      properties:
+        claimId: { type: string }
+        status:
+          type: string
+          enum: [waiting_for_approval, approved]
+
+    PairingStatusResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [waiting_for_approval, approved, rejected, expired]
+        deviceId: { type: string, nullable: true }
+        accessToken: { type: string, nullable: true }
+        refreshToken: { type: string, nullable: true }
+        expiresIn: { type: integer, nullable: true, description: seconds }
+
+    ChallengeResponse:
+      type: object
+      properties:
+        challengeId: { type: string }
+        nonce: { type: string, description: "base64-encoded, 32 random bytes" }
+        expiresAt: { type: string, format: date-time }
+
+    TokenResponse:
+      type: object
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        expiresIn: { type: integer, description: seconds }
+        user:
+          type: object
+          nullable: true
+          properties:
+            id: { type: string }
+            name: { type: string }
+
+    CatalogResponse:
+      type: object
+      properties:
+        version:
+          type: integer
+          description: changes whenever any exposure rule changes; opaque, not sequential
+        objects:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatalogObject'
+
+    CatalogObject:
+      type: object
+      properties:
+        id: { type: string, description: public object UUID }
+        name: { type: string }
+        path:
+          type: array
+          items: { type: string }
+        role: { type: string }
+        valueType: { type: string, enum: [number, string, boolean, mixed] }
+        unit: { type: string, nullable: true }
+        read: { type: boolean }
+        write: { type: boolean }
+        history: { type: boolean }
+        min: { type: number, nullable: true }
+        max: { type: number, nullable: true }
+        step: { type: number, nullable: true }
+        allowedValues:
+          type: array
+          nullable: true
+          items: {}
+        localOnly: { type: boolean }
+        confirmPolicy:
+          type: string
+          enum: [NONE, DIALOG, BIOMETRIC, REAUTHENTICATE, LOCAL_NETWORK_ONLY, BLOCKED_ON_MOBILE]
+        suggestedWidgets:
+          type: array
+          items: { type: string }
+
+    StateValue:
+      type: object
+      properties:
+        value: {}
+        timestamp: { type: string, format: date-time }
+        lastChange: { type: string, format: date-time }
+        ack: { type: boolean }
+
+    CommandRequest:
+      type: object
+      required: [commandId, objectId, timestamp, nonce]
+      properties:
+        commandId: { type: string, format: uuid }
+        objectId: { type: string, description: public object UUID }
+        value: {}
+        timestamp: { type: string, format: date-time }
+        nonce: { type: string }
+        confirmed:
+          type: boolean
+          description: set true after the user completed a DIALOG/BIOMETRIC/REAUTHENTICATE confirmation client-side
+
+    WidgetLayoutEntry:
+      type: object
+      properties:
+        id: { type: string }
+        objectId: { type: string, nullable: true }
+        type: { type: string }
+        title: { type: string }
+        x: { type: integer }
+        y: { type: integer }
+        w: { type: integer }
+        h: { type: integer }
+        config:
+          type: object
+          additionalProperties: { type: string }
+
+    DashboardLayout:
+      type: object
+      properties:
+        sizeClass: { type: string, enum: [compact, medium, expanded] }
+        columns: { type: integer }
+        widgets:
+          type: array
+          items:
+            $ref: '#/components/schemas/WidgetLayoutEntry'
+
+    Dashboard:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        revision: { type: integer }
+        isStartDashboard: { type: boolean }
+        layouts:
+          type: array
+          items:
+            $ref: '#/components/schemas/DashboardLayout'
