@@ -37,6 +37,7 @@ import { RateLimiter } from './security/rateLimiter';
 import { ReplayGuard } from './security/replayGuard';
 import { RealtimeGateway } from './realtime';
 import { createApiRouter } from './api/router';
+import { runMigrations } from './migrations';
 
 interface AdapterNativeConfig {
     port: number;
@@ -82,6 +83,8 @@ class MobileControlAdapter extends utils.Adapter {
 
     private async onReady(): Promise<void> {
         const config = this.config as unknown as AdapterNativeConfig;
+
+        await runMigrations(this);
 
         let jwtSecret = config.jwtSecret;
         if (!jwtSecret) {
