@@ -38,6 +38,11 @@ npm run build
 npm test
 ```
 
+`npm test` baut den Adapter, führt die 48 Unit-Tests aus und startet danach den echten
+kompilierten Adapter gegen eine gemockte ioBroker-Umgebung (`@iobroker/testing`) für einen
+vollständigen End-to-End-Durchlauf (Pairing → Admin-Bestätigung → Login → Token-Rotation) über
+echte HTTP-Requests – siehe [test/integration/adapterStartup.ts](test/integration/adapterStartup.ts).
+
 ## Android-App
 
 Siehe [android-app/README.md](android-app/README.md) – eigenständiges Android-Studio-Projekt, minSdk 34.

@@ -200,8 +200,8 @@
 ## Phase 17 – Tests
 
 - [x] Unit (Backend: 48 Tests für Auth/Authorization/Catalog/Commands/Sessions/Pairing/Profiles/Migrations)
-- [ ] Integration
-- [ ] End-to-End
+- [x] Integration (test/integration/adapterStartup.ts – echter Adapter-Code gegen @iobroker/testing-Mock, echter HTTP-Server)
+- [x] End-to-End (Pairing → Admin-Bestätigung → Token-Ausgabe → authentifizierter Katalog-Request → Token-Rotation → Challenge-Response-Login, alles über echte HTTP-Requests)
 - [x] Pairing
 - [x] Token-Rotation
 - [x] Session-Widerruf

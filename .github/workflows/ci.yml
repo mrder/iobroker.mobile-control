@@ -23,6 +23,7 @@ jobs:
       - run: npm run lint
       - run: npm run build
       - run: npm run test:unit
+      - run: npm run test:integration
 
   admin-tab:
     name: Admin tab (build)

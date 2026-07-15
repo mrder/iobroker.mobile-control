@@ -36,7 +36,8 @@
     "build": "tsc -p tsconfig.build.json",
     "watch": "tsc -p tsconfig.build.json --watch",
     "test:unit": "mocha --config test/.mocharc.json",
-    "test": "npm run build && npm run test:unit",
+    "test:integration": "ts-node test/integration/adapterStartup.ts",
+    "test": "npm run build && npm run test:unit && npm run test:integration",
     "lint": "eslint src test --ext .ts"
   },
   "dependencies": {
@@ -49,6 +50,7 @@
     "ws": "^8.18.0"
   },
   "devDependencies": {
+    "@iobroker/testing": "^5.3.0",
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/mocha": "^10.0.9",
