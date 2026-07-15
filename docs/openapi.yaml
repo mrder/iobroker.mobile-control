@@ -147,13 +147,27 @@ paths:
       tags: [catalog]
       summary: Effective, filtered object catalog for the authenticated user/device
       security: [{ bearerAuth: [] }]
+      parameters:
+        - name: version
+          in: query
+          description: |
+            Optional delta support: pass the `version` from a previously fetched catalog. If it
+            still matches, the server responds with `{version, unchanged: true}` instead of the
+            full object list, saving bandwidth. Omit to always get the full catalog.
+          schema:
+            type: integer
       responses:
         '200':
-          description: Catalog
+          description: "Full catalog, or a short unchanged-marker object if the passed version still matches"
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CatalogResponse'
+                oneOf:
+                  - $ref: '#/components/schemas/CatalogResponse'
+                  - type: object
+                    properties:
+                      version: { type: integer }
+                      unchanged: { type: boolean, enum: [true] }
         '401':
           $ref: '#/components/responses/Error'
 

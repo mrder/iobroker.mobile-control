@@ -122,4 +122,20 @@ describe('CatalogService', () => {
         const second = await catalog.getOrCreateMapping(STATE_ID);
         assert.equal(first.id, second.id);
     });
+
+    it('currentVersion() is stable when nothing changed and changes when a rule is added', async () => {
+        const { exposureStore, catalog } = await setup();
+        const before = catalog.currentVersion();
+        assert.equal(catalog.currentVersion(), before, 'calling it again without changes must be stable');
+
+        await exposureStore.put(baseRule({ roleId: 'viewer', read: true }));
+        assert.notEqual(catalog.currentVersion(), before, 'adding a rule must change the version');
+    });
+
+    it('currentVersion() matches the version field effectiveCatalog() returns', async () => {
+        const { exposureStore, catalog } = await setup();
+        await exposureStore.put(baseRule({ roleId: 'viewer', read: true }));
+        const { version } = await catalog.effectiveCatalog(CTX);
+        assert.equal(catalog.currentVersion(), version);
+    });
 });

@@ -81,10 +81,21 @@ export class CatalogService {
         return { stateId: mapping.stateId, permission };
     }
 
+    /**
+     * Cheap version check (no ioBroker object tree read) for GET /catalog?version= delta support.
+     * NOTE: only reflects exposure-rule changes, not the live ioBroker object tree - an object
+     * disappearing from ioBroker without any rule edit won't change the version. Acceptable for
+     * MVP: newly-appeared objects are invisible until a rule is created for them anyway (deny by
+     * default), which DOES change the version; only "an exposed object vanished on its own" can
+     * go briefly stale in a client that skips refetching on an unchanged version.
+     */
+    currentVersion(): number {
+        return hashString(JSON.stringify(this.exposure.list()));
+    }
+
     async effectiveCatalog(ctx: AuthContext): Promise<EffectiveCatalog> {
         const entries = await this.exposure.browseObjectTree();
-        const rules = this.exposure.list();
-        const version = hashString(JSON.stringify(rules));
+        const version = this.currentVersion();
 
         const objects: CatalogObject[] = [];
         for (const entry of entries) {

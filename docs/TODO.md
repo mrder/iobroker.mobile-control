@@ -54,7 +54,7 @@
 - [x] Metadaten
 - [x] Widgetvorschläge
 - [x] Katalogversion
-- [ ] Delta-Updates (Katalog wird immer vollständig geliefert)
+- [x] Delta-Updates (Backend: `GET /catalog?version=` – App nutzt es noch nicht aktiv, rückwärtskompatibel)
 - [x] Rechteentzug
 - [x] Original-State-IDs verbergen
 

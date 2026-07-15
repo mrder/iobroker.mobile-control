@@ -173,6 +173,22 @@ async function main(): Promise<void> {
         assert.equal(res.status, 200);
         const catalog = (await res.json()) as { version: number; objects: unknown[] };
         assert.equal(Array.isArray(catalog.objects), true);
+
+        // delta support: passing the same version back must short-circuit to "unchanged"
+        const deltaRes = await fetch(`${BASE_URL}/api/v1/catalog?version=${catalog.version}`, {
+            headers: { authorization: `Bearer ${firstDeviceStatus.accessToken}` },
+        });
+        assert.equal(deltaRes.status, 200);
+        const delta = (await deltaRes.json()) as { version: number; unchanged?: boolean; objects?: unknown[] };
+        assert.equal(delta.unchanged, true);
+        assert.equal(delta.objects, undefined);
+
+        // a stale/wrong version must fall back to the full catalog
+        const staleRes = await fetch(`${BASE_URL}/api/v1/catalog?version=999999999`, {
+            headers: { authorization: `Bearer ${firstDeviceStatus.accessToken}` },
+        });
+        const stale = (await staleRes.json()) as { objects?: unknown[] };
+        assert.ok(Array.isArray(stale.objects));
     });
 
     await step('refresh token rotates over real HTTP and detects reuse of the old one', async () => {

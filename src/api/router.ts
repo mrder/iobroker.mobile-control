@@ -216,6 +216,13 @@ export function createApiRouter(services: ApiServices): Router {
     // ---- Catalog / States --------------------------------------------------
     router.get('/catalog', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
         try {
+            // Delta support: if the client already has this exact version cached, skip the full
+            // (relatively expensive) object-tree walk and just confirm nothing changed.
+            const clientVersion = typeof req.query.version === 'string' ? Number(req.query.version) : NaN;
+            if (!Number.isNaN(clientVersion) && clientVersion === services.catalog.currentVersion()) {
+                res.json({ version: clientVersion, unchanged: true });
+                return;
+            }
             const catalog = await services.catalog.effectiveCatalog(req.ctx!);
             res.json(catalog);
         } catch (err) {
