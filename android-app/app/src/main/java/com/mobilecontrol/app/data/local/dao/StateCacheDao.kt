@@ -16,4 +16,8 @@ interface StateCacheDao {
 
     @Query("DELETE FROM state_cache")
     suspend fun clear()
+
+    /** Evicts entries whose value hasn't changed since before [cutoffMillis] (simple time-based sweep, not LRU). */
+    @Query("DELETE FROM state_cache WHERE lastChange < :cutoffMillis")
+    suspend fun deleteOlderThan(cutoffMillis: Long)
 }

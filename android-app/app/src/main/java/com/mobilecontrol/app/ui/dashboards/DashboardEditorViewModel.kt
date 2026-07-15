@@ -154,9 +154,9 @@ class DashboardEditorViewModel @Inject constructor(
         }
     }
 
-    fun sendCommand(objectId: String, value: Any?) {
+    fun sendCommand(objectId: String, value: Any?, confirmed: Boolean = false) {
         viewModelScope.launch {
-            commandRepository.sendCommand(objectId, value).onSuccess { commandId ->
+            commandRepository.sendCommand(objectId, value, confirmed).onSuccess { commandId ->
                 local.update { it.copy(pendingCommandByObjectId = it.pendingCommandByObjectId + (objectId to commandId)) }
             }
         }

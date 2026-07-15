@@ -1,8 +1,9 @@
 # GESAMT-TODO
 
-> Stand nach der ersten Umsetzungs-Session: Backend-MVP (Phasen 1–7, 13) und Android-Kernfunktionen (Phasen 8–12, 14) sind
-> als echter, getesteter Code vorhanden. Nicht abgehakte Punkte sind bewusst offen geblieben (siehe README) oder erfordern
-> eine echte ioBroker-/Android-Laufzeitumgebung zur Verifikation, die in dieser Session nicht verfügbar war.
+> Stand nach zwei Umsetzungs-Sessions: Backend-MVP inkl. Freigabeprofilen, Katalog-Vorschau, OpenAPI-Spezifikation,
+> Migrations-Grundgerüst und Deployment-Doku (Phasen 1–7, 13) sowie Android-Kernfunktionen (Phasen 8–12, 14) sind als
+> echter, getesteter Code vorhanden (48 Backend-Unit-Tests). Nicht abgehakte Punkte sind bewusst offen geblieben (siehe
+> README) oder erfordern eine echte ioBroker-/Android-Laufzeitumgebung zur Verifikation, die hier nicht verfügbar war.
 
 ## Phase 1 – Grundlagen
 
@@ -22,7 +23,7 @@
 - [x] React Admin
 - [x] Tests
 - [x] CI
-- [ ] Konfigurationsmigration
+- [x] Konfigurationsmigration
 - [x] Statusstates
 - [x] Logging
 
@@ -43,8 +44,8 @@
 - [x] Lesen/Schreiben getrennt
 - [x] Wertebereiche
 - [x] Vererbung
-- [ ] Freigabeprofile (nur einzelne Regeln, keine wiederverwendbaren Profile)
-- [ ] effektive Vorschau (kein "Vorschau für Benutzer X" Admin-Screen)
+- [x] Freigabeprofile
+- [x] effektive Vorschau
 - [x] Systemstates blockieren
 
 ## Phase 5 – Objektkatalog
@@ -74,8 +75,8 @@
 ## Phase 7 – REST und WebSocket
 
 - [x] API v1
-- [ ] OpenAPI (kein maschinenlesbares Schema erzeugt)
-- [ ] WSS (Adapter terminiert selbst kein TLS - siehe Phase 16)
+- [x] OpenAPI (docs/openapi.yaml, validiert)
+- [ ] WSS (Adapter terminiert selbst kein TLS - siehe Phase 16, DEPLOYMENT.md)
 - [x] Subscription
 - [x] Initialwerte
 - [x] State-Updates
@@ -99,7 +100,7 @@
 - [x] WebSocket Client
 - [x] DI
 - [ ] Tests (keine Android-Unit-/Instrumentierungstests)
-- [ ] Build Types (kein separates debug/staging/release-Flavor-Setup)
+- [x] Build Types (debug/staging/release, separate applicationIdSuffix, parallel installierbar)
 
 ## Phase 9 – Android Pairing
 
@@ -144,10 +145,10 @@
 - [x] Feuchte
 - [x] Status
 - [x] Schalter
-- [ ] Taster
-- [ ] Slider
-- [ ] Rollladen
-- [ ] Thermostat
+- [x] Taster
+- [x] Slider
+- [x] Rollladen (Auf/Ab, "Stopp"-Button bewusst ohne Server-Befehl - siehe Code-Kommentar)
+- [x] Thermostat
 - [ ] Verlauf (nur Platzhalterkachel, keine echten Daten)
 - [ ] Alarm
 - [ ] Kamera (bewusst zurückgestellt)
@@ -173,7 +174,7 @@
 - [x] Zeitstempel
 - [x] Offlinebanner
 - [x] Schreibfunktionen sperren
-- [ ] Cache-Limits
+- [x] Cache-Limits (zeitbasierte Bereinigung, 14 Tage, kein größenbasiertes LRU)
 - [x] Synchronisierung
 
 ## Phase 15 – Meldungen und Kamera
@@ -198,22 +199,22 @@
 
 ## Phase 17 – Tests
 
-- [x] Unit (Backend: 27 Tests für Auth/Authorization/Commands/Sessions)
+- [x] Unit (Backend: 48 Tests für Auth/Authorization/Catalog/Commands/Sessions/Pairing/Profiles/Migrations)
 - [ ] Integration
 - [ ] End-to-End
-- [ ] Pairing (nur Backend-Logik ungetestet als eigener Testfall)
+- [x] Pairing
 - [x] Token-Rotation
 - [x] Session-Widerruf
-- [ ] Rechteentzug (als eigener Testfall)
+- [x] Rechteentzug
 - [x] Replay
 - [x] Rate Limit
-- [ ] falsche Alias-ID
+- [x] falsche Alias-ID (OBJECT_NOT_FOUND)
 - [ ] Offline
 - [ ] Netzwechsel
 - [ ] Android 14 Geräte
 - [ ] 7-Tage-Dauertest
-- [ ] OWASP API
-- [ ] OWASP MASVS
+- [x] OWASP API (Abgleich in DEPLOYMENT.md, kein externes Pentest)
+- [x] OWASP MASVS (Abgleich in DEPLOYMENT.md, kein externes Pentest)
 
 ## Phase 18 – Release
 

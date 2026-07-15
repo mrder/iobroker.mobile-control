@@ -81,9 +81,13 @@ erzeugt (Single-Module-App, keine mehrfach wiederverwendete Geschäftslogik übe
   Widget hinzufügen/entfernen/Auf-Ab-Reihenfolge/Größe ändern, Größenklassen
   compact/medium/expanded mit eigenem Layout-Array, Speichern inkl. Revision-Konflikt-Dialog
   (Überschreiben/Verwerfen)
-- Widgets: Text/Value, Temperatur, Luftfeuchtigkeit, Boolean-Status, Schalter (mit
-  PENDING/CONFIRMED/FAILED-Overlay), Verlauf-Platzhalter — alle über einen gemeinsamen
-  `WidgetState`-Sealed-Interface mit 9 visuell unterscheidbaren Zuständen
+- Widgets: Text/Value, Temperatur, Luftfeuchtigkeit, Boolean-Status, Schalter, Taster
+  (Momentary-Button), Slider, Rollladen (Auf/Stopp/Ab), Thermostat (+/− um Zielwert mit
+  Katalog-`step`), Verlauf-Platzhalter — alle über einen gemeinsamen `WidgetState`-Sealed-Interface
+  mit 9 visuell unterscheidbaren Zuständen. Schreibende Widgets (Schalter/Taster/Slider/
+  Rollladen/Thermostat) laufen alle über ein gemeinsames Bestätigungs-Gate
+  (`ui/widgets/ConfirmationGate.kt`), das `ObjectCatalogItem.confirmPolicy` auswertet, bevor
+  `CommandRepository.sendCommand(..., confirmed=true)` aufgerufen wird
 - Realtime: WebSocket-Repository mit Subscribe/Unsubscribe pro sichtbarem Screen,
   `StateFlow<Map<ObjectId, LiveValue>>`, Command-Timeout nach 15s, Reconnect mit exponentiellem
   Backoff, Heartbeat-Watchdog
@@ -91,6 +95,14 @@ erzeugt (Single-Module-App, keine mehrfach wiederverwendete Geschäftslogik übe
   Schalter deaktiviert offline
 - Einstellungen/Diagnose: Serverinfo, letzte Verbindung, Geräteabmeldung (lokal, best-effort),
   Cache leeren, App-/API-Version, rudimentäres Log (Verbindungs-/Auth-/State-Fehler, keine Secrets)
+- Cache-Limits: `state_cache` (Room) wird beim Start von `StateRepositoryImpl` einmal pro
+  Prozess/Session um Einträge bereinigt, deren `lastChange` älter als
+  `STATE_CACHE_MAX_AGE_MS` (14 Tage) ist (`StateCacheDao.deleteOlderThan`) — einfache
+  zeitbasierte Bereinigung, kein größenbasiertes LRU
+- Build-Varianten: `debug` (`applicationIdSuffix = ".debug"`), `staging` (`.staging`-Suffix,
+  minifiziert/shrunk wie Release, aber weiterhin debugfähig und über den Debug-Signing-Config
+  installierbar) und `release` (kein Suffix, unsigniert, siehe TODO Signing-Pipeline) — dank der
+  unterschiedlichen `applicationId`-Suffixe können alle drei parallel auf einem Gerät installiert sein
 - Sicherheit: Privater Schlüssel verlässt nie den Keystore, Tokens nur in
   `EncryptedSharedPreferences`, keine Logcat-Ausgaben von Tokens/Signaturen (auch der
   `HttpLoggingInterceptor` läuft nur auf `BASIC`-Level, nie `BODY`/`HEADERS`), `FLAG_SECURE` auf
@@ -113,6 +125,18 @@ erzeugt (Single-Module-App, keine mehrfach wiederverwendete Geschäftslogik übe
   Keystore authentifizierten Session sperrt, nicht selbst ein Server-Credential ist.
 - **Revision-Konflikt "Überschreiben"**: holt vor dem Force-Write die aktuelle Server-Revision und
   erhöht sie um 1 (der Server-Vertrag definiert keinen expliziten Force-Parameter).
+- **Rollladen-Widget "Stopp"-Button**: Der API-Vertrag kennt nur das Setzen einer absoluten
+  Position, keinen eigenen Stopp/Halt-Befehl. Der "Stopp"-Button existiert nur für das vertraute
+  Drei-Tasten-Layout, sendet aber bewusst keinen Befehl an den Server (No-Op).
+- **Bestätigungs-Policy `REAUTHENTICATE`/`LOCAL_NETWORK_ONLY`**: werden im MVP wie `DIALOG`
+  behandelt (einfacher Ja/Abbrechen-Dialog) statt eines echten Re-Login-Flows bzw. einer
+  Client-seitigen Netzwerk-Origin-Prüfung — beides wäre deutlich mehr Aufwand für einen Fall, den
+  der Server ohnehin ablehnen/verlangen kann. `BLOCKED_ON_MOBILE` deaktiviert das jeweilige Widget
+  stattdessen von vornherein (Titel-Suffix "nicht mobil steuerbar").
+- **Slider-Drag-Verhalten**: `SliderWidget` hält eine lokale `sliderPosition`, die während des
+  aktiven Ziehens nicht von Server-Value-Updates überschrieben wird (sonst würde der Thumb unter
+  dem Finger zurückspringen); gesendet wird der Wert erst bei `onValueChangeFinished`, nicht bei
+  jedem Drag-Tick, um kein Server-Rate-Limit zu strapazieren.
 
 ## Was bewusst nicht gebaut wurde (TODO)
 

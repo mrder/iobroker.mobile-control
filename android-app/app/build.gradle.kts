@@ -28,6 +28,23 @@ android {
         debug {
             isMinifyEnabled = false
             applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+        }
+        create("staging") {
+            // Looks like a release build (minified/shrunk, closer to what will actually ship) but
+            // stays debuggable/test-friendly like `debug` - initWith(debug) copies debug's flags
+            // (isDebuggable, testCoverageEnabled, etc.) before the release-like overrides below.
+            // No real release keystore exists in this repo (see README "Store-Release-Signing-
+            // Pipeline"), so staging deliberately reuses the auto-generated debug signing config -
+            // that keeps it installable side-by-side with debug/release without creating any new
+            // signing material.
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".staging"
+            versionNameSuffix = "-staging"
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.getByName("debug")
         }
         release {
             isMinifyEnabled = true

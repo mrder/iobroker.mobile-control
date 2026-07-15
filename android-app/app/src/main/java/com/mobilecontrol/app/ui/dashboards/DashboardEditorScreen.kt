@@ -117,7 +117,9 @@ fun DashboardEditorScreen(
                             widget = widget,
                             state = state,
                             editMode = state.editMode,
-                            onToggle = { on -> widget.objectId?.let { id -> viewModel.sendCommand(id, on) } },
+                            onCommand = { value, confirmed ->
+                                widget.objectId?.let { id -> viewModel.sendCommand(id, value, confirmed) }
+                            },
                             onRemove = { viewModel.removeWidget(widget.id) },
                             onMoveUp = { viewModel.moveWidget(widget.id, -1) },
                             onMoveDown = { viewModel.moveWidget(widget.id, 1) },
@@ -185,7 +187,7 @@ private fun WidgetCell(
     widget: Widget,
     state: DashboardEditorUiState,
     editMode: Boolean,
-    onToggle: (Boolean) -> Unit,
+    onCommand: (value: Any?, confirmed: Boolean) -> Unit,
     onRemove: () -> Unit,
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit,
@@ -202,7 +204,8 @@ private fun WidgetCell(
             modifier = Modifier.fillMaxSize(),
             canWrite = catalogItem?.canWrite ?: (widget.objectId == null),
             isOnline = state.connectionState != ConnectionState.OFFLINE,
-            onToggle = onToggle,
+            catalogItem = catalogItem,
+            onCommand = onCommand,
         )
         if (editMode) {
             Row(horizontalArrangement = Arrangement.SpaceEvenly, modifier = Modifier.fillMaxWidth()) {

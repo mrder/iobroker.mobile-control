@@ -68,6 +68,12 @@ class StateRepositoryImpl @Inject constructor(
                 }
             }
         }
+        // StateRepositoryImpl is a singleton, so this runs once per app process/session - a simple
+        // time-based eviction of long-stale cached values, so the Room DB doesn't grow unbounded
+        // over a long-lived install. Not a size-based LRU, just a periodic-enough sweep.
+        scope.launch {
+            stateCacheDao.deleteOlderThan(System.currentTimeMillis() - STATE_CACHE_MAX_AGE_MS)
+        }
     }
 
     private suspend fun handleWsEvent(event: WsEvent) {
@@ -216,5 +222,10 @@ class StateRepositoryImpl @Inject constructor(
                 read = false,
             ),
         )
+    }
+
+    private companion object {
+        /** Cached state entries not updated within this window are considered stale and evicted. */
+        const val STATE_CACHE_MAX_AGE_MS = 14L * 24 * 60 * 60 * 1000
     }
 }
