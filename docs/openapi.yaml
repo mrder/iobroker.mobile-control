@@ -188,6 +188,53 @@ paths:
         '401':
           $ref: '#/components/responses/Error'
 
+  /history:
+    get:
+      tags: [catalog]
+      summary: Historical values of a single public object UUID
+      description: |
+        Only available for objects whose exposure rule has `history: true`, and only if the
+        adapter is configured with a history-storing instance (see docs/DEPLOYMENT.md). Returns
+        an empty list rather than an error when no history instance is configured.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema: { type: string }
+        - name: from
+          in: query
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          schema: { type: string, format: date-time }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 500, maximum: 2000 }
+      responses:
+        '200':
+          description: History entries, oldest-to-newest order as returned by the history adapter
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  entries:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        value: {}
+                        timestamp: { type: string, format: date-time }
+        '403':
+          description: READ_FORBIDDEN - object not visible, or history not enabled for it
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '401':
+          $ref: '#/components/responses/Error'
+
   /commands:
     post:
       tags: [commands]

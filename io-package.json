@@ -65,7 +65,8 @@
     "pairingTtlMinutes": 10,
     "requireAdminApproval": true,
     "rateLimitPerMinute": 60,
-    "localOnlyByDefault": false
+    "localOnlyByDefault": false,
+    "historyInstance": ""
   },
   "objects": [],
   "instanceObjects": [

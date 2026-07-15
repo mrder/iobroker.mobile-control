@@ -149,7 +149,7 @@
 - [x] Slider
 - [x] Rollladen (Auf/Ab, "Stopp"-Button bewusst ohne Server-Befehl - siehe Code-Kommentar)
 - [x] Thermostat
-- [ ] Verlauf (nur Platzhalterkachel, keine echten Daten)
+- [ ] Verlauf (Backend-API steht - GET /api/v1/history - App zeigt noch Platzhalterkachel)
 - [ ] Alarm
 - [ ] Kamera (bewusst zurückgestellt)
 

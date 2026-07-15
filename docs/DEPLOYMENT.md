@@ -137,10 +137,19 @@ nachrüsten (siehe oben).
 Android-Instrumentierungstests gegen die Sicherheitsmechanismen (nur Backend hat automatisierte
 Tests, siehe TODO.md Phase 17).
 
-## 7. Vor dem produktiven Betrieb
+## 7. Verlauf (optional)
+
+`GET /api/v1/history` liefert historische Werte, wenn in den Adapter-Einstellungen eine
+History-Adapter-Instanz eingetragen ist (z. B. `history.0`, `sql.0`, `influxdb.0`). Der Adapter
+nutzt dafür die in der ioBroker-Welt übliche `sendTo(instanz, 'getHistory', {...})`-Konvention,
+die diese Adapter implementieren. Ohne konfigurierte Instanz ist die Verlaufsfunktion einfach
+deaktiviert (kein Fehler) – zusätzlich muss die jeweilige Objektfreigabe `history: true` gesetzt
+haben, sonst liefert die API `READ_FORBIDDEN`.
+
+## 8. Vor dem produktiven Betrieb
 
 1. `YOUR_GITHUB_USER`-Platzhalter ersetzen (siehe README.md)
-2. Adapter-Einstellungen prüfen: `publicUrl`, `requireAdminApproval`, TTLs, Rate-Limit
+2. Adapter-Einstellungen prüfen: `publicUrl`, `requireAdminApproval`, TTLs, Rate-Limit, optional `historyInstance`
 3. Reverse Proxy/VPN gemäß Abschnitt 2/3 einrichten und testen
 4. Erstes Pairing über die Admin-Oberfläche durchspielen, Rechte-Vorschau (Tab "Benutzer & Rollen"
    → Lupe-Symbol) nutzen um zu verifizieren, was der neue Nutzer tatsächlich sieht

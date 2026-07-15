@@ -33,6 +33,7 @@ import { CatalogService } from './catalog';
 import { DashboardsService } from './dashboards';
 import { CommandsService } from './commands';
 import { AuditService } from './audit';
+import { HistoryService } from './history';
 import { RateLimiter } from './security/rateLimiter';
 import { ReplayGuard } from './security/replayGuard';
 import { RealtimeGateway } from './realtime';
@@ -50,6 +51,8 @@ interface AdapterNativeConfig {
     requireAdminApproval: boolean;
     rateLimitPerMinute: number;
     localOnlyByDefault: boolean;
+    /** e.g. "history.0", "sql.0" - empty disables the /api/v1/history endpoint entirely */
+    historyInstance: string;
 }
 
 const STATUS_INTERVAL_MS = 15_000;
@@ -72,6 +75,7 @@ class MobileControlAdapter extends utils.Adapter {
     private dashboardsService!: DashboardsService;
     private commandsService!: CommandsService;
     private auditService!: AuditService;
+    private historyService!: HistoryService;
 
     public constructor(options: Partial<utils.AdapterOptions> = {}) {
         super({ ...options, name: 'mobile-control' });
@@ -158,6 +162,7 @@ class MobileControlAdapter extends utils.Adapter {
         const rateLimiter = new RateLimiter(config.rateLimitPerMinute);
         const replayGuard = new ReplayGuard();
         this.commandsService = new CommandsService(this, commandsStore, this.catalogService, this.auditService, rateLimiter, replayGuard);
+        this.historyService = new HistoryService(this, config.historyInstance ?? '');
 
         await this.startHttpServer(config);
 
@@ -185,6 +190,7 @@ class MobileControlAdapter extends utils.Adapter {
                 dashboards: this.dashboardsService,
                 commands: this.commandsService,
                 audit: this.auditService,
+                history: this.historyService,
                 refreshTokenTtlDays: config.refreshTokenTtlDays,
             }),
         );

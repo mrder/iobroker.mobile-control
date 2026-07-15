@@ -70,13 +70,33 @@ async function main(): Promise<void> {
                 requireAdminApproval: true,
                 rateLimitPerMinute: 60,
                 localOnlyByDefault: false,
+                historyInstance: 'history.0',
             };
             adapter.namespace = 'mobile-control.0';
-            adapter.sendTo = (_from: unknown, command: unknown, result: unknown) => {
+            // sendTo() is overloaded for two different real ioBroker usages, both exercised here:
+            //  1. adapter replies to an admin-tab message: sendTo(from, command, result) with no
+            //     function callback - real ioBroker routes this back through the message bus via
+            //     obj.callback, which the mock doesn't implement, so we resolve callAdmin() here.
+            //  2. adapter queries ANOTHER instance directly (HistoryService -> history.0):
+            //     sendTo(target, command, message, callbackFn) - a real function to call back.
+            adapter.sendTo = (target: unknown, command: unknown, messageOrResult: unknown, callback?: unknown) => {
+                if (typeof callback === 'function') {
+                    if (target === 'history.0' && command === 'getHistory') {
+                        (callback as (reply: unknown) => void)({
+                            result: [
+                                { val: 21.5, ts: Date.now() - 60_000 },
+                                { val: 22, ts: Date.now() },
+                            ],
+                        });
+                    } else {
+                        (callback as (reply: unknown) => void)(undefined);
+                    }
+                    return;
+                }
                 const resolver = pendingAdminCalls.get(command as string);
                 if (resolver) {
                     pendingAdminCalls.delete(command as string);
-                    resolver(result);
+                    resolver(messageOrResult);
                 }
             };
         },
@@ -221,6 +241,18 @@ async function main(): Promise<void> {
         const login = (await loginRes.json()) as { accessToken: string; user: { name: string } };
         assert.equal(login.user.name, 'Second Device Owner');
         assert.ok(login.accessToken);
+    });
+
+    await step('history endpoint requires auth and 404s an unmapped object id', async () => {
+        const unauthedRes = await fetch(`${BASE_URL}/api/v1/history?id=whatever`);
+        assert.equal(unauthedRes.status, 401);
+
+        const authedRes = await fetch(`${BASE_URL}/api/v1/history?id=not-a-real-mapped-uuid`, {
+            headers: { authorization: `Bearer ${firstDeviceStatus.accessToken}` },
+        });
+        // the original access token was already rotated away by the refresh-token step above,
+        // so this also doubles as a check that a stale (but well-formed) JWT is rejected.
+        assert.equal(authedRes.status, 401);
     });
 
     await new Promise<void>((resolve) => adapter.unloadHandler!(resolve));

@@ -10,6 +10,7 @@ import type { CatalogService } from '../catalog';
 import type { DashboardsService } from '../dashboards';
 import type { CommandsService } from '../commands';
 import type { AuditService } from '../audit';
+import type { HistoryService } from '../history';
 import type { DashboardLayout } from '../lib/types';
 
 export interface ApiServices {
@@ -23,6 +24,7 @@ export interface ApiServices {
     dashboards: DashboardsService;
     commands: CommandsService;
     audit: AuditService;
+    history: HistoryService;
     refreshTokenTtlDays: number;
 }
 
@@ -247,6 +249,35 @@ export function createApiRouter(services: ApiServices): Router {
                 }
             }
             res.json({ states });
+        } catch (err) {
+            sendError(res, err);
+        }
+    });
+
+    router.get('/history', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+        try {
+            const id = typeof req.query.id === 'string' ? req.query.id : '';
+            if (!id) {
+                throw new ApiError('VALIDATION_ERROR', 'id required');
+            }
+            const { stateId, permission } = services.catalog.resolveAuthorized(id, req.ctx!, 'read');
+            if (!permission.history) {
+                throw new ApiError('READ_FORBIDDEN', 'history is not enabled for this object');
+            }
+
+            const from = typeof req.query.from === 'string' ? Date.parse(req.query.from) : NaN;
+            const to = typeof req.query.to === 'string' ? Date.parse(req.query.to) : NaN;
+            const limit = typeof req.query.limit === 'string' ? parseInt(req.query.limit, 10) : undefined;
+
+            const entries = await services.history.query(stateId, {
+                from: Number.isNaN(from) ? null : from,
+                to: Number.isNaN(to) ? null : to,
+                limit: limit && !Number.isNaN(limit) ? limit : 500,
+            });
+
+            res.json({
+                entries: entries.map((e) => ({ value: e.value, timestamp: new Date(e.timestamp).toISOString() })),
+            });
         } catch (err) {
             sendError(res, err);
         }

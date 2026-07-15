@@ -72,6 +72,18 @@
             "max": 1000,
             "sm": 4
         },
+        "_historyHeader": {
+            "type": "header",
+            "text": "Verlauf (optional)",
+            "sm": 12,
+            "newLine": true
+        },
+        "historyInstance": {
+            "type": "text",
+            "label": "History-Adapter-Instanz",
+            "help": "z.B. history.0, sql.0 oder influxdb.0. Leer lassen, um die Verlaufsfunktion zu deaktivieren.",
+            "sm": 6
+        },
         "_manageHint": {
             "type": "staticText",
             "text": "Benutzer, Rollen, Geräte, Objektfreigaben, Sessions und Audit-Log werden im Tab \"Mobile Control\" verwaltet.",
