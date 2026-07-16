@@ -1,23 +1,23 @@
 package com.mobilecontrol.app.ui.dashboards
 
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Save
@@ -39,13 +39,20 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mobilecontrol.app.R
 import com.mobilecontrol.app.domain.model.ObjectCatalogItem
@@ -55,6 +62,10 @@ import com.mobilecontrol.app.domain.model.WidgetType
 import com.mobilecontrol.app.domain.repository.ConnectionState
 import com.mobilecontrol.app.ui.widgets.WidgetHost
 import com.mobilecontrol.app.ui.widgets.WidgetState
+import kotlin.math.roundToInt
+
+/** Row height per grid unit - matches the previous fixed per-widget height convention (120dp * h). */
+private val GRID_ROW_HEIGHT = 120.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -108,21 +119,28 @@ fun DashboardEditorScreen(
                 // configured column count (which can go up to 12 for "expanded") - widget spans are
                 // clamped to the same number so a wide widget can never exceed the visible grid.
                 val displayColumns = layout.columns.coerceIn(1, 4)
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(displayColumns),
-                    contentPadding = PaddingValues(8.dp),
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(8.dp),
                 ) {
-                    items(layout.widgets, key = { it.id }, span = { GridItemSpan(it.w.coerceIn(1, displayColumns)) }) { widget ->
+                    DashboardGrid(
+                        widgets = layout.widgets,
+                        columns = displayColumns,
+                        editMode = state.editMode,
+                        onMoveWidget = viewModel::moveWidgetTo,
+                    ) { widget ->
                         WidgetCell(
                             widget = widget,
                             state = state,
                             editMode = state.editMode,
+                            modifier = Modifier.fillMaxSize(),
                             onCommand = { value, confirmed ->
                                 widget.objectId?.let { id -> viewModel.sendCommand(id, value, confirmed) }
                             },
                             onRemove = { viewModel.removeWidget(widget.id) },
-                            onMoveUp = { viewModel.moveWidget(widget.id, -1) },
-                            onMoveDown = { viewModel.moveWidget(widget.id, 1) },
                             onGrow = { viewModel.resizeWidget(widget.id, 1, 0) },
                             onShrink = { viewModel.resizeWidget(widget.id, -1, 0) },
                         )
@@ -182,35 +200,142 @@ private fun SizeClassSelector(selected: SizeClass, onSelect: (SizeClass) -> Unit
     }
 }
 
+/**
+ * Absolute-position grid: unlike the previous `LazyVerticalGrid` (which only ever reflected widget
+ * *order*, never `Widget.x`/`y`), every widget is placed at its actual grid cell so dragging has a
+ * real effect the rest of the UI (and a later re-open of the same dashboard) also sees.
+ *
+ * Not lazy - dashboards have at most a few dozen widgets, so a plain absolutely-positioned [Box]
+ * plus the caller's own [androidx.compose.foundation.verticalScroll] is simpler than wiring up a
+ * lazy layout that would also have to cooperate with in-progress drag gestures.
+ */
+@Composable
+private fun DashboardGrid(
+    widgets: List<Widget>,
+    columns: Int,
+    editMode: Boolean,
+    onMoveWidget: (widgetId: String, newX: Int, newY: Int) -> Unit,
+    cellContent: @Composable (Widget) -> Unit,
+) {
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val density = LocalDensity.current
+        val cellWidth: Dp = maxWidth / columns
+        val cellWidthPx = with(density) { cellWidth.toPx() }
+        val rowHeightPx = with(density) { GRID_ROW_HEIGHT.toPx() }
+        val rowCount = (widgets.maxOfOrNull { it.y + it.h } ?: 0).coerceAtLeast(1)
+
+        Box(modifier = Modifier.fillMaxWidth().height(GRID_ROW_HEIGHT * rowCount)) {
+            widgets.forEach { widget ->
+                key(widget.id) {
+                    var dragOffset by remember(widget.id) { mutableStateOf(Offset.Zero) }
+                    var isDragging by remember(widget.id) { mutableStateOf(false) }
+                    var isInvalidTarget by remember(widget.id) { mutableStateOf(false) }
+
+                    val clampedW = widget.w.coerceIn(1, columns)
+                    val baseX = widget.x.coerceIn(0, (columns - clampedW).coerceAtLeast(0))
+                    val baseOffsetPx = Offset(baseX * cellWidthPx, widget.y * rowHeightPx)
+
+                    Box(
+                        modifier = Modifier
+                            .offset {
+                                IntOffset(
+                                    (baseOffsetPx.x + dragOffset.x).roundToInt(),
+                                    (baseOffsetPx.y + dragOffset.y).roundToInt(),
+                                )
+                            }
+                            .size(cellWidth * clampedW, GRID_ROW_HEIGHT * widget.h.coerceAtLeast(1))
+                            .zIndex(if (isDragging) 1f else 0f)
+                            .then(
+                                if (editMode) {
+                                    // `widgets` (not just this widget's own x/y/w/h) is part of the key so a
+                                    // change to any *other* widget's rect (resize, add, remove) invalidates the
+                                    // running gesture detector too - detectDragGestures() loops internally
+                                    // across multiple drag gestures without pointerInput relaunching on its
+                                    // own, so without this the live collision preview below could compare
+                                    // against a stale snapshot of the other widgets' positions.
+                                    Modifier.pointerInput(widget.id, columns, widget.x, widget.y, widget.w, widget.h, widgets) {
+                                        detectDragGestures(
+                                            onDragStart = { isDragging = true },
+                                            onDragCancel = {
+                                                isDragging = false
+                                                isInvalidTarget = false
+                                                dragOffset = Offset.Zero
+                                            },
+                                            onDragEnd = {
+                                                isDragging = false
+                                                isInvalidTarget = false
+                                                val newX = ((baseOffsetPx.x + dragOffset.x) / cellWidthPx).roundToInt()
+                                                val newY = ((baseOffsetPx.y + dragOffset.y) / rowHeightPx).roundToInt()
+                                                onMoveWidget(widget.id, newX, newY)
+                                                dragOffset = Offset.Zero
+                                            },
+                                            onDrag = { change, dragAmount ->
+                                                change.consume()
+                                                dragOffset += dragAmount
+                                                // Live "would this drop be rejected?" preview, purely
+                                                // for the red-border feedback below - the ViewModel
+                                                // re-checks authoritatively against the latest state
+                                                // once the gesture actually ends (see moveWidgetTo).
+                                                val candidateX = ((baseOffsetPx.x + dragOffset.x) / cellWidthPx)
+                                                    .roundToInt().coerceIn(0, (columns - clampedW).coerceAtLeast(0))
+                                                val candidateY = ((baseOffsetPx.y + dragOffset.y) / rowHeightPx)
+                                                    .roundToInt().coerceAtLeast(0)
+                                                isInvalidTarget = widgets.any { other ->
+                                                    other.id != widget.id &&
+                                                        candidateX < other.x + other.w && candidateX + clampedW > other.x &&
+                                                        candidateY < other.y + other.h && candidateY + widget.h > other.y
+                                                }
+                                            },
+                                        )
+                                    }
+                                } else {
+                                    Modifier
+                                },
+                            )
+                            .then(
+                                if (isDragging && isInvalidTarget) {
+                                    Modifier.border(2.dp, MaterialTheme.colorScheme.error)
+                                } else {
+                                    Modifier
+                                },
+                            ),
+                    ) {
+                        cellContent(widget)
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun WidgetCell(
     widget: Widget,
     state: DashboardEditorUiState,
     editMode: Boolean,
+    modifier: Modifier = Modifier,
     onCommand: (value: Any?, confirmed: Boolean) -> Unit,
     onRemove: () -> Unit,
-    onMoveUp: () -> Unit,
-    onMoveDown: () -> Unit,
     onGrow: () -> Unit,
     onShrink: () -> Unit,
 ) {
     val widgetState = deriveWidgetState(widget, state)
     val catalogItem = state.catalog.firstOrNull { it.id == widget.objectId }
 
-    Column(modifier = Modifier.padding(4.dp).height((120 * widget.h.coerceAtLeast(1)).dp)) {
+    Column(modifier = modifier.padding(4.dp)) {
         WidgetHost(
             widget = widget,
             state = widgetState,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.weight(1f).fillMaxWidth(),
             canWrite = catalogItem?.canWrite ?: (widget.objectId == null),
             isOnline = state.connectionState != ConnectionState.OFFLINE,
             catalogItem = catalogItem,
             onCommand = onCommand,
         )
         if (editMode) {
+            // Reordering now happens by dragging the widget itself (see DashboardGrid) - only
+            // size (+/−, since drag doesn't cover resizing) and delete remain as button actions.
             Row(horizontalArrangement = Arrangement.SpaceEvenly, modifier = Modifier.fillMaxWidth()) {
-                IconButton(onClick = onMoveUp) { Icon(Icons.Filled.ArrowUpward, contentDescription = "Nach oben") }
-                IconButton(onClick = onMoveDown) { Icon(Icons.Filled.ArrowDownward, contentDescription = "Nach unten") }
                 TextButton(onClick = onShrink) { Text("−") }
                 TextButton(onClick = onGrow) { Text("+") }
                 IconButton(onClick = onRemove) { Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.dashboard_editor_remove_widget)) }

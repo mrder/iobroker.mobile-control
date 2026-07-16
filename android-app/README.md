@@ -78,18 +78,22 @@ erzeugt (Single-Module-App, keine mehrfach wiederverwendete Geschäftslogik übe
 - Objektkatalog-Browser: Suche, Filter nach Raum/Rolle/nur-schreibbar, Room-Cache, Live-Werte-Vorschau
   per WebSocket-Subscribe solange der Screen sichtbar ist
 - Dashboards: Liste, Erstellen/Löschen/Duplizieren/Umbenennen, Startdashboard wählen, Editor mit
-  Widget hinzufügen/entfernen/Auf-Ab-Reihenfolge/Größe ändern, Größenklassen
+  Widget hinzufügen/entfernen, echtem Drag&Drop (Ziehen auf dem Grid rastet auf die nächste
+  Grid-Zelle ein, siehe unten) sowie +/−-Buttons für die Größe, Größenklassen
   compact/medium/expanded mit eigenem Layout-Array, Speichern inkl. Revision-Konflikt-Dialog
   (Überschreiben/Verwerfen)
 - Widgets: Text/Value, Temperatur, Luftfeuchtigkeit, Boolean-Status, Schalter, Taster
   (Momentary-Button), Slider, Rollladen (Auf/Stopp/Ab), Thermostat (+/− um Zielwert mit
-  Katalog-`step`), Verlauf-Platzhalter — alle über einen gemeinsamen `WidgetState`-Sealed-Interface
+  Katalog-`step`), Verlauf (lädt die letzten Werte per `GET /api/v1/history` und zeigt sie als
+  Liste, siehe unten) — alle über einen gemeinsamen `WidgetState`-Sealed-Interface
   mit 9 visuell unterscheidbaren Zuständen. Schreibende Widgets (Schalter/Taster/Slider/
   Rollladen/Thermostat) laufen alle über ein gemeinsames Bestätigungs-Gate
   (`ui/widgets/ConfirmationGate.kt`), das `ObjectCatalogItem.confirmPolicy` auswertet, bevor
   `CommandRepository.sendCommand(..., confirmed=true)` aufgerufen wird
 - Realtime: WebSocket-Repository mit Subscribe/Unsubscribe pro sichtbarem Screen,
-  `StateFlow<Map<ObjectId, LiveValue>>`, Command-Timeout nach 15s, Reconnect mit exponentiellem
+  `StateFlow<Map<ObjectId, LiveValue>>`, Command-Timeout nach 15s mit genau einem automatischen
+  Retry (neue commandId/nonce) bevor der Nutzer benachrichtigt wird — `REJECTED`/`BLOCKED` sind
+  endgültige Server-Entscheidungen und werden nie erneut versucht, Reconnect mit exponentiellem
   Backoff, Heartbeat-Watchdog
 - Offline-Verhalten: Dashboards/Katalog/letzte Werte aus Room auch ohne Verbindung, Offline-Badge,
   Schalter deaktiviert offline
@@ -118,9 +122,17 @@ erzeugt (Single-Module-App, keine mehrfach wiederverwendete Geschäftslogik übe
   Pinning (ein MITM mit CA-vertrautem Zertifikat würde nicht auffallen), erfüllt aber die im
   Lastenheft vorgesehene Fallback-Anforderung "warnen statt hart blockieren". Ein echter
   `CertificatePinner` ist ein guter Folgeschritt.
-- **Grid-Layout im Dashboard-Editor**: `x`/`y`/`w`/`h` sind vollständig im Datenmodell vorhanden,
-  werden aber nur über Auf/Ab-Buttons (Reihenfolge) und +/−-Buttons (Breite) bedient — kein
-  Drag&Drop (siehe Scope-Ausschluss).
+- **Drag&Drop-Kollisionsregel im Dashboard-Editor**: Wird ein Widget auf eine bereits belegte
+  Grid-Zelle gezogen, wird der Drop verworfen (Widget springt auf seine letzte Position zurück,
+  während des Ziehens zeigt ein roter Rahmen die ungültige Zielzelle an) statt die kollidierenden
+  Widgets automatisch zu vertauschen — ein Tausch kann kaskadieren (das verdrängte Widget könnte
+  wiederum ein drittes überlappen) und eine robuste, überraschungsfreie Auflösung dafür wäre
+  deutlich aufwendiger. Die reine Positionsänderung geschieht per Ziehen; Größenänderung bleibt
+  über die +/−-Buttons gelöst (kein Ziehen an einer Ecke).
+- **Verlauf-Widget als einfache Liste statt Sparkline/Chart**: `HistoryWidget` zeigt die letzten
+  Messwerte als "HH:mm Wert"-Liste, nicht als gezeichnete Kurve — beides ist für den MVP-Anspruch
+  ausreichend, eine Liste kommt aber ohne Skalierungs-/Pixel-Mathematik aus (kein Chart-Framework
+  im Projekt, siehe oben).
 - **PIN-Hash**: unsalted SHA-256, da die PIN nur die lokale UI hinter einer bereits über den
   Keystore authentifizierten Session sperrt, nicht selbst ein Server-Credential ist.
 - **Revision-Konflikt "Überschreiben"**: holt vor dem Force-Write die aktuelle Server-Revision und
@@ -142,8 +154,7 @@ erzeugt (Single-Module-App, keine mehrfach wiederverwendete Geschäftslogik übe
 
 - Kamera-Snapshot-Widget, Live-Stream
 - FCM Push Notifications
-- Echtes Drag&Drop im Dashboard-Editor (Datenstruktur ist vorbereitet)
-- History-Diagramme (nur Platzhalter-Kachel "Verlauf folgt")
+- Echte History-Diagramme/Sparklines (aktuell eine einfache Werte-Liste, siehe "Bewusste Vereinfachungen")
 - Undo/Redo im Editor
 - Store-Release-Signing-Pipeline
 - Echtes, dynamisches Certificate Pinning (siehe oben)

@@ -102,15 +102,18 @@ class DashboardEditorViewModel @Inject constructor(
     fun addWidget(catalogItem: ObjectCatalogItem?, type: WidgetType, title: String) {
         val current = local.value.dashboard ?: return
         val layout = current.layoutFor(local.value.sizeClass)
+        val defaultW = 2
+        val defaultH = 1
+        val (freeX, freeY) = findFreeSlot(layout, defaultW, defaultH)
         val newWidget = Widget(
             id = UUID.randomUUID().toString(),
             objectId = catalogItem?.id,
             type = type,
             title = title,
-            x = 0,
-            y = layout.widgets.size, // append below existing widgets; real placement is future drag&drop work
-            w = 2,
-            h = 1,
+            x = freeX,
+            y = freeY,
+            w = defaultW,
+            h = defaultH,
             config = catalogItem?.unit?.let { mapOf("unit" to it) } ?: emptyMap(),
         )
         updateLayout(local.value.sizeClass) { it.copy(widgets = it.widgets + newWidget) }
@@ -122,17 +125,26 @@ class DashboardEditorViewModel @Inject constructor(
         updateLayout(local.value.sizeClass) { it.copy(widgets = it.widgets.filterNot { w -> w.id == widgetId }) }
     }
 
-    fun moveWidget(widgetId: String, delta: Int) {
+    /**
+     * Moves widget [widgetId] to grid cell ([newX], [newY]) - the drop target of a drag gesture in
+     * [DashboardEditorScreen]. [newX]/[newY] are clamped into the layout's bounds first. If the
+     * resulting rectangle would overlap another widget, the move is rejected outright (layout
+     * returned unchanged) rather than trying to shuffle/swap the colliding widget out of the way:
+     * swapping can cascade (the widget being displaced may itself now overlap a third widget, and
+     * so on) and picking a robust, unsurprising resolution for that gets complicated fast. Simply
+     * refusing an occupied drop target is the simpler, more predictable rule - the UI reflects the
+     * rejection by having the dragged widget snap back to its last committed position.
+     */
+    fun moveWidgetTo(widgetId: String, newX: Int, newY: Int) {
         updateLayout(local.value.sizeClass) { layout ->
-            val list = layout.widgets.toMutableList()
-            val index = list.indexOfFirst { it.id == widgetId }
-            val newIndex = (index + delta).coerceIn(0, list.lastIndex)
-            if (index >= 0 && newIndex != index) {
-                val item = list.removeAt(index)
-                list.add(newIndex, item)
-                list.forEachIndexed { i, w -> list[i] = w.copy(y = i) }
-            }
-            layout.copy(widgets = list)
+            val target = layout.widgets.firstOrNull { it.id == widgetId } ?: return@updateLayout layout
+            val clampedX = newX.coerceIn(0, (layout.columns - target.w).coerceAtLeast(0))
+            val clampedY = newY.coerceAtLeast(0)
+            if (clampedX == target.x && clampedY == target.y) return@updateLayout layout
+            val proposed = target.copy(x = clampedX, y = clampedY)
+            val collides = layout.widgets.any { other -> other.id != widgetId && rectsOverlap(proposed, other) }
+            if (collides) return@updateLayout layout
+            layout.copy(widgets = layout.widgets.map { if (it.id == widgetId) proposed else it })
         }
     }
 
@@ -146,13 +158,30 @@ class DashboardEditorViewModel @Inject constructor(
         }
     }
 
-    private fun updateLayout(sizeClass: SizeClass, transform: (DashboardLayout) -> DashboardLayout) {
+    private inline fun updateLayout(sizeClass: SizeClass, transform: (DashboardLayout) -> DashboardLayout) {
         local.update { state ->
             val dashboard = state.dashboard ?: return@update state
             val updatedLayouts = dashboard.layouts.map { if (it.sizeClass == sizeClass) transform(it) else it }
             state.copy(dashboard = dashboard.copy(layouts = updatedLayouts))
         }
     }
+
+    /** Scans row-by-row, column-by-column for the first cell a [w]x[h] widget fits into without
+     * overlapping any existing widget in [layout] - used to place newly added widgets. */
+    private fun findFreeSlot(layout: DashboardLayout, w: Int, h: Int): Pair<Int, Int> {
+        val maxX = (layout.columns - w).coerceAtLeast(0)
+        val maxY = (layout.widgets.maxOfOrNull { it.y + it.h } ?: 0) + h
+        for (y in 0..maxY) {
+            for (x in 0..maxX) {
+                val candidate = Widget(id = "", objectId = null, type = WidgetType.TEXT_VALUE, title = "", x = x, y = y, w = w, h = h)
+                if (layout.widgets.none { rectsOverlap(candidate, it) }) return x to y
+            }
+        }
+        return 0 to maxY
+    }
+
+    private fun rectsOverlap(a: Widget, b: Widget): Boolean =
+        a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
 
     fun sendCommand(objectId: String, value: Any?, confirmed: Boolean = false) {
         viewModelScope.launch {

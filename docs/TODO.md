@@ -1,8 +1,11 @@
 # GESAMT-TODO
 
-> Stand nach zwei Umsetzungs-Sessions: Backend-MVP inkl. Freigabeprofilen, Katalog-Vorschau, OpenAPI-Spezifikation,
-> Migrations-Grundgerüst und Deployment-Doku (Phasen 1–7, 13) sowie Android-Kernfunktionen (Phasen 8–12, 14) sind als
-> echter, getesteter Code vorhanden (48 Backend-Unit-Tests). Nicht abgehakte Punkte sind bewusst offen geblieben (siehe
+> Stand nach mehreren Umsetzungs-Sessions: Backend-MVP inkl. Freigabeprofilen, Katalog-Vorschau, History-API,
+> Katalog-Delta-Updates, OpenAPI-Spezifikation, Migrations-Grundgerüst und Deployment-Doku (Phasen 1–7, 13) sowie
+> Android-Kernfunktionen inkl. Drag&Drop, Retry-Regeln und echtem Verlauf-Widget (Phasen 8–14) sind als echter,
+> getesteter Code vorhanden: 56 Backend-Unit-Tests plus ein echter Integrationstest, der den tatsächlich kompilierten
+> Adapter gegen eine gemockte ioBroker-Umgebung end-to-end über echte HTTP-Requests durchspielt (Pairing → Admin-
+> Bestätigung → Token → Katalog → Token-Rotation → Login). Nicht abgehakte Punkte sind bewusst offen geblieben (siehe
 > README) oder erfordern eine echte ioBroker-/Android-Laufzeitumgebung zur Verifikation, die hier nicht verfügbar war.
 
 ## Phase 1 – Grundlagen
@@ -131,8 +134,8 @@
 - [x] Compact/Medium/Expanded
 - [x] Dashboard-Liste
 - [x] Editor
-- [ ] Drag & Drop (bewusst zurückgestellt, Datenmodell ist vorbereitet)
-- [x] Größenänderung (über Buttons, kein Drag&Drop)
+- [x] Drag & Drop (kollisionsbewusst, kein Swap bei Überlappung - siehe Code-Kommentar)
+- [x] Größenänderung (weiterhin über +/− Buttons, kein Ecken-Ziehen)
 - [x] Widget-Konfiguration
 - [x] Speichern
 - [x] Synchronisieren
@@ -149,7 +152,7 @@
 - [x] Slider
 - [x] Rollladen (Auf/Ab, "Stopp"-Button bewusst ohne Server-Befehl - siehe Code-Kommentar)
 - [x] Thermostat
-- [ ] Verlauf (Backend-API steht - GET /api/v1/history - App zeigt noch Platzhalterkachel)
+- [x] Verlauf (echtes Widget, Liste statt Sparkline/Chart - siehe android-app/README.md)
 - [ ] Alarm
 - [ ] Kamera (bewusst zurückgestellt)
 
@@ -163,7 +166,7 @@
 - [x] Pending
 - [x] Confirmed
 - [x] Timeout
-- [ ] Retry-Regeln
+- [x] Retry-Regeln (ein automatischer Retry bei TIMEOUT mit neuer commandId, kein Retry bei REJECTED/BLOCKED)
 - [x] Audit
 
 ## Phase 14 – Offline
