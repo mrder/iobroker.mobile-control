@@ -41,6 +41,14 @@ function validateValue(
     expectedType: string | undefined,
     permission: Pick<EffectivePermission, 'min' | 'max' | 'step' | 'allowedValues'>,
 ): { ok: true } | { ok: false; reason: string } {
+    // Actuator commands only ever accept scalar control values. Without this, a state whose
+    // ioBroker common.type is something other than boolean/number/string (e.g. "mixed"/"object"/
+    // "array", or simply absent) would fall through all three branches below unchecked and let a
+    // client write an arbitrary nested JSON object straight into the ioBroker state.
+    if (typeof value === 'object' || typeof value === 'function' || value === undefined) {
+        return { ok: false, reason: 'expected a scalar (boolean/number/string) value' };
+    }
+
     if (expectedType === 'boolean' && typeof value !== 'boolean') {
         return { ok: false, reason: 'expected boolean value' };
     }

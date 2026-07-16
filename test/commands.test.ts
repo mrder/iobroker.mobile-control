@@ -13,6 +13,7 @@ import { createFakeAdapter } from './helpers/fakeAdapter';
 
 const SWITCH_STATE_ID = 'zigbee.0.plug.state';
 const DIMMER_STATE_ID = 'zigbee.0.dimmer.level';
+const MIXED_STATE_ID = 'zigbee.0.untyped.state';
 
 function baseRule(overrides: Partial<ExposureRule>): ExposureRule {
     return {
@@ -44,6 +45,7 @@ async function setup(rateLimitPerMinute = 60) {
     const foreignObjects: Record<string, { common: { type: string } }> = {
         [SWITCH_STATE_ID]: { common: { type: 'boolean' } },
         [DIMMER_STATE_ID]: { common: { type: 'number' } },
+        [MIXED_STATE_ID]: { common: { type: 'mixed' } },
     };
 
     const adapter = createFakeAdapter({
@@ -104,6 +106,44 @@ describe('CommandsService actuator pipeline', () => {
             () => commands.execute(CTX, { commandId: 'c1', objectId: mapping.id, value: 'on', timestamp: new Date().toISOString(), nonce: 'n1' }),
             (err: unknown) => err instanceof ApiError && err.code === 'VALUE_INVALID',
         );
+    });
+
+    it('rejects a complex object value even against a state with no specific expected type', async () => {
+        // Regression test: validateValue's boolean/number/string checks only fire when
+        // expectedType matches one of those three - a state typed "mixed" (or untyped) used to
+        // fall through all three branches unchecked, letting a client write an arbitrary nested
+        // object straight into the ioBroker state.
+        const { exposureStore, catalog, commands } = await setup();
+        await exposureStore.put(baseRule({ target: MIXED_STATE_ID, userId: 'u1', write: true }));
+        const mapping = await catalog.getOrCreateMapping(MIXED_STATE_ID);
+
+        await assert.rejects(
+            () =>
+                commands.execute(CTX, {
+                    commandId: 'c1',
+                    objectId: mapping.id,
+                    value: { evil: 'payload' },
+                    timestamp: new Date().toISOString(),
+                    nonce: 'n1',
+                }),
+            (err: unknown) => err instanceof ApiError && err.code === 'VALUE_INVALID',
+        );
+    });
+
+    it('still allows scalar values (string) through a "mixed"-typed state', async () => {
+        const { exposureStore, catalog, commands, setForeignStateCalls } = await setup();
+        await exposureStore.put(baseRule({ target: MIXED_STATE_ID, userId: 'u1', write: true }));
+        const mapping = await catalog.getOrCreateMapping(MIXED_STATE_ID);
+
+        const record = await commands.execute(CTX, {
+            commandId: 'c1',
+            objectId: mapping.id,
+            value: 'ok',
+            timestamp: new Date().toISOString(),
+            nonce: 'n1',
+        });
+        assert.equal(record.status, 'executed');
+        assert.deepEqual(setForeignStateCalls, [{ id: MIXED_STATE_ID, val: 'ok' }]);
     });
 
     it('enforces min/max range for numeric actuators', async () => {

@@ -263,6 +263,15 @@ export class RealtimeGateway {
         }
     }
 
+    /**
+     * Also doubles as a periodic re-authorization sweep: the initial WS handshake only checks
+     * session validity once (see handleAuth). Revocation is normally pushed proactively via
+     * notifySessionRevoked/notifyDeviceRevoked, but plain session *expiry* (session.expiresAt
+     * elapsing under a long-lived connection, e.g. a phone that never drops the socket for days)
+     * had no equivalent check - a stale-but-still-open connection would otherwise keep receiving
+     * live updates past its session's natural TTL. Piggybacking on the heartbeat interval that
+     * already iterates every connection avoids a second timer for this.
+     */
     private heartbeatTick(): void {
         for (const connection of this.connections) {
             if (!connection.alive) {
@@ -270,9 +279,24 @@ export class RealtimeGateway {
                 this.cleanupConnection(connection);
                 continue;
             }
+            if (connection.sessionId && !this.isSessionStillActive(connection.sessionId)) {
+                this.send(connection, { type: 'session_revoked' });
+                connection.ws.close();
+                this.cleanupConnection(connection);
+                continue;
+            }
             connection.alive = false;
             connection.ws.ping();
             this.send(connection, { type: 'heartbeat' });
+        }
+    }
+
+    private isSessionStillActive(sessionId: string): boolean {
+        try {
+            this.sessions.requireActive(sessionId);
+            return true;
+        } catch {
+            return false;
         }
     }
 

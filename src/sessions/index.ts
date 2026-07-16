@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { v4 as uuid } from 'uuid';
 import { CollectionStore } from '../lib/store';
 import { ApiError } from '../lib/errors';
-import { sha256Hex } from '../security/tokens';
+import { safeEqualHex, sha256Hex } from '../security/tokens';
 import type { Session } from '../lib/types';
 
 export interface NewSessionParams {
@@ -69,7 +69,10 @@ export class SessionsService {
     findByRefreshToken(deviceId: string, presentedRefreshToken: string): Session | undefined {
         const hash = sha256Hex(presentedRefreshToken);
         return this.store.findOne(
-            (s) => s.deviceId === deviceId && !s.revoked && (s.refreshTokenHash === hash || s.previousRefreshTokenHash === hash),
+            (s) =>
+                s.deviceId === deviceId &&
+                !s.revoked &&
+                (safeEqualHex(s.refreshTokenHash, hash) || (s.previousRefreshTokenHash !== null && safeEqualHex(s.previousRefreshTokenHash, hash))),
         );
     }
 
@@ -92,11 +95,11 @@ export class SessionsService {
 
         const presentedHash = sha256Hex(presentedRefreshToken);
 
-        if (presentedHash === session.previousRefreshTokenHash) {
+        if (session.previousRefreshTokenHash !== null && safeEqualHex(presentedHash, session.previousRefreshTokenHash)) {
             await this.revokeFamily(session.tokenFamily);
             throw new ApiError('SESSION_REVOKED', 'refresh token reuse detected');
         }
-        if (presentedHash !== session.refreshTokenHash) {
+        if (!safeEqualHex(presentedHash, session.refreshTokenHash)) {
             throw new ApiError('SESSION_REVOKED', 'refresh token not recognized');
         }
 

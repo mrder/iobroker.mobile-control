@@ -3,7 +3,7 @@ import { v4 as uuid } from 'uuid';
 import * as QRCode from 'qrcode';
 import { CollectionStore } from '../lib/store';
 import { ApiError } from '../lib/errors';
-import { sha256Hex } from '../security/tokens';
+import { safeEqualHex, sha256Hex } from '../security/tokens';
 import type { PairingInvite, PairingClaim, PairingClaimStatus } from '../lib/types';
 import type { UsersService } from '../users';
 import type { RolesService } from '../roles';
@@ -96,7 +96,7 @@ export class PairingService {
         if (invite.expiresAt < Date.now()) {
             throw new ApiError('PAIRING_EXPIRED');
         }
-        if (sha256Hex(params.pairingSecret) !== invite.secretHash) {
+        if (!safeEqualHex(sha256Hex(params.pairingSecret), invite.secretHash)) {
             throw new ApiError('PAIRING_INVALID', 'secret mismatch');
         }
 
