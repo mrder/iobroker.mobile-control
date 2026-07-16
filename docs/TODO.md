@@ -102,7 +102,7 @@
 - [x] REST Client
 - [x] WebSocket Client
 - [x] DI
-- [ ] Tests (keine Android-Unit-/Instrumentierungstests)
+- [ ] Tests (31 reine JVM-Unit-Tests für Domain-/Grid-Logik ergänzt; Repository/ViewModel/UI-/Instrumentierungstests fehlen weiterhin)
 - [x] Build Types (debug/staging/release, separate applicationIdSuffix, parallel installierbar)
 
 ## Phase 9 – Android Pairing
