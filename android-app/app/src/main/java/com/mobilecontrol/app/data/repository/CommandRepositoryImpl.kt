@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -34,12 +35,29 @@ class CommandRepositoryImpl @Inject constructor(
     private val _commandStates = MutableStateFlow<Map<String, CommandStatus>>(emptyMap())
     override val commandStates: StateFlow<Map<String, CommandStatus>> = _commandStates
 
+    /**
+     * Maps the server-facing commandId of an in-flight *retry* back to the original/"public"
+     * commandId that [sendCommand] returned to its caller. A retry must use a fresh commandId/nonce
+     * (the server treats a repeated commandId as an idempotent no-op, so resending the same id
+     * would not actually trigger a second attempt) - but the ViewModel/UI layer only ever learned
+     * about the *original* commandId, so [commandStates] keeps publishing status updates under that
+     * original id for the retry's whole lifetime. Entries are removed once the retry reaches a
+     * terminal status. ConcurrentHashMap because the WS-event collector and the timeout watcher both
+     * touch it from the IO-dispatcher thread pool.
+     */
+    private val retryServerIdToPublicId = ConcurrentHashMap<String, String>()
+
     init {
         scope.launch {
             webSocketClient.events.collect { event ->
                 if (event is WsEvent.CommandResult) {
+                    val mappedPublicId = retryServerIdToPublicId[event.commandId]
+                    val publicId = mappedPublicId ?: event.commandId
                     val status = CommandStatus.fromWireName(event.status)
-                    _commandStates.value = _commandStates.value + (event.commandId to status)
+                    _commandStates.value = _commandStates.value + (publicId to status)
+                    if (mappedPublicId != null && status.isTerminal) {
+                        retryServerIdToPublicId.remove(event.commandId)
+                    }
                     if (status == CommandStatus.REJECTED || status == CommandStatus.BLOCKED) {
                         notifyCommandFailure(status)
                     }
@@ -49,35 +67,62 @@ class CommandRepositoryImpl @Inject constructor(
     }
 
     override suspend fun sendCommand(objectId: String, value: Any?, confirmed: Boolean): Result<String> {
-        val commandId = UUID.randomUUID().toString()
-        _commandStates.value = _commandStates.value + (commandId to CommandStatus.ACCEPTED)
+        val publicCommandId = UUID.randomUUID().toString()
+        _commandStates.value = _commandStates.value + (publicCommandId to CommandStatus.ACCEPTED)
 
+        val result = postCommand(publicCommandId, objectId, value, confirmed)
+        result.onFailure {
+            _commandStates.value = _commandStates.value + (publicCommandId to CommandStatus.REJECTED)
+            return Result.failure(it)
+        }
+
+        scope.launch { watchForTimeout(publicCommandId, objectId, value, confirmed, isRetry = false) }
+        return Result.success(publicCommandId)
+    }
+
+    private suspend fun postCommand(serverCommandId: String, objectId: String, value: Any?, confirmed: Boolean): Result<Unit> {
         val request = CommandRequestDto(
-            commandId = commandId,
+            commandId = serverCommandId,
             objectId = objectId,
             value = value.toJsonElement(),
             timestamp = Instant.now().toString(),
             nonce = UUID.randomUUID().toString(),
             confirmed = confirmed,
         )
-
-        val result = safeApiCall { apiService.sendCommand(request) }
-        result.onFailure {
-            _commandStates.value = _commandStates.value + (commandId to CommandStatus.REJECTED)
-            return Result.failure(it)
-        }
-
-        scope.launch { watchForTimeout(commandId) }
-        return Result.success(commandId)
+        return safeApiCall { apiService.sendCommand(request) }
     }
 
-    private suspend fun watchForTimeout(commandId: String) {
+    /**
+     * Watches [publicCommandId] for a confirmation within [COMMAND_TIMEOUT_MS]. REJECTED/BLOCKED
+     * are final server-side decisions - the WS handler above already marks the command terminal and
+     * notifies the user as soon as one of those arrives, so `current.isTerminal` is already true by
+     * the time this delay elapses and the function returns below without ever retrying them
+     * (resending would just reproduce the same rejection). Only an actual TIMEOUT - most likely a
+     * lost WebSocket confirmation event rather than a real rejection - is worth one automatic retry.
+     */
+    private suspend fun watchForTimeout(publicCommandId: String, objectId: String, value: Any?, confirmed: Boolean, isRetry: Boolean) {
         delay(COMMAND_TIMEOUT_MS)
-        val current = _commandStates.value[commandId]
-        if (current != null && !current.isTerminal) {
-            _commandStates.value = _commandStates.value + (commandId to CommandStatus.TIMEOUT)
+        val current = _commandStates.value[publicCommandId]
+        if (current == null || current.isTerminal) return
+
+        if (isRetry) {
+            // The retry itself also went unconfirmed - give up for good, exactly one retry allowed.
+            _commandStates.value = _commandStates.value + (publicCommandId to CommandStatus.TIMEOUT)
             notifyCommandFailure(CommandStatus.TIMEOUT)
+            return
         }
+
+        // First timeout: silently retry once with a new commandId/nonce before bothering the user.
+        val retryServerId = UUID.randomUUID().toString()
+        retryServerIdToPublicId[retryServerId] = publicCommandId
+        val retryResult = postCommand(retryServerId, objectId, value, confirmed)
+        retryResult.onFailure {
+            retryServerIdToPublicId.remove(retryServerId)
+            _commandStates.value = _commandStates.value + (publicCommandId to CommandStatus.TIMEOUT)
+            notifyCommandFailure(CommandStatus.TIMEOUT)
+            return
+        }
+        scope.launch { watchForTimeout(publicCommandId, objectId, value, confirmed, isRetry = true) }
     }
 
     private fun notifyCommandFailure(status: CommandStatus) {

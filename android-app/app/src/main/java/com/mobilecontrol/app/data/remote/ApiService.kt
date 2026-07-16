@@ -9,6 +9,7 @@ import com.mobilecontrol.app.data.remote.dto.CommandRequestDto
 import com.mobilecontrol.app.data.remote.dto.CommandResponseDto
 import com.mobilecontrol.app.data.remote.dto.DashboardDto
 import com.mobilecontrol.app.data.remote.dto.DashboardListResponseDto
+import com.mobilecontrol.app.data.remote.dto.HistoryResponseDto
 import com.mobilecontrol.app.data.remote.dto.LoginRequestDto
 import com.mobilecontrol.app.data.remote.dto.PairingStatusResponseDto
 import com.mobilecontrol.app.data.remote.dto.RefreshRequestDto
@@ -45,6 +46,14 @@ interface ApiService {
 
     @GET("api/v1/states")
     suspend fun getStates(@Query("ids") ids: String): Response<StatesResponseDto>
+
+    @GET("api/v1/history")
+    suspend fun getHistory(
+        @Query("id") id: String,
+        @Query("from") from: String? = null,
+        @Query("to") to: String? = null,
+        @Query("limit") limit: Int? = null,
+    ): Response<HistoryResponseDto>
 
     @POST("api/v1/commands")
     suspend fun sendCommand(@Body body: CommandRequestDto): Response<CommandResponseDto>

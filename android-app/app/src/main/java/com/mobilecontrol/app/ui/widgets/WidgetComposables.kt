@@ -21,8 +21,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.mobilecontrol.app.domain.model.HistoryEntry
 import com.mobilecontrol.app.ui.theme.StatusLive
 import com.mobilecontrol.app.ui.theme.StatusOffline
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -110,12 +116,93 @@ private fun CommandOverlayIcon(state: WidgetState) {
     }
 }
 
+/** Internal load state for [HistoryWidget] - see the doc comment on that function for why this
+ * isn't modeled as [WidgetState] instead. */
+private sealed interface HistoryLoadState {
+    data object Loading : HistoryLoadState
+    /** Covers both an empty result and any load failure (403/404/network/...) - the widget shows
+     * the same "no history available" message for all of them, matching the MVP's error-detail scope. */
+    data object Unavailable : HistoryLoadState
+    data class Success(val entries: List<HistoryEntry>) : HistoryLoadState
+}
+
+/**
+ * Real history widget backed by GET /api/v1/history. Unlike every other widget type it does not
+ * derive its visuals from the shared [WidgetState] (that sealed interface models the live
+ * WebSocket-driven value stream: live/stale/pending/confirmed/...); history is a one-shot REST
+ * fetch on becoming visible, so it keeps its own tiny loading/unavailable/success state instead -
+ * folding it into WidgetState would only add an awkward, meaningless mapping (e.g. "which
+ * WidgetState is a finished history fetch?").
+ *
+ * Rendered as a simple newest-first "HH:mm  value" list rather than a drawn sparkline/chart: the
+ * task explicitly allows either and a list needs no pixel-math/scaling logic to get right, which
+ * matters here since there is no compiler in this environment to catch mistakes in that math.
+ */
 @Composable
-fun HistoryPlaceholderWidget(title: String, state: WidgetState, modifier: Modifier = Modifier) {
-    WidgetCard(title = title, state = state, modifier = modifier) {
-        Text(text = "Verlauf folgt", style = MaterialTheme.typography.bodyMedium)
+fun HistoryWidget(
+    title: String,
+    objectId: String?,
+    unit: String?,
+    modifier: Modifier = Modifier,
+    viewModel: HistoryWidgetViewModel = hiltViewModel(),
+) {
+    var loadState by remember(objectId) { mutableStateOf<HistoryLoadState>(HistoryLoadState.Loading) }
+
+    LaunchedEffect(objectId) {
+        if (objectId == null) {
+            loadState = HistoryLoadState.Unavailable
+            return@LaunchedEffect
+        }
+        loadState = HistoryLoadState.Loading
+        val to = Instant.now()
+        val from = to.minus(HISTORY_LOOKBACK_HOURS, ChronoUnit.HOURS)
+        val result = viewModel.loadHistory(objectId, from.toString(), to.toString(), HISTORY_LIMIT)
+        loadState = result.fold(
+            onSuccess = { entries -> if (entries.isEmpty()) HistoryLoadState.Unavailable else HistoryLoadState.Success(entries) },
+            onFailure = { HistoryLoadState.Unavailable },
+        )
+    }
+
+    // Neither StatusLive (misleadingly implies a fresh live value) nor Loading/NoPermission/
+    // ObjectMissing (those replace the widget body with WidgetCard's own hardcoded text) fit here -
+    // Stale's amber border reads reasonably as "historical, not live data" while still letting this
+    // composable's own content() run for every load state.
+    WidgetCard(title = title, state = WidgetState.Stale(null, 0L), modifier = modifier) {
+        when (val current = loadState) {
+            HistoryLoadState.Loading -> Text("Lädt…", style = MaterialTheme.typography.bodyMedium)
+            HistoryLoadState.Unavailable -> Text("Kein Verlauf verfügbar", style = MaterialTheme.typography.bodyMedium)
+            is HistoryLoadState.Success -> HistoryEntryList(current.entries, unit)
+        }
     }
 }
+
+private val historyTimeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+
+@Composable
+private fun HistoryEntryList(entries: List<HistoryEntry>, unit: String?) {
+    val newestFirst = remember(entries) { entries.sortedByDescending { it.timestampMillis }.take(HISTORY_DISPLAY_COUNT) }
+    Column {
+        newestFirst.forEach { entry ->
+            val time = Instant.ofEpochMilli(entry.timestampMillis)
+                .atZone(ZoneId.systemDefault())
+                .format(historyTimeFormatter)
+            Text(
+                text = "$time  ${entry.value}${unit?.let { " $it" } ?: ""}",
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+    }
+}
+
+/** How far back the initial history fetch looks, per widget spec ("z. B. letzte 24h"). */
+private const val HISTORY_LOOKBACK_HOURS = 24L
+
+/** Kept moderate per widget spec ("limit moderat wie 100"), well under the server's max of 2000. */
+private const val HISTORY_LIMIT = 100
+
+/** Only the most recent entries are shown in the compact widget card, oldest fetched entries are
+ * still used if the list ever grows a scroll/expand affordance later. */
+private const val HISTORY_DISPLAY_COUNT = 8
 
 /**
  * A single fire-and-forget command: unlike SwitchWidget there is no persistent on/off state to

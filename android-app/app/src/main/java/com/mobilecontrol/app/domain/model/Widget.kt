@@ -18,7 +18,11 @@ enum class WidgetType(val wireName: String) {
     HUMIDITY("humidity"),
     BOOLEAN_STATUS("boolean_status"),
     SWITCH("switch"),
-    HISTORY_PLACEHOLDER("history_placeholder"),
+    // Kotlin symbol renamed from HISTORY_PLACEHOLDER now that a real history widget exists (see
+    // ui/widgets/WidgetComposables.kt#HistoryWidget), but the wireName stays "history_placeholder"
+    // so dashboards already persisted (server-side and in the local Room cache) keep decoding to
+    // this type unchanged - less breakage than switching to a "chart" wireName.
+    HISTORY("history_placeholder"),
     MOMENTARY_BUTTON("button"),
     SLIDER("slider"),
     ROLLER_SHUTTER("shutter"),
@@ -45,7 +49,7 @@ enum class WidgetType(val wireName: String) {
             "humidity" to HUMIDITY,
             "switch" to SWITCH,
             "value" to TEXT_VALUE,
-            "chart" to HISTORY_PLACEHOLDER,
+            "chart" to HISTORY,
             "status" to BOOLEAN_STATUS,
             "text" to TEXT_VALUE,
             "shutter" to ROLLER_SHUTTER,

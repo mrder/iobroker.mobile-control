@@ -57,7 +57,7 @@ fun WidgetHost(
             modifier = modifier,
             onToggle = { on -> sendGated(on) },
         )
-        WidgetType.HISTORY_PLACEHOLDER -> HistoryPlaceholderWidget(title, state, modifier)
+        WidgetType.HISTORY -> HistoryWidget(title = title, objectId = widget.objectId, unit = widget.config["unit"], modifier = modifier)
         WidgetType.MOMENTARY_BUTTON -> MomentaryButtonWidget(
             title = title,
             state = state,

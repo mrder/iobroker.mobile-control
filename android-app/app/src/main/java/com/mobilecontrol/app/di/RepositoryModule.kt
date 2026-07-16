@@ -4,6 +4,7 @@ import com.mobilecontrol.app.data.repository.AuthRepositoryImpl
 import com.mobilecontrol.app.data.repository.CommandRepositoryImpl
 import com.mobilecontrol.app.data.repository.DashboardRepositoryImpl
 import com.mobilecontrol.app.data.repository.DiagnosticsRepositoryImpl
+import com.mobilecontrol.app.data.repository.HistoryRepositoryImpl
 import com.mobilecontrol.app.data.repository.NotificationRepositoryImpl
 import com.mobilecontrol.app.data.repository.ObjectCatalogRepositoryImpl
 import com.mobilecontrol.app.data.repository.PairingRepositoryImpl
@@ -13,6 +14,7 @@ import com.mobilecontrol.app.domain.repository.AuthRepository
 import com.mobilecontrol.app.domain.repository.CommandRepository
 import com.mobilecontrol.app.domain.repository.DashboardRepository
 import com.mobilecontrol.app.domain.repository.DiagnosticsRepository
+import com.mobilecontrol.app.domain.repository.HistoryRepository
 import com.mobilecontrol.app.domain.repository.NotificationRepository
 import com.mobilecontrol.app.domain.repository.ObjectCatalogRepository
 import com.mobilecontrol.app.domain.repository.PairingRepository
@@ -63,4 +65,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindDiagnosticsRepository(impl: DiagnosticsRepositoryImpl): DiagnosticsRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindHistoryRepository(impl: HistoryRepositoryImpl): HistoryRepository
 }
