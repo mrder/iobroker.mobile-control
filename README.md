@@ -70,6 +70,7 @@ Siehe [android-app/README.md](android-app/README.md) – eigenständiges Android
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) – Reverse-Proxy/VPN/TLS-Anleitung, OWASP-Abgleich
 - [docs/ROADMAP.md](docs/ROADMAP.md) – Versionen und Meilensteine
 - [docs/TODO.md](docs/TODO.md) – Entwicklungsstand
+- [CHANGELOG.md](CHANGELOG.md) – Änderungshistorie
 
 ## Status
 

@@ -11,7 +11,7 @@
 ## Phase 1 – Grundlagen
 
 - [x] Namen finalisieren
-- [ ] GitHub-Repositories erstellen
+- [x] GitHub-Repositories erstellen (github.com/mrder/iobroker.mobile-control)
 - [x] Lizenz festlegen
 - [x] SECURITY.md
 - [x] API-Versionierung
