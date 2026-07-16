@@ -24,6 +24,20 @@ ioBroker-Objektbaum, sondern nur den vom Server gefilterten, freigegebenen Objek
 Es ist keine echte Server-Instanz im Repo enthalten — die App spricht ausschließlich über den in
 diesem Dokument beschriebenen REST/WebSocket-Vertrag mit einem ioBroker-Mobile-Control-Adapter.
 
+## Tests
+
+```bash
+./gradlew :app:testDebugUnitTest
+```
+
+Reine JVM-Unit-Tests (kein Emulator nötig) für Logik ohne Android-Framework-Abhängigkeit:
+Grid-Platzierung/Kollisionserkennung im Dashboard-Editor (`ui/dashboards/GridPlacementTest.kt`)
+sowie die Domain-Modelle `WidgetType`, `CommandStatus`, `ApiErrorCode`, `Dashboard`/`SizeClass`
+und `ObjectCatalogItem` (`domain/model/*Test.kt`). Konnten in dieser Umgebung nicht ausgeführt
+werden (kein Android-SDK/Gradle-Daemon verfügbar) – bitte vor dem nächsten echten Build einmal
+laufen lassen. Repository-/ViewModel-Ebene (Netzwerk, Coroutines, Hilt) hat noch keine Tests,
+ebenso wenig UI-/Instrumentierungstests.
+
 ## Server-URL für Tests konfigurieren
 
 Es gibt **keine** fest einkompilierte Server-URL. Die App erfährt die Server-Adresse ausschließlich

@@ -104,7 +104,7 @@ class DashboardEditorViewModel @Inject constructor(
         val layout = current.layoutFor(local.value.sizeClass)
         val defaultW = 2
         val defaultH = 1
-        val (freeX, freeY) = findFreeSlot(layout, defaultW, defaultH)
+        val (freeX, freeY) = GridPlacement.findFreeSlot(layout, defaultW, defaultH)
         val newWidget = Widget(
             id = UUID.randomUUID().toString(),
             objectId = catalogItem?.id,
@@ -142,7 +142,7 @@ class DashboardEditorViewModel @Inject constructor(
             val clampedY = newY.coerceAtLeast(0)
             if (clampedX == target.x && clampedY == target.y) return@updateLayout layout
             val proposed = target.copy(x = clampedX, y = clampedY)
-            val collides = layout.widgets.any { other -> other.id != widgetId && rectsOverlap(proposed, other) }
+            val collides = layout.widgets.any { other -> other.id != widgetId && GridPlacement.rectsOverlap(proposed, other) }
             if (collides) return@updateLayout layout
             layout.copy(widgets = layout.widgets.map { if (it.id == widgetId) proposed else it })
         }
@@ -165,23 +165,6 @@ class DashboardEditorViewModel @Inject constructor(
             state.copy(dashboard = dashboard.copy(layouts = updatedLayouts))
         }
     }
-
-    /** Scans row-by-row, column-by-column for the first cell a [w]x[h] widget fits into without
-     * overlapping any existing widget in [layout] - used to place newly added widgets. */
-    private fun findFreeSlot(layout: DashboardLayout, w: Int, h: Int): Pair<Int, Int> {
-        val maxX = (layout.columns - w).coerceAtLeast(0)
-        val maxY = (layout.widgets.maxOfOrNull { it.y + it.h } ?: 0) + h
-        for (y in 0..maxY) {
-            for (x in 0..maxX) {
-                val candidate = Widget(id = "", objectId = null, type = WidgetType.TEXT_VALUE, title = "", x = x, y = y, w = w, h = h)
-                if (layout.widgets.none { rectsOverlap(candidate, it) }) return x to y
-            }
-        }
-        return 0 to maxY
-    }
-
-    private fun rectsOverlap(a: Widget, b: Widget): Boolean =
-        a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
 
     fun sendCommand(objectId: String, value: Any?, confirmed: Boolean = false) {
         viewModelScope.launch {

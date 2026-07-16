@@ -280,11 +280,14 @@ private fun DashboardGrid(
                                                     .roundToInt().coerceIn(0, (columns - clampedW).coerceAtLeast(0))
                                                 val candidateY = ((baseOffsetPx.y + dragOffset.y) / rowHeightPx)
                                                     .roundToInt().coerceAtLeast(0)
-                                                isInvalidTarget = widgets.any { other ->
-                                                    other.id != widget.id &&
-                                                        candidateX < other.x + other.w && candidateX + clampedW > other.x &&
-                                                        candidateY < other.y + other.h && candidateY + widget.h > other.y
-                                                }
+                                                isInvalidTarget = GridPlacement.wouldOverlapAny(
+                                                    x = candidateX,
+                                                    y = candidateY,
+                                                    w = clampedW,
+                                                    h = widget.h,
+                                                    others = widgets,
+                                                    excludeId = widget.id,
+                                                )
                                             },
                                         )
                                     }
