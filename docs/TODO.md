@@ -225,7 +225,7 @@
 - [ ] App Staging
 - [ ] interne APK
 - [ ] GitHub Releases
-- [ ] Changelog
+- [x] Changelog (CHANGELOG.md)
 - [x] Installationsanleitung
 - [ ] Updateprozess
 - [ ] Beta
