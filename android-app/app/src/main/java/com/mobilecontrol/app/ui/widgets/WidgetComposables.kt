@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Circle
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -14,6 +15,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -23,8 +25,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mobilecontrol.app.domain.model.HistoryEntry
+import com.mobilecontrol.app.ui.theme.StatusError
 import com.mobilecontrol.app.ui.theme.StatusLive
 import com.mobilecontrol.app.ui.theme.StatusOffline
+import com.mobilecontrol.app.ui.theme.StatusStale
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -346,6 +350,63 @@ fun ThermostatWidget(
                     enabled = enabled,
                 ) { Text("+") }
                 CommandOverlayIcon(state)
+            }
+        }
+    }
+}
+
+/**
+ * Read-only alarm indicator (MASTERKONZEPT.md "Alarmkachel" / TODO.md "Quittierung"/"Entwarnung").
+ * No server write happens here: not every alarm source has a companion writable ack-state in
+ * ioBroker, so "Quittieren" only mutes this widget's own alert styling locally (via
+ * [AlarmWidgetViewModel]) rather than assuming one exists. On every true<->false transition it
+ * also pushes an in-app notification ("Alarm aktiv" / "Entwarnung") through the same
+ * NotificationRepository the connection/permission events use, so alarms show up in Meldungen
+ * even for a dashboard the user isn't currently looking at.
+ */
+@Composable
+fun AlarmWidget(
+    title: String,
+    objectId: String?,
+    state: WidgetState,
+    modifier: Modifier = Modifier,
+    viewModel: AlarmWidgetViewModel = hiltViewModel(),
+) {
+    val active = state.currentValue() as? Boolean ?: false
+    val isLiveish = state is WidgetState.Live || state is WidgetState.Stale
+    val acknowledgedIds by viewModel.acknowledged.collectAsState()
+    val acknowledged = objectId != null && objectId in acknowledgedIds
+
+    LaunchedEffect(objectId, active, isLiveish) {
+        if (objectId != null && isLiveish) {
+            viewModel.observe(objectId, title, active)
+        }
+    }
+
+    WidgetCard(title = title, state = state, modifier = modifier) {
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                val tint = when {
+                    !active -> StatusLive
+                    acknowledged -> StatusStale
+                    else -> StatusError
+                }
+                Icon(
+                    imageVector = if (active) Icons.Filled.Warning else Icons.Filled.CheckCircle,
+                    contentDescription = null,
+                    tint = tint,
+                )
+                Text(
+                    text = when {
+                        !active -> "Kein Alarm"
+                        acknowledged -> "Alarm (quittiert)"
+                        else -> "Alarm aktiv"
+                    },
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            }
+            if (active && !acknowledged) {
+                TextButton(onClick = { objectId?.let(viewModel::acknowledge) }) { Text("Quittieren") }
             }
         }
     }

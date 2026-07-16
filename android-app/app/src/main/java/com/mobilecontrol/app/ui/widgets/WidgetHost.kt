@@ -58,6 +58,7 @@ fun WidgetHost(
             onToggle = { on -> sendGated(on) },
         )
         WidgetType.HISTORY -> HistoryWidget(title = title, objectId = widget.objectId, unit = widget.config["unit"], modifier = modifier)
+        WidgetType.ALARM -> AlarmWidget(title = title, objectId = widget.objectId, state = state, modifier = modifier)
         WidgetType.MOMENTARY_BUTTON -> MomentaryButtonWidget(
             title = title,
             state = state,

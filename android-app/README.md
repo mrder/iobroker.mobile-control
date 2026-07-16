@@ -99,11 +99,16 @@ erzeugt (Single-Module-App, keine mehrfach wiederverwendete Geschäftslogik übe
 - Widgets: Text/Value, Temperatur, Luftfeuchtigkeit, Boolean-Status, Schalter, Taster
   (Momentary-Button), Slider, Rollladen (Auf/Stopp/Ab), Thermostat (+/− um Zielwert mit
   Katalog-`step`), Verlauf (lädt die letzten Werte per `GET /api/v1/history` und zeigt sie als
-  Liste, siehe unten) — alle über einen gemeinsamen `WidgetState`-Sealed-Interface
-  mit 9 visuell unterscheidbaren Zuständen. Schreibende Widgets (Schalter/Taster/Slider/
-  Rollladen/Thermostat) laufen alle über ein gemeinsames Bestätigungs-Gate
-  (`ui/widgets/ConfirmationGate.kt`), das `ObjectCatalogItem.confirmPolicy` auswertet, bevor
-  `CommandRepository.sendCommand(..., confirmed=true)` aufgerufen wird
+  Liste, siehe unten), Alarm (Status + Quittieren/Entwarnung, siehe unten) — alle über einen
+  gemeinsamen `WidgetState`-Sealed-Interface mit 9 visuell unterscheidbaren Zuständen.
+  Schreibende Widgets (Schalter/Taster/Slider/Rollladen/Thermostat) laufen alle über ein
+  gemeinsames Bestätigungs-Gate (`ui/widgets/ConfirmationGate.kt`), das
+  `ObjectCatalogItem.confirmPolicy` auswertet, bevor `CommandRepository.sendCommand(...,
+  confirmed=true)` aufgerufen wird
+- Alarm-Widget: zeigt aktiv/inaktiv (rot/grün), pusht bei jedem Wechsel eine In-App-Meldung
+  ("Alarm aktiv" / "Entwarnung") über dieselbe `NotificationRepository` wie Verbindungs-/
+  Rechte-Ereignisse, "Quittieren" mutet die Alarm-Optik lokal bis zum nächsten neuen
+  Alarm-Ereignis (`ui/widgets/AlarmWidgetViewModel.kt`, 8 Unit-Tests)
 - Realtime: WebSocket-Repository mit Subscribe/Unsubscribe pro sichtbarem Screen,
   `StateFlow<Map<ObjectId, LiveValue>>`, Command-Timeout nach 15s mit genau einem automatischen
   Retry (neue commandId/nonce) bevor der Nutzer benachrichtigt wird — `REJECTED`/`BLOCKED` sind
@@ -163,6 +168,12 @@ erzeugt (Single-Module-App, keine mehrfach wiederverwendete Geschäftslogik übe
   aktiven Ziehens nicht von Server-Value-Updates überschrieben wird (sonst würde der Thumb unter
   dem Finger zurückspringen); gesendet wird der Wert erst bei `onValueChangeFinished`, nicht bei
   jedem Drag-Tick, um kein Server-Rate-Limit zu strapazieren.
+- **Alarm-"Quittieren" ist rein lokal**: Es gibt keinen Server-Schreibbefehl dafür — nicht jede
+  Alarmquelle in ioBroker hat einen eigenen beschreibbaren Ack-State, und der API-Vertrag sieht
+  keinen dafür vor. "Quittieren" mutet stattdessen nur die Alarm-Optik im Widget selbst (rot →
+  gedämpft) bis zum nächsten echten Alarm-Ereignis (aktiv→inaktiv→aktiv). Ein serverseitiger
+  Ack-Mechanismus wäre ein guter Folgeschritt, sobald das Freigabemodell einen solchen State
+  vorsieht.
 
 ## Was bewusst nicht gebaut wurde (TODO)
 

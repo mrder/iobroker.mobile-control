@@ -153,7 +153,7 @@
 - [x] Rollladen (Auf/Ab, "Stopp"-Button bewusst ohne Server-Befehl - siehe Code-Kommentar)
 - [x] Thermostat
 - [x] Verlauf (echtes Widget, Liste statt Sparkline/Chart - siehe android-app/README.md)
-- [ ] Alarm
+- [x] Alarm (Status-Icon + Quittieren, siehe Phase 15)
 - [ ] Kamera (bewusst zurückgestellt)
 
 ## Phase 13 – Aktorsteuerung
@@ -183,8 +183,8 @@
 ## Phase 15 – Meldungen und Kamera
 
 - [x] In-App-Meldungen (einfache Umsetzung)
-- [ ] Quittierung
-- [ ] Entwarnung
+- [x] Quittierung (lokal im Alarm-Widget, kein Server-Ack-State im Vertrag vorgesehen)
+- [x] Entwarnung (automatische In-App-Meldung bei aktiv→inaktiv-Übergang)
 - [ ] Snapshot (bewusst zurückgestellt)
 - [ ] Vollbild
 - [ ] Fehlerstatus

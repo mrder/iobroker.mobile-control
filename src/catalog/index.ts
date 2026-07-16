@@ -19,6 +19,9 @@ function mapValueType(type: string): CatalogObject['valueType'] {
 }
 
 function suggestWidgets(role: string, valueType: CatalogObject['valueType']): string[] {
+    if (role.includes('alarm')) {
+        return ['alarm', 'status'];
+    }
     if (role.includes('temperature')) {
         return ['temperature', 'value', 'chart'];
     }

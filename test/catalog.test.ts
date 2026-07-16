@@ -8,6 +8,7 @@ import type { ExposureRule, PublicObjectMapping } from '../src/lib/types';
 import { createFakeAdapter } from './helpers/fakeAdapter';
 
 const STATE_ID = 'zigbee.0.living_room.temperature';
+const SMOKE_ALARM_STATE_ID = 'zigbee.0.kitchen.smoke_alarm';
 const CTX = { userId: 'u1', deviceId: 'd1', roleId: 'viewer' };
 
 async function setup() {
@@ -16,6 +17,11 @@ async function setup() {
             [STATE_ID]: {
                 type: 'state',
                 common: { name: 'Wohnzimmer Temperatur', role: 'value.temperature', type: 'number', unit: '°C' },
+                native: {},
+            },
+            [SMOKE_ALARM_STATE_ID]: {
+                type: 'state',
+                common: { name: 'Rauchmelder Küche', role: 'sensor.alarm.fire', type: 'boolean' },
                 native: {},
             },
             'system.adapter.admin.0.alive': {
@@ -108,6 +114,16 @@ describe('CatalogService', () => {
         assert.equal(objects.length, 1);
         assert.equal(objects[0].name, 'Wohnzimmer Temperatur');
         assert.ok(!objects.some((o) => o.name === 'alive'));
+    });
+
+    it('suggests the alarm widget for a sensor.alarm.* role, ahead of the generic boolean fallback', async () => {
+        const { exposureStore, catalog } = await setup();
+        await exposureStore.put(baseRule({ target: SMOKE_ALARM_STATE_ID, roleId: 'viewer', read: true }));
+
+        const { objects } = await catalog.effectiveCatalog(CTX);
+        const smokeAlarm = objects.find((o) => o.name === 'Rauchmelder Küche');
+        assert.ok(smokeAlarm);
+        assert.deepEqual(smokeAlarm!.suggestedWidgets, ['alarm', 'status']);
     });
 
     it('effectiveCatalog is empty when no exposure rule grants read access', async () => {
