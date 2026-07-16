@@ -117,6 +117,13 @@ Tailscale/Headscale für einfaches Zero-Config-Mesh-VPN ohne Portfreigabe.
 | API9 | Improper Inventory Management | `/api/v1`, `/ws/v1` API-Versionierung von Anfang an, `docs/openapi.yaml` als maschinenlesbare Referenz |
 | API10 | Unsafe Consumption of APIs | Adapter konsumiert nur die eigene ioBroker-Instanz, keine externen APIs im MVP |
 
+Ein gezielter interner Review-Durchgang (kein Ersatz für ein externes Pentest) hat drei reale
+Lücken gefunden und behoben: fehlende zeitkonstante Vergleiche bei Pairing-Secret/Refresh-Token-
+Hashes (`safeEqualHex`, war implementiert aber nicht überall verwendet), Wertprüfung akzeptierte
+stillschweigend beliebige Objekte bei State-Typen außerhalb boolean/number/string, und WebSocket-
+Sessions wurden nach der initialen Authentifizierung nicht mehr auf Ablauf geprüft (nur explizite
+Widerrufe wurden aktiv gepusht). Alle drei sind behoben und getestet.
+
 **Bekannte Lücken (siehe TODO.md):** kein automatisiertes Penetrationstesting/externes Security-Review
 durchgeführt; kein IP-basiertes Rate-Limiting auf Adapterebene (nur pro Gerät) – auf Proxy-Ebene
 nachrüsten (siehe oben).

@@ -197,7 +197,7 @@
 - [ ] Reverse Proxy (nicht konfiguriert/getestet)
 - [ ] TLS (Adapter terminiert selbst kein TLS, siehe Code-Kommentar in main.ts)
 - [ ] WebSocket Proxy
-- [ ] Sicherheitsprüfung (kein externes Review)
+- [ ] Sicherheitsprüfung (interner Review-Durchgang fand & fixte 3 echte Lücken, siehe DEPLOYMENT.md; kein externes Review)
 - [x] Dokumentation
 
 ## Phase 17 – Tests
