@@ -1,11 +1,11 @@
 {
   "common": {
     "name": "mobile-control",
-    "version": "0.1.0",
+    "version": "0.0.1",
     "news": {
-      "0.1.0": {
-        "en": "initial MVP release",
-        "de": "erste MVP-Version"
+      "0.0.1": {
+        "en": "initial test build on master (pre-release)",
+        "de": "erster Testbuild auf master (vor dem ersten Release)"
       }
     },
     "title": "Mobile Control",

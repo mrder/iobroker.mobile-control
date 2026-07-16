@@ -1,5 +1,9 @@
 # ROADMAP
 
+> Die Versionsnummern unten sind die Release-Ziele auf dem `main`-Branch (siehe README.md
+> "Branches & Versionierung"). Bis ein Meilenstein erreicht ist, läuft die Entwicklung auf
+> `master` mit Zwischenversionen 0.0.x.
+
 ## 0.1.0 – Architektur
 
 - Repositories

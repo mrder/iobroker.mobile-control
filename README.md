@@ -22,13 +22,25 @@ Die App erhält niemals ungefilterten Zugriff auf den ioBroker-Objektbaum und ni
 
 ## Adapter installieren
 
-Sobald das Repo auf GitHub liegt:
-
 ```text
 iobroker url https://github.com/mrder/iobroker.mobile-control
 ```
 
-oder über die Admin-Oberfläche → Adapter → benutzerdefinierte URL.
+oder über die Admin-Oberfläche → Adapter → benutzerdefinierte URL. Das installiert immer den
+aktuellen `master`-Stand (Testversion) – siehe Versionierung unten. Für einen stabilen Release
+sobald verfügbar: `iobroker url https://github.com/mrder/iobroker.mobile-control#main`.
+
+## Branches & Versionierung
+
+```text
+master   laufende Entwicklung, Zwischen-/Testversionen  0.0.x   (z. B. 0.0.1, 0.0.2, …)
+main     veröffentlichte Releases                       0.x.0   (z. B. 0.1.0, 0.2.0, … 1.0.0)
+```
+
+Entwickelt wird auf `master`, jede sinnvolle Zwischenstufe erhöht die Patch-Version (0.0.x).
+Sobald ein Meilenstein aus [docs/ROADMAP.md](docs/ROADMAP.md) erreicht ist, wird `master` nach
+`main` gemergt und die Version auf die nächste Minor-Stufe (0.x.0) angehoben – `main` enthält
+dann nur getestete, freigegebene Stände. `main` existiert erst ab dem ersten Release.
 
 ## Entwicklung (Adapter)
 
@@ -38,7 +50,7 @@ npm run build
 npm test
 ```
 
-`npm test` baut den Adapter, führt die 48 Unit-Tests aus und startet danach den echten
+`npm test` baut den Adapter, führt die 56 Unit-Tests aus und startet danach den echten
 kompilierten Adapter gegen eine gemockte ioBroker-Umgebung (`@iobroker/testing`) für einen
 vollständigen End-to-End-Durchlauf (Pairing → Admin-Bestätigung → Login → Token-Rotation) über
 echte HTTP-Requests – siehe [test/integration/adapterStartup.ts](test/integration/adapterStartup.ts).
