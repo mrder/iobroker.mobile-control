@@ -148,7 +148,7 @@ haben, sonst liefert die API `READ_FORBIDDEN`.
 
 ## 8. Vor dem produktiven Betrieb
 
-1. `YOUR_GITHUB_USER`-Platzhalter ersetzen (siehe README.md)
+1. ~~`YOUR_GITHUB_USER`-Platzhalter ersetzen~~ erledigt (Repo: github.com/mrder/iobroker.mobile-control)
 2. Adapter-Einstellungen prüfen: `publicUrl`, `requireAdminApproval`, TTLs, Rate-Limit, optional `historyInstance`
 3. Reverse Proxy/VPN gemäß Abschnitt 2/3 einrichten und testen
 4. Erstes Pairing über die Admin-Oberfläche durchspielen, Rechte-Vorschau (Tab "Benutzer & Rollen"

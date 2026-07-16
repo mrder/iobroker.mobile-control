@@ -18,7 +18,7 @@
       "de": "Sichere Schnittstelle zwischen ioBroker und der Mobile-Control Android-App: Benutzer, Rollen, Geräte-Pairing, gefilterter Objektkatalog, persönliche Dashboards, Aktorsteuerung."
     },
     "authors": [
-      "YOUR_GITHUB_USER"
+      "mrder"
     ],
     "keywords": [
       "mobile",
@@ -32,8 +32,8 @@
     "main": "build/main.js",
     "icon": "mobile-control.png",
     "enabled": true,
-    "extIcon": "https://raw.githubusercontent.com/YOUR_GITHUB_USER/iobroker.mobile-control/main/admin/mobile-control.png",
-    "readme": "https://github.com/YOUR_GITHUB_USER/iobroker.mobile-control/blob/main/README.md",
+    "extIcon": "https://raw.githubusercontent.com/mrder/iobroker.mobile-control/main/admin/mobile-control.png",
+    "readme": "https://github.com/mrder/iobroker.mobile-control/blob/main/README.md",
     "loglevel": "info",
     "mode": "daemon",
     "type": "general",

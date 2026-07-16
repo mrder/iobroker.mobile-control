@@ -25,7 +25,7 @@ Die App erhält niemals ungefilterten Zugriff auf den ioBroker-Objektbaum und ni
 Sobald das Repo auf GitHub liegt:
 
 ```text
-iobroker url https://github.com/YOUR_GITHUB_USER/iobroker.mobile-control
+iobroker url https://github.com/mrder/iobroker.mobile-control
 ```
 
 oder über die Admin-Oberfläche → Adapter → benutzerdefinierte URL.
