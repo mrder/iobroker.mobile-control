@@ -161,3 +161,26 @@ haben, sonst liefert die API `READ_FORBIDDEN`.
 4. Erstes Pairing über die Admin-Oberfläche durchspielen, Rechte-Vorschau (Tab "Benutzer & Rollen"
    → Lupe-Symbol) nutzen um zu verifizieren, was der neue Nutzer tatsächlich sieht
 5. Audit-Log (Tab "Audit") nach dem ersten Testlauf stichprobenartig prüfen
+
+## 9. Fehlersuche beim Livetest (ohne SSH-Zugriff auf den ioBroker-Host)
+
+Falls der ioBroker-Host nur lokal erreichbar ist und absichtlich nicht per SSH nach außen
+freigegeben wird, lassen sich Backend- und App-Logs trotzdem einfach als Text kopieren:
+
+**Backend-Logs (ioBroker):**
+1. Admin-Oberfläche → Instanz "mobile-control" → Zahnrad → Log-Level für den Testzeitraum auf
+   `debug` stellen (Standard ist `info`, siehe `io-package.json` `loglevel`)
+2. Admin-Oberfläche → Tab "Log" (oder `iobroker logs mobile-control.0` direkt am Host) → nach
+   "mobile-control" filtern → relevanten Ausschnitt kopieren
+
+**App-Logs (Android), ohne Android Studio:**
+1. Nur "Android SDK Platform-Tools" herunterladen (ZIP, enthält `adb.exe`, keine 10 GB wie die volle
+   IDE): https://developer.android.com/tools/releases/platform-tools
+2. Am Handy: Einstellungen → Über das Telefon → 7× auf "Build-Nummer" tippen (aktiviert
+   Entwickleroptionen) → Entwickleroptionen → USB-Debugging aktivieren
+3. Handy per USB anschließen, am Gerät den Debugging-Popup bestätigen
+4. `adb logcat -v time` im entpackten platform-tools-Ordner ausführen; die Debug-APK loggt
+   OkHttp-Requests (Methode/URL/Status, Tag `OkHttp`) automatisch, unbehandelte Abstürze erscheinen
+   unter dem Tag `AndroidRuntime` - relevanten Ausschnitt kopieren
+5. Zum Eingrenzen: `adb logcat -v time | findstr /I "mobilecontrol OkHttp AndroidRuntime"`
+   (PowerShell/cmd) filtert auf die relevanten Zeilen
