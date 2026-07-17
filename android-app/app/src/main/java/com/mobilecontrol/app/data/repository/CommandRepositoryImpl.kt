@@ -89,7 +89,7 @@ class CommandRepositoryImpl @Inject constructor(
             nonce = UUID.randomUUID().toString(),
             confirmed = confirmed,
         )
-        return safeApiCall { apiService.sendCommand(request) }
+        return safeApiCall { apiService.sendCommand(request) }.map { }
     }
 
     /**
