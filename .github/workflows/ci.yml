@@ -42,3 +42,20 @@ jobs:
         run: npx tsc --noEmit
       - working-directory: admin/tab-src
         run: npm run build
+
+  android:
+    name: Android (JVM unit tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      # No gradlew binary is committed (see android-app/README.md), so Gradle itself is
+      # provisioned here rather than relying on a wrapper script.
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - working-directory: android-app
+        run: gradle :app:testDebugUnitTest --no-daemon

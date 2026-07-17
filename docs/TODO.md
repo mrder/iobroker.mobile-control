@@ -102,7 +102,7 @@
 - [x] REST Client
 - [x] WebSocket Client
 - [x] DI
-- [ ] Tests (31 reine JVM-Unit-Tests für Domain-/Grid-Logik ergänzt; Repository/ViewModel/UI-/Instrumentierungstests fehlen weiterhin)
+- [ ] Tests (39 reine JVM-Unit-Tests für Domain-/Grid-/Alarm-Logik; laufen jetzt auch automatisch in CI via `.github/workflows/ci.yml` android-Job, da kein gradlew-Binary im Repo liegt und Gradle dort direkt provisioniert wird; Repository/weitere ViewModel-/UI-/Instrumentierungstests fehlen weiterhin)
 - [x] Build Types (debug/staging/release, separate applicationIdSuffix, parallel installierbar)
 
 ## Phase 9 – Android Pairing
