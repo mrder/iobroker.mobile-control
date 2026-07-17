@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import { ApiError } from '../lib/errors';
-import { sendError, createAuthMiddleware, type AuthenticatedRequest } from './middleware';
+import { sendError, createAuthMiddleware, createRateLimitMiddleware, type AuthenticatedRequest } from './middleware';
 import type { AuthService } from '../auth';
 import type { SessionsService } from '../sessions';
 import type { DevicesService } from '../devices';
@@ -11,6 +11,7 @@ import type { DashboardsService } from '../dashboards';
 import type { CommandsService } from '../commands';
 import type { AuditService } from '../audit';
 import type { HistoryService } from '../history';
+import type { RateLimiter } from '../security/rateLimiter';
 import type { DashboardLayout } from '../lib/types';
 
 export interface ApiServices {
@@ -26,6 +27,7 @@ export interface ApiServices {
     audit: AuditService;
     history: HistoryService;
     refreshTokenTtlDays: number;
+    authRateLimiter: RateLimiter;
 }
 
 async function issueSessionAndTokens(
@@ -51,9 +53,10 @@ async function issueSessionAndTokens(
 export function createApiRouter(services: ApiServices): Router {
     const router = Router();
     const requireAuth = createAuthMiddleware(services.auth, services.sessions, services.devices);
+    const rateLimitByIp = createRateLimitMiddleware(services.authRateLimiter);
 
     // ---- Pairing --------------------------------------------------------
-    router.post('/pairing/claim', async (req: Request, res: Response) => {
+    router.post('/pairing/claim', rateLimitByIp, async (req: Request, res: Response) => {
         try {
             const { pairingId, pairingSecret, deviceName, platform, appVersion, publicKey } = req.body ?? {};
             if (!pairingId || !pairingSecret || !deviceName || !platform || !appVersion || !publicKey) {
@@ -119,7 +122,7 @@ export function createApiRouter(services: ApiServices): Router {
     });
 
     // ---- Auth -------------------------------------------------------------
-    router.post('/auth/challenge', async (req: Request, res: Response) => {
+    router.post('/auth/challenge', rateLimitByIp, async (req: Request, res: Response) => {
         try {
             const { deviceId } = req.body ?? {};
             if (!deviceId) {
@@ -131,7 +134,7 @@ export function createApiRouter(services: ApiServices): Router {
         }
     });
 
-    router.post('/auth/login', async (req: Request, res: Response) => {
+    router.post('/auth/login', rateLimitByIp, async (req: Request, res: Response) => {
         try {
             const { deviceId, challengeId, signature } = req.body ?? {};
             if (!deviceId || !challengeId || !signature) {
@@ -172,7 +175,7 @@ export function createApiRouter(services: ApiServices): Router {
         }
     });
 
-    router.post('/auth/refresh', async (req: Request, res: Response) => {
+    router.post('/auth/refresh', rateLimitByIp, async (req: Request, res: Response) => {
         try {
             const { deviceId, refreshToken } = req.body ?? {};
             if (!deviceId || !refreshToken) {

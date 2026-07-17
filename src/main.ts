@@ -50,6 +50,8 @@ interface AdapterNativeConfig {
     pairingTtlMinutes: number;
     requireAdminApproval: boolean;
     rateLimitPerMinute: number;
+    /** Per-IP limit for the unauthenticated auth/pairing endpoints (brute-force protection). */
+    authRateLimitPerMinute: number;
     localOnlyByDefault: boolean;
     /** e.g. "history.0", "sql.0" - empty disables the /api/v1/history endpoint entirely */
     historyInstance: string;
@@ -160,7 +162,7 @@ class MobileControlAdapter extends utils.Adapter {
         this.devicesService = new DevicesService(devicesStore);
         this.auditService = new AuditService(auditStore);
         this.authService = new AuthService(this.devicesService, jwtSecret, config.accessTokenTtlMinutes);
-        this.sessionsService = new SessionsService(sessionsStore);
+        this.sessionsService = new SessionsService(sessionsStore, this.auditService);
         this.pairingService = new PairingService(invitesStore, claimsStore, this.usersService, this.rolesService, this.devicesService, {
             publicUrl,
             instanceId: this.namespace,
@@ -207,6 +209,7 @@ class MobileControlAdapter extends utils.Adapter {
                 audit: this.auditService,
                 history: this.historyService,
                 refreshTokenTtlDays: config.refreshTokenTtlDays,
+                authRateLimiter: new RateLimiter(config.authRateLimitPerMinute),
             }),
         );
 
@@ -385,21 +388,40 @@ class MobileControlAdapter extends utils.Adapter {
                 // Admin messages come from an already-authenticated ioBroker admin session
                 // (a stronger trust boundary than the app API), so the rule body is trusted
                 // here rather than re-validated field by field.
-                case 'createExposureRule':
-                    respond(await this.exposureService.create(body as unknown as Omit<ExposureRule, 'id' | 'createdAt'>));
+                case 'createExposureRule': {
+                    const created = await this.exposureService.create(body as unknown as Omit<ExposureRule, 'id' | 'createdAt'>);
+                    await this.auditService.log({
+                        action: 'exposure.rule_created',
+                        result: 'success',
+                        detail: `rule=${created.id} scope=${created.scope}:${created.target}`,
+                    });
+                    respond(created);
                     break;
-                case 'updateExposureRule':
-                    respond(
-                        await this.exposureService.update(
-                            String(body.id),
-                            body as unknown as Partial<Omit<ExposureRule, 'id' | 'createdAt'>>,
-                        ),
+                }
+                case 'updateExposureRule': {
+                    const updated = await this.exposureService.update(
+                        String(body.id),
+                        body as unknown as Partial<Omit<ExposureRule, 'id' | 'createdAt'>>,
                     );
+                    await this.auditService.log({
+                        action: 'exposure.rule_updated',
+                        result: 'success',
+                        detail: `rule=${updated.id} scope=${updated.scope}:${updated.target}`,
+                    });
+                    respond(updated);
                     break;
-                case 'deleteExposureRule':
-                    await this.exposureService.delete(String(body.id));
+                }
+                case 'deleteExposureRule': {
+                    const ruleId = String(body.id);
+                    await this.exposureService.delete(ruleId);
+                    await this.auditService.log({
+                        action: 'exposure.rule_deleted',
+                        result: 'success',
+                        detail: `rule=${ruleId}`,
+                    });
                     respond({ ok: true });
                     break;
+                }
 
                 case 'listExposureProfiles':
                     respond(this.exposureProfilesService.list());

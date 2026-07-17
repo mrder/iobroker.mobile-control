@@ -4,6 +4,7 @@ import type { AuthService } from '../auth';
 import type { SessionsService } from '../sessions';
 import type { DevicesService } from '../devices';
 import type { AuthContext } from '../authorization';
+import type { RateLimiter } from '../security/rateLimiter';
 import { isPrivateIp } from './localNetwork';
 
 export interface AuthenticatedRequest extends Request {
@@ -19,6 +20,22 @@ export function sendError(res: Response, err: unknown): void {
     }
     const message = err instanceof Error ? err.message : 'internal error';
     res.status(500).json({ error: 'SERVER_UNAVAILABLE', message });
+}
+
+/**
+ * Guards unauthenticated, brute-forceable endpoints (auth challenge/login/refresh, pairing claim)
+ * by client IP - these run before any device/session identity is established, so IP is the only
+ * key available. Distinct from the per-device RateLimiter guarding /commands.
+ */
+export function createRateLimitMiddleware(rateLimiter: RateLimiter) {
+    return (req: Request, res: Response, next: NextFunction): void => {
+        const key = req.ip ?? req.socket.remoteAddress ?? 'unknown';
+        if (!rateLimiter.consume(key)) {
+            sendError(res, new ApiError('RATE_LIMITED'));
+            return;
+        }
+        next();
+    };
 }
 
 export function createAuthMiddleware(auth: AuthService, sessions: SessionsService, devices: DevicesService) {

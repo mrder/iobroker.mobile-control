@@ -1,20 +1,24 @@
 import { strict as assert } from 'node:assert';
 import { CollectionStore } from '../src/lib/store';
 import { SessionsService } from '../src/sessions';
+import { AuditService } from '../src/audit';
 import { ApiError } from '../src/lib/errors';
-import type { Session } from '../src/lib/types';
+import type { Session, AuditEvent } from '../src/lib/types';
 import { createFakeAdapter } from './helpers/fakeAdapter';
 
-async function setup(): Promise<SessionsService> {
+async function setup(): Promise<{ sessions: SessionsService; audit: AuditService }> {
     const adapter = createFakeAdapter();
     const store = new CollectionStore<Session>(adapter, 'sessions');
     await store.init();
-    return new SessionsService(store);
+    const auditStore = new CollectionStore<AuditEvent>(adapter, 'audit');
+    await auditStore.init();
+    const audit = new AuditService(auditStore);
+    return { sessions: new SessionsService(store, audit), audit };
 }
 
 describe('SessionsService refresh token rotation', () => {
     it('rotates the refresh token and invalidates the previous one for normal use', async () => {
-        const sessions = await setup();
+        const { sessions } = await setup();
         const { session, refreshToken } = await sessions.create({
             userId: 'u1',
             deviceId: 'd1',
@@ -30,7 +34,7 @@ describe('SessionsService refresh token rotation', () => {
     });
 
     it('detects reuse of an already-rotated-away token and locks the token family', async () => {
-        const sessions = await setup();
+        const { sessions, audit } = await setup();
         const { session, refreshToken: firstToken } = await sessions.create({
             userId: 'u1',
             deviceId: 'd1',
@@ -53,10 +57,17 @@ describe('SessionsService refresh token rotation', () => {
             () => sessions.rotate(session.id, rotated.refreshToken),
             (err: unknown) => err instanceof ApiError && err.code === 'SESSION_REVOKED',
         );
+
+        const events = audit.list();
+        const reuseEvent = events.find((e) => e.action === 'security.refresh_token_reuse');
+        assert.ok(reuseEvent, 'expected a security.refresh_token_reuse audit event');
+        assert.equal(reuseEvent?.actorUserId, 'u1');
+        assert.equal(reuseEvent?.actorDeviceId, 'd1');
+        assert.equal(reuseEvent?.result, 'failure');
     });
 
     it('rejects an entirely unrecognized refresh token without revoking anything', async () => {
-        const sessions = await setup();
+        const { sessions } = await setup();
         const { session } = await sessions.create({
             userId: 'u1',
             deviceId: 'd1',
@@ -71,7 +82,7 @@ describe('SessionsService refresh token rotation', () => {
     });
 
     it('findByRefreshToken locates a session by its current OR previous-generation token', async () => {
-        const sessions = await setup();
+        const { sessions } = await setup();
         const { session, refreshToken: firstToken } = await sessions.create({
             userId: 'u1',
             deviceId: 'd1',
@@ -89,7 +100,7 @@ describe('SessionsService refresh token rotation', () => {
     });
 
     it('revokeAllForUser immediately blocks all future rotation for that user', async () => {
-        const sessions = await setup();
+        const { sessions } = await setup();
         const { session, refreshToken } = await sessions.create({
             userId: 'u1',
             deviceId: 'd1',

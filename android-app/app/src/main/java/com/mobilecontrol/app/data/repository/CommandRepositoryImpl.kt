@@ -6,6 +6,8 @@ import com.mobilecontrol.app.data.remote.WsEvent
 import com.mobilecontrol.app.data.remote.dto.CommandRequestDto
 import com.mobilecontrol.app.data.remote.safeApiCall
 import com.mobilecontrol.app.data.remote.toJsonElement
+import com.mobilecontrol.app.domain.model.ApiErrorCode
+import com.mobilecontrol.app.domain.model.ApiException
 import com.mobilecontrol.app.domain.model.CommandStatus
 import com.mobilecontrol.app.domain.repository.AppNotification
 import com.mobilecontrol.app.domain.repository.CommandRepository
@@ -72,7 +74,11 @@ class CommandRepositoryImpl @Inject constructor(
 
         val result = postCommand(publicCommandId, objectId, value, confirmed)
         result.onFailure {
-            _commandStates.value = _commandStates.value + (publicCommandId to CommandStatus.REJECTED)
+            // LOCAL_ONLY is a permanent policy decision (not a transient server rejection) - surfaced
+            // distinctly so the UI can explain "only allowed from the home network" instead of a
+            // generic failure, and so it isn't silently retried like a TIMEOUT would be.
+            val status = if (it is ApiException && it.errorCode == ApiErrorCode.LOCAL_ONLY) CommandStatus.BLOCKED else CommandStatus.REJECTED
+            _commandStates.value = _commandStates.value + (publicCommandId to status)
             return Result.failure(it)
         }
 

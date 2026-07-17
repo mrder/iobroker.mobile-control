@@ -3,6 +3,7 @@ import { v4 as uuid } from 'uuid';
 import { CollectionStore } from '../lib/store';
 import { ApiError } from '../lib/errors';
 import { safeEqualHex, sha256Hex } from '../security/tokens';
+import type { AuditService } from '../audit';
 import type { Session } from '../lib/types';
 
 export interface NewSessionParams {
@@ -20,7 +21,10 @@ export interface IssuedRefreshToken {
 }
 
 export class SessionsService {
-    constructor(private readonly store: CollectionStore<Session>) {}
+    constructor(
+        private readonly store: CollectionStore<Session>,
+        private readonly audit: AuditService,
+    ) {}
 
     list(): Session[] {
         return this.store.list();
@@ -97,6 +101,15 @@ export class SessionsService {
 
         if (session.previousRefreshTokenHash !== null && safeEqualHex(presentedHash, session.previousRefreshTokenHash)) {
             await this.revokeFamily(session.tokenFamily);
+            await this.audit.log({
+                action: 'security.refresh_token_reuse',
+                actorUserId: session.userId,
+                actorDeviceId: session.deviceId,
+                sessionId: session.id,
+                result: 'failure',
+                detail: `token family ${session.tokenFamily} revoked`,
+                ip: session.lastIp,
+            });
             throw new ApiError('SESSION_REVOKED', 'refresh token reuse detected');
         }
         if (!safeEqualHex(presentedHash, session.refreshTokenHash)) {

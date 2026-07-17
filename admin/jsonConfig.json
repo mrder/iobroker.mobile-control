@@ -78,6 +78,14 @@
             "max": 1000,
             "sm": 4
         },
+        "authRateLimitPerMinute": {
+            "type": "number",
+            "label": "Rate-Limit Login/Pairing (Versuche pro IP und Minute)",
+            "help": "Schutz gegen Brute-Force auf /auth/challenge, /auth/login, /auth/refresh und /pairing/claim",
+            "min": 1,
+            "max": 1000,
+            "sm": 4
+        },
         "_historyHeader": {
             "type": "header",
             "text": "Verlauf (optional)",

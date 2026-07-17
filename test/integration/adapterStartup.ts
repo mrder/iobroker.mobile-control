@@ -69,6 +69,7 @@ async function main(): Promise<void> {
                 pairingTtlMinutes: 10,
                 requireAdminApproval: true,
                 rateLimitPerMinute: 60,
+                authRateLimitPerMinute: 60,
                 localOnlyByDefault: false,
                 historyInstance: 'history.0',
             };
