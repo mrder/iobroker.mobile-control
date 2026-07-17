@@ -52,10 +52,12 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager "platforms;android-34" "build-tools;34.0.0"
       # No gradlew binary is committed (see android-app/README.md), so Gradle itself is
       # provisioned here rather than relying on a wrapper script.
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
       - working-directory: android-app
-        run: gradle :app:testDebugUnitTest --no-daemon
+        run: gradle :app:testDebugUnitTest --no-daemon --stacktrace
