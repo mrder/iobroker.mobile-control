@@ -19,11 +19,11 @@ import com.mobilecontrol.app.domain.repository.ObjectCatalogRepository
 import com.mobilecontrol.app.domain.repository.StateRepository
 import com.mobilecontrol.app.ui.navigation.Routes
 import com.mobilecontrol.app.util.MainDispatcherRule
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -109,9 +109,15 @@ private class FakeCommandRepository : CommandRepository {
     }
 }
 
-/** [DashboardEditorUiState] is built via stateIn(WhileSubscribed) - it only updates while someone is actively collecting it. */
-private fun CoroutineScope.collectUiState(viewModel: DashboardEditorViewModel) {
-    launch { viewModel.uiState.collect {} }
+/**
+ * [DashboardEditorUiState] is built via stateIn(WhileSubscribed) - it only updates while someone is
+ * actively collecting it. Uses [TestScope.backgroundScope] (not `this.launch`/the test's own scope)
+ * because collecting a StateFlow never completes on its own - a plain child of the test's scope
+ * would leave `runTest` waiting forever and fail with UncompletedCoroutinesError; backgroundScope
+ * jobs are cancelled automatically when the test body returns.
+ */
+private fun TestScope.collectUiState(viewModel: DashboardEditorViewModel) {
+    backgroundScope.launch { viewModel.uiState.collect {} }
 }
 
 class DashboardEditorViewModelTest {
