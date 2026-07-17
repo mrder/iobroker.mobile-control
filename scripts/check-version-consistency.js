@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /* Verifies that package.json, io-package.json and CHANGELOG.md agree on the current version.
- * If a GITHUB_REF_NAME / TAG env var is set (release workflow), it must match too. */
+ * If RELEASE_TAG is explicitly set (release workflow only - NOT GITHUB_REF_NAME, which Actions
+ * sets on every push/branch, not just tags), it must match too. */
 'use strict';
 
 const fs = require('fs');
@@ -28,7 +29,7 @@ if (!changelog.includes(`[${pkgVersion}]`)) {
     errors.push(`CHANGELOG.md has no "[${pkgVersion}]" heading`);
 }
 
-const tag = process.env.RELEASE_TAG || process.env.GITHUB_REF_NAME;
+const tag = process.env.RELEASE_TAG;
 if (tag) {
     const tagVersion = tag.replace(/^v/, '');
     if (tagVersion !== pkgVersion) {
