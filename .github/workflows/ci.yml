@@ -61,3 +61,12 @@ jobs:
           gradle-version: '8.9'
       - working-directory: android-app
         run: gradle :app:testDebugUnitTest --no-daemon --stacktrace
+      # Builds a sideload-ready debug APK on every push so a real device can be tested against
+      # without needing a local Android Studio install - see android-app/README.md.
+      - working-directory: android-app
+        run: gradle :app:assembleDebug --no-daemon --stacktrace
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mobile-control-debug-apk
+          path: android-app/app/build/outputs/apk/debug/*.apk
+          retention-days: 30

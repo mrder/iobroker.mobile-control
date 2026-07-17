@@ -24,19 +24,36 @@ ioBroker-Objektbaum, sondern nur den vom Server gefilterten, freigegebenen Objek
 Es ist keine echte Server-Instanz im Repo enthalten — die App spricht ausschließlich über den in
 diesem Dokument beschriebenen REST/WebSocket-Vertrag mit einem ioBroker-Mobile-Control-Adapter.
 
+### Fertige APK ohne Android Studio (z.B. für einen Live-Test auf dem eigenen Handy)
+
+Jeder Push nach `master`/`main` baut in GitHub Actions eine installierbare Debug-APK und lädt sie
+als Artefakt hoch (Job "Android (JVM unit tests)" in `.github/workflows/ci.yml`, Schritt
+`gradle :app:assembleDebug`). Herunterladen:
+
+```text
+https://github.com/mrder/iobroker.mobile-control/actions → neuester "CI"-Lauf auf master
+→ Artefakt "mobile-control-debug-apk" herunterladen (30 Tage aufbewahrt) → als ZIP entpacken
+→ die .apk-Datei aufs Handy übertragen und installieren (Android fragt ggf. nach Erlaubnis für
+"Installation aus unbekannten Quellen")
+```
+
+Die Debug-Variante (`applicationIdSuffix ".debug"`) ist parallel zu einer eventuell später
+existierenden Staging-/Release-Installation installierbar.
+
 ## Tests
 
 ```bash
 ./gradlew :app:testDebugUnitTest
 ```
 
-Reine JVM-Unit-Tests (kein Emulator nötig) für Logik ohne Android-Framework-Abhängigkeit:
-Grid-Platzierung/Kollisionserkennung im Dashboard-Editor (`ui/dashboards/GridPlacementTest.kt`)
-sowie die Domain-Modelle `WidgetType`, `CommandStatus`, `ApiErrorCode`, `Dashboard`/`SizeClass`
-und `ObjectCatalogItem` (`domain/model/*Test.kt`). Konnten in dieser Umgebung nicht ausgeführt
-werden (kein Android-SDK/Gradle-Daemon verfügbar) – bitte vor dem nächsten echten Build einmal
-laufen lassen. Repository-/ViewModel-Ebene (Netzwerk, Coroutines, Hilt) hat noch keine Tests,
-ebenso wenig UI-/Instrumentierungstests.
+90 reine JVM-Unit-Tests (kein Emulator nötig), laufen automatisch in CI (`.github/workflows/ci.yml`,
+Job "android") bei jedem Push: Grid-Platzierung/Kollisionserkennung im Dashboard-Editor, die
+Domain-Modelle (`WidgetType`, `CommandStatus`, `ApiErrorCode`, `Dashboard`/`SizeClass`,
+`ObjectCatalogItem`) sowie ViewModel-Tests mit hand-geschriebenen Fake-Repositories für Lock,
+DashboardEditor, DashboardList, ObjectBrowser, Settings, Notifications, AppRoot, HistoryWidget und
+Alarm. `OnboardingViewModel` hat bewusst keinen Test - sein Konstruktor braucht einen echten
+`AndroidKeyStore`-Provider, der auf einer reinen JVM (kein Emulator, kein Robolectric) nicht
+existiert. Repository-Ebene (Netzwerk/Retrofit) und UI-/Instrumentierungstests fehlen weiterhin.
 
 ## Server-URL für Tests konfigurieren
 
