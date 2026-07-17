@@ -16,7 +16,7 @@
 - [x] SECURITY.md
 - [x] API-Versionierung
 - [x] Bedrohungsmodell
-- [ ] Build- und Releaseprozess
+- [x] Build- und Releaseprozess (CI baut/testet jeden Push; `.github/workflows/release.yml` erstellt bei einem `v*.*.*`-Tag automatisch ein GitHub Release aus CHANGELOG.md, siehe README „Release-Prozess")
 - [ ] Testinstanz aufsetzen
 
 ## Phase 2 – Backend-Grundgerüst
@@ -225,9 +225,9 @@
 - [ ] Adapter Alpha
 - [ ] App Staging
 - [ ] interne APK
-- [ ] GitHub Releases
+- [ ] GitHub Releases (Automatisierung steht via `.github/workflows/release.yml`, aber es wurde noch kein Tag/Release erstellt)
 - [x] Changelog (CHANGELOG.md)
 - [x] Installationsanleitung
-- [ ] Updateprozess
+- [x] Updateprozess (dokumentiert in README „Release-Prozess": Admin-Tab „Update" bzw. erneutes `iobroker url`, da GitHub-Install statt npm-Registry)
 - [ ] Beta
 - [ ] Version 1.0

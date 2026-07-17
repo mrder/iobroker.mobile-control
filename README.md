@@ -42,6 +42,28 @@ Sobald ein Meilenstein aus [docs/ROADMAP.md](docs/ROADMAP.md) erreicht ist, wird
 `main` gemergt und die Version auf die nächste Minor-Stufe (0.x.0) angehoben – `main` enthält
 dann nur getestete, freigegebene Stände. `main` existiert erst ab dem ersten Release.
 
+## Release-Prozess
+
+1. Version in `package.json` und `io-package.json` (`common.version`) anheben, in `io-package.json`
+   unter `common.news` einen neuen Eintrag für die Version ergänzen.
+2. `CHANGELOG.md` um einen Abschnitt `## [<version>]` mit den Änderungen ergänzen.
+3. `npm run verify:version` lokal laufen lassen – prüft, dass `package.json`, `io-package.json` und
+   `CHANGELOG.md` dieselbe Version tragen (läuft auch automatisch in der CI, siehe
+   [.github/workflows/ci.yml](.github/workflows/ci.yml)).
+4. Für einen Testbuild: Commit + Push auf `master` reicht, Nutzer installieren wie oben beschrieben.
+5. Für einen echten Release: `master` nach `main` mergen, dann einen Tag `v<version>` (z. B. `v0.1.0`,
+   muss zur `main`-Versionsstufe 0.x.0 passen) pushen. Der Workflow
+   [.github/workflows/release.yml](.github/workflows/release.yml) baut den Adapter, führt Tests +
+   Versionsprüfung aus und veröffentlicht automatisch ein GitHub Release mit dem passenden
+   `CHANGELOG.md`-Abschnitt als Beschreibung.
+
+**Update für Endnutzer:** Da der Adapter direkt von GitHub installiert wird (kein npm-Registry-
+Paket), erscheint er nicht automatisch in der ioBroker-Adapterliste mit Versionsprüfung. Update auf
+den neuesten Stand des installierten Branches: in der Admin-Oberfläche unter „Adapter“ bei der
+Instanz auf „Update“ klicken, oder erneut `iobroker url https://github.com/mrder/iobroker.mobile-control`
+(bzw. `#main` für Releases) ausführen. ioBroker installiert dabei den aktuellen Stand des jeweiligen
+Branches neu.
+
 ## Entwicklung (Adapter)
 
 ```bash
@@ -50,7 +72,7 @@ npm run build
 npm test
 ```
 
-`npm test` baut den Adapter, führt die 56 Unit-Tests aus und startet danach den echten
+`npm test` baut den Adapter, führt die 59 Unit-Tests aus und startet danach den echten
 kompilierten Adapter gegen eine gemockte ioBroker-Umgebung (`@iobroker/testing`) für einen
 vollständigen End-to-End-Durchlauf (Pairing → Admin-Bestätigung → Login → Token-Rotation) über
 echte HTTP-Requests – siehe [test/integration/adapterStartup.ts](test/integration/adapterStartup.ts).

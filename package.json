@@ -38,7 +38,8 @@
     "test:unit": "mocha --config test/.mocharc.json",
     "test:integration": "ts-node test/integration/adapterStartup.ts",
     "test": "npm run build && npm run test:unit && npm run test:integration",
-    "lint": "eslint src test --ext .ts"
+    "lint": "eslint src test --ext .ts",
+    "verify:version": "node scripts/check-version-consistency.js"
   },
   "dependencies": {
     "@iobroker/adapter-core": "^3.2.2",
