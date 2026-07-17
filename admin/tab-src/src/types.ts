@@ -112,6 +112,13 @@ export interface Overview {
     connectedDevices: number;
 }
 
+export interface ConnectionInfo {
+    port: number;
+    bindAddress: string;
+    publicUrl: string;
+    localAddresses: string[];
+}
+
 export type ExposureRuleTemplate = Omit<ExposureRule, 'id' | 'roleId' | 'userId' | 'deviceId' | 'createdAt'>;
 
 export interface ExposureProfile {

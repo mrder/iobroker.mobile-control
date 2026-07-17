@@ -32,6 +32,12 @@
             "sm": 12,
             "newLine": true
         },
+        "_remoteAccessInfo": {
+            "type": "staticText",
+            "text": "Fernzugriff: Dieser Adapter terminiert selbst kein TLS und ist kein VPN/Reverse-Proxy. Für Zugriff von unterwegs entweder (a) ein VPN zum Heimnetz nutzen (WireGuard, Tailscale, ...) - dann bleibt alles wie im lokalen Netz, oder (b) einen eigenen Reverse Proxy (nginx, Caddy, Traefik, ...) mit TLS davor stellen, der NUR den oben eingestellten Port dieses Hosts nach /api/v1 und /ws/v1 weiterleitet. In beiden Fällen: 'Öffentliche Server-URL' oben auf die von außen erreichbare Adresse setzen. Niemals den Adapter-Port direkt per Portfreigabe am Router ins Internet weiterleiten. Konkrete nginx/Caddy-Beispiele und eine Firewall-Checkliste: docs/DEPLOYMENT.md im Repository. Die aktuell erreichbaren lokalen Adressen dieses Adapters stehen im Tab \"Mobile Control\" -> Übersicht.",
+            "sm": 12,
+            "newLine": true
+        },
         "_pairingHeader": {
             "type": "header",
             "text": "Pairing & Sicherheit",

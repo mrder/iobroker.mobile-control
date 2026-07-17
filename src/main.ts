@@ -57,6 +57,21 @@ interface AdapterNativeConfig {
 
 const STATUS_INTERVAL_MS = 15_000;
 
+/** Non-internal IPv4 addresses of this host - shown in the admin tab so the user knows exactly
+ * what to point a reverse proxy or VPN config at (see docs/DEPLOYMENT.md). */
+function getLocalAddresses(): string[] {
+    const addresses: string[] = [];
+    const interfaces = os.networkInterfaces();
+    for (const entries of Object.values(interfaces)) {
+        for (const iface of entries ?? []) {
+            if (iface.family === 'IPv4' && !iface.internal) {
+                addresses.push(iface.address);
+            }
+        }
+    }
+    return addresses;
+}
+
 class MobileControlAdapter extends utils.Adapter {
     private httpServer?: http.Server;
     private realtimeGateway?: RealtimeGateway;
@@ -454,6 +469,20 @@ class MobileControlAdapter extends utils.Adapter {
                         connectedDevices: this.realtimeGateway?.connectedDeviceCount ?? 0,
                     });
                     break;
+
+                // Purely informational for the admin - shows exactly what a reverse proxy or VPN
+                // config needs to point at. The adapter never sets up networking on its own (see
+                // docs/DEPLOYMENT.md); this just surfaces the current settings + host addresses.
+                case 'getConnectionInfo': {
+                    const netConfig = this.config as unknown as AdapterNativeConfig;
+                    respond({
+                        port: netConfig.port,
+                        bindAddress: netConfig.bindAddress,
+                        publicUrl: netConfig.publicUrl,
+                        localAddresses: getLocalAddresses(),
+                    });
+                    break;
+                }
 
                 default:
                     if (obj.callback) {
