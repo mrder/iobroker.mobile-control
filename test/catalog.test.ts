@@ -9,6 +9,7 @@ import { createFakeAdapter } from './helpers/fakeAdapter';
 
 const STATE_ID = 'zigbee.0.living_room.temperature';
 const SMOKE_ALARM_STATE_ID = 'zigbee.0.kitchen.smoke_alarm';
+const CAMERA_STATE_ID = 'camera.0.front_door.data';
 const CTX = { userId: 'u1', deviceId: 'd1', roleId: 'viewer' };
 
 async function setup() {
@@ -27,6 +28,11 @@ async function setup() {
             'system.adapter.admin.0.alive': {
                 type: 'state',
                 common: { name: 'alive', role: 'indicator', type: 'boolean' },
+                native: {},
+            },
+            [CAMERA_STATE_ID]: {
+                type: 'state',
+                common: { name: 'Haustür Kamera', role: 'camera', type: 'string' },
                 native: {},
             },
         }),
@@ -124,6 +130,16 @@ describe('CatalogService', () => {
         const smokeAlarm = objects.find((o) => o.name === 'Rauchmelder Küche');
         assert.ok(smokeAlarm);
         assert.deepEqual(smokeAlarm!.suggestedWidgets, ['alarm', 'status']);
+    });
+
+    it('suggests the camera widget for a camera role', async () => {
+        const { exposureStore, catalog } = await setup();
+        await exposureStore.put(baseRule({ target: CAMERA_STATE_ID, roleId: 'viewer', read: true }));
+
+        const { objects } = await catalog.effectiveCatalog(CTX);
+        const camera = objects.find((o) => o.name === 'Haustür Kamera');
+        assert.ok(camera);
+        assert.deepEqual(camera!.suggestedWidgets, ['camera']);
     });
 
     it('effectiveCatalog is empty when no exposure rule grants read access', async () => {

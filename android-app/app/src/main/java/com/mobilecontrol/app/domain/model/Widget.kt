@@ -28,6 +28,7 @@ enum class WidgetType(val wireName: String) {
     ROLLER_SHUTTER("shutter"),
     THERMOSTAT("thermostat"),
     ALARM("alarm"),
+    CAMERA("camera"),
     ;
 
     companion object {
@@ -56,6 +57,7 @@ enum class WidgetType(val wireName: String) {
             "shutter" to ROLLER_SHUTTER,
             "slider" to SLIDER,
             "alarm" to ALARM,
+            "camera" to CAMERA,
             // Not currently emitted by the server's suggestWidgets() but kept so a manually
             // configured widget type still round-trips through fromSuggestion/wireName matching.
             "button" to MOMENTARY_BUTTON,

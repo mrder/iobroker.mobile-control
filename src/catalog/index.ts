@@ -22,6 +22,9 @@ function suggestWidgets(role: string, valueType: CatalogObject['valueType']): st
     if (role.includes('alarm')) {
         return ['alarm', 'status'];
     }
+    if (role.includes('camera')) {
+        return ['camera'];
+    }
     if (role.includes('temperature')) {
         return ['temperature', 'value', 'chart'];
     }

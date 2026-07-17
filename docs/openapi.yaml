@@ -249,6 +249,42 @@ paths:
         '401':
           $ref: '#/components/responses/Error'
 
+  /objects/{id}/snapshot:
+    get:
+      tags: [catalog]
+      summary: Camera snapshot image for a public object UUID
+      description: |
+        Proxies the current snapshot of a camera-backed ioBroker state so the app never needs
+        direct network access to the camera or the adapter serving it. The underlying state must
+        hold either a data URL ("data:image/jpeg;base64,...") or a plain http(s) URL to a snapshot
+        image - any other value shape returns SERVER_UNAVAILABLE. See src/camera/index.ts.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: The snapshot image bytes, Content-Type set from the source; X-Snapshot-Timestamp header carries the ioBroker state timestamp
+          content:
+            image/*:
+              schema: { type: string, format: binary }
+        '403':
+          description: READ_FORBIDDEN - object not visible to this caller
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '503':
+          description: SERVER_UNAVAILABLE - no snapshot value, unsupported value shape, or the source URL did not respond
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '401':
+          $ref: '#/components/responses/Error'
+
   /commands:
     post:
       tags: [commands]

@@ -34,6 +34,7 @@ import { DashboardsService } from './dashboards';
 import { CommandsService } from './commands';
 import { AuditService } from './audit';
 import { HistoryService } from './history';
+import { CameraService } from './camera';
 import { RateLimiter } from './security/rateLimiter';
 import { ReplayGuard } from './security/replayGuard';
 import { RealtimeGateway } from './realtime';
@@ -93,6 +94,7 @@ class MobileControlAdapter extends utils.Adapter {
     private commandsService!: CommandsService;
     private auditService!: AuditService;
     private historyService!: HistoryService;
+    private cameraService!: CameraService;
 
     public constructor(options: Partial<utils.AdapterOptions> = {}) {
         super({ ...options, name: 'mobile-control' });
@@ -180,6 +182,7 @@ class MobileControlAdapter extends utils.Adapter {
         const replayGuard = new ReplayGuard();
         this.commandsService = new CommandsService(this, commandsStore, this.catalogService, this.auditService, rateLimiter, replayGuard);
         this.historyService = new HistoryService(this, config.historyInstance ?? '');
+        this.cameraService = new CameraService(this);
 
         await this.startHttpServer(config);
 
@@ -208,6 +211,7 @@ class MobileControlAdapter extends utils.Adapter {
                 commands: this.commandsService,
                 audit: this.auditService,
                 history: this.historyService,
+                camera: this.cameraService,
                 refreshTokenTtlDays: config.refreshTokenTtlDays,
                 authRateLimiter: new RateLimiter(config.authRateLimitPerMinute),
             }),

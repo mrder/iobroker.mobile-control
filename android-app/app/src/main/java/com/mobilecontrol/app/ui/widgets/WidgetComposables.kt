@@ -1,13 +1,25 @@
 package com.mobilecontrol.app.ui.widgets
 
+import android.graphics.BitmapFactory
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BrokenImage
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Circle
+import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
@@ -17,12 +29,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mobilecontrol.app.domain.model.HistoryEntry
 import com.mobilecontrol.app.ui.theme.StatusError
@@ -408,6 +426,126 @@ fun AlarmWidget(
             if (active && !acknowledged) {
                 TextButton(onClick = { objectId?.let(viewModel::acknowledge) }) { Text("Quittieren") }
             }
+        }
+    }
+}
+
+/** Internal load state for [CameraWidget], same reasoning as [HistoryLoadState] - a snapshot is a
+ * one-shot REST fetch, not a WebSocket-driven live value, so it isn't modeled as [WidgetState]. */
+private sealed interface CameraLoadState {
+    data object Loading : CameraLoadState
+    data object Unavailable : CameraLoadState
+    data class Success(val bitmap: ImageBitmap, val loadedAtMillis: Long) : CameraLoadState
+}
+
+/**
+ * Kamera-Snapshot widget (MASTERKONZEPT.md §19): shows the current snapshot of an ioBroker
+ * camera-backed object via GET /api/v1/objects/{id}/snapshot (see [CameraRepository] /
+ * src/camera/index.ts for the two source formats supported). "Zeitstempel" is when the app last
+ * successfully fetched the image (there is no reliable, adapter-independent way to know when the
+ * underlying camera itself took the picture), "Aktualisieren" re-fetches on demand, tapping the
+ * image opens it in a simple fullscreen [Dialog], and a failed/unsupported fetch shows a
+ * [CameraLoadState.Unavailable] placeholder rather than crashing on a bad decode.
+ */
+@Composable
+fun CameraWidget(
+    title: String,
+    objectId: String?,
+    modifier: Modifier = Modifier,
+    viewModel: CameraWidgetViewModel = hiltViewModel(),
+) {
+    var loadState by remember(objectId) { mutableStateOf<CameraLoadState>(CameraLoadState.Loading) }
+    var refreshTrigger by remember(objectId) { mutableIntStateOf(0) }
+    var fullscreen by remember { mutableStateOf(false) }
+
+    LaunchedEffect(objectId, refreshTrigger) {
+        if (objectId == null) {
+            loadState = CameraLoadState.Unavailable
+            return@LaunchedEffect
+        }
+        loadState = CameraLoadState.Loading
+        val result = viewModel.loadSnapshot(objectId)
+        loadState = result.fold(
+            onSuccess = { bytes ->
+                val bitmap = runCatching { BitmapFactory.decodeByteArray(bytes, 0, bytes.size) }.getOrNull()
+                if (bitmap != null) {
+                    CameraLoadState.Success(bitmap.asImageBitmap(), System.currentTimeMillis())
+                } else {
+                    CameraLoadState.Unavailable
+                }
+            },
+            onFailure = { CameraLoadState.Unavailable },
+        )
+    }
+
+    WidgetCard(title = title, state = WidgetState.Stale(null, 0L), modifier = modifier) {
+        when (val current = loadState) {
+            CameraLoadState.Loading -> Text("Lädt…", style = MaterialTheme.typography.bodyMedium)
+            CameraLoadState.Unavailable -> CameraUnavailable(onRetry = { refreshTrigger++ })
+            is CameraLoadState.Success -> CameraSnapshotView(
+                bitmap = current.bitmap,
+                loadedAtMillis = current.loadedAtMillis,
+                onRefresh = { refreshTrigger++ },
+                onOpenFullscreen = { fullscreen = true },
+            )
+        }
+    }
+
+    if (fullscreen) {
+        val current = loadState
+        if (current is CameraLoadState.Success) {
+            Dialog(onDismissRequest = { fullscreen = false }) {
+                Image(
+                    bitmap = current.bitmap,
+                    contentDescription = title,
+                    modifier = Modifier.fillMaxWidth().clickable { fullscreen = false },
+                    contentScale = ContentScale.Fit,
+                )
+            }
+        } else {
+            fullscreen = false
+        }
+    }
+}
+
+@Composable
+private fun CameraSnapshotView(
+    bitmap: ImageBitmap,
+    loadedAtMillis: Long,
+    onRefresh: () -> Unit,
+    onOpenFullscreen: () -> Unit,
+) {
+    Column {
+        Box(modifier = Modifier.fillMaxWidth().height(120.dp)) {
+            Image(
+                bitmap = bitmap,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize().clickable(onClick = onOpenFullscreen),
+                contentScale = ContentScale.Crop,
+            )
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = historyTimeFormatter.format(Instant.ofEpochMilli(loadedAtMillis).atZone(ZoneId.systemDefault())),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            IconButton(onClick = onRefresh) {
+                Icon(Icons.Filled.Refresh, contentDescription = "Aktualisieren")
+            }
+            IconButton(onClick = onOpenFullscreen) {
+                Icon(Icons.Filled.Fullscreen, contentDescription = "Vollbild")
+            }
+        }
+    }
+}
+
+@Composable
+private fun CameraUnavailable(onRetry: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(Icons.Filled.BrokenImage, contentDescription = null, tint = StatusError)
+        Text(text = "Kein Snapshot verfügbar", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 4.dp))
+        IconButton(onClick = onRetry) {
+            Icon(Icons.Filled.Refresh, contentDescription = "Erneut versuchen")
         }
     }
 }

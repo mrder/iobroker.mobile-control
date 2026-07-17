@@ -22,7 +22,7 @@ private fun testDashboard(id: String, name: String, revision: Long = 0): Dashboa
     layouts = SizeClass.entries.map { DashboardLayout(it, it.defaultColumns, emptyList()) },
 )
 
-private class FakeDashboardRepository(seed: List<Dashboard> = emptyList()) : DashboardRepository {
+private class FakeDashboardListRepository(seed: List<Dashboard> = emptyList()) : DashboardRepository {
     private val _dashboards = MutableStateFlow(seed)
     var refreshCalls = 0
     var refreshResult: Result<Unit> = Result.success(Unit)
@@ -74,7 +74,7 @@ class DashboardListViewModelTest {
 
     @Test
     fun `init triggers an initial refresh from the repository`() = runTest {
-        val repo = FakeDashboardRepository()
+        val repo = FakeDashboardListRepository()
         DashboardListViewModel(repo)
         advanceUntilIdle()
 
@@ -83,7 +83,7 @@ class DashboardListViewModelTest {
 
     @Test
     fun `dashboards reflects the repository's observed list while collected`() = runTest {
-        val repo = FakeDashboardRepository(listOf(testDashboard("a", "A")))
+        val repo = FakeDashboardListRepository(listOf(testDashboard("a", "A")))
         val viewModel = DashboardListViewModel(repo)
         val collector = launch { viewModel.dashboards.collect {} }
         advanceUntilIdle()
@@ -94,7 +94,7 @@ class DashboardListViewModelTest {
 
     @Test
     fun `createDashboard builds a fresh layout per size class at revision 0 and invokes the callback with the new id`() = runTest {
-        val repo = FakeDashboardRepository()
+        val repo = FakeDashboardListRepository()
         val viewModel = DashboardListViewModel(repo)
         var createdId: String? = null
 
@@ -112,7 +112,7 @@ class DashboardListViewModelTest {
 
     @Test
     fun `createDashboard does not invoke the callback when the repository call fails`() = runTest {
-        val repo = FakeDashboardRepository()
+        val repo = FakeDashboardListRepository()
         repo.createResult = { Result.failure(RuntimeException("offline")) }
         val viewModel = DashboardListViewModel(repo)
         var callbackInvoked = false
@@ -126,7 +126,7 @@ class DashboardListViewModelTest {
     @Test
     fun `duplicateDashboard creates a copy with a new id, reset revision and a German 'Kopie' suffix`() = runTest {
         val original = testDashboard("orig", "Küche", revision = 7)
-        val repo = FakeDashboardRepository(listOf(original))
+        val repo = FakeDashboardListRepository(listOf(original))
         val viewModel = DashboardListViewModel(repo)
 
         viewModel.duplicateDashboard(original)
@@ -140,7 +140,7 @@ class DashboardListViewModelTest {
 
     @Test
     fun `deleteDashboard forwards the id to the repository`() = runTest {
-        val repo = FakeDashboardRepository(listOf(testDashboard("a", "A")))
+        val repo = FakeDashboardListRepository(listOf(testDashboard("a", "A")))
         val viewModel = DashboardListViewModel(repo)
 
         viewModel.deleteDashboard("a")
@@ -152,7 +152,7 @@ class DashboardListViewModelTest {
     @Test
     fun `renameDashboard preserves everything but the name`() = runTest {
         val original = testDashboard("a", "Altname", revision = 3)
-        val repo = FakeDashboardRepository(listOf(original))
+        val repo = FakeDashboardListRepository(listOf(original))
         val viewModel = DashboardListViewModel(repo)
 
         viewModel.renameDashboard(original, "Neuname")
@@ -166,7 +166,7 @@ class DashboardListViewModelTest {
 
     @Test
     fun `setStartDashboard forwards the id to the repository`() = runTest {
-        val repo = FakeDashboardRepository()
+        val repo = FakeDashboardListRepository()
         val viewModel = DashboardListViewModel(repo)
 
         viewModel.setStartDashboard("dash-5")

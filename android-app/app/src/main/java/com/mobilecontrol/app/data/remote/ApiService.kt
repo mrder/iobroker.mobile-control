@@ -15,6 +15,7 @@ import com.mobilecontrol.app.data.remote.dto.PairingStatusResponseDto
 import com.mobilecontrol.app.data.remote.dto.RefreshRequestDto
 import com.mobilecontrol.app.data.remote.dto.StatesResponseDto
 import com.mobilecontrol.app.data.remote.dto.TokenResponseDto
+import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -23,6 +24,7 @@ import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
+import retrofit2.http.Streaming
 
 interface ApiService {
 
@@ -57,6 +59,10 @@ interface ApiService {
 
     @POST("api/v1/commands")
     suspend fun sendCommand(@Body body: CommandRequestDto): Response<CommandResponseDto>
+
+    @Streaming
+    @GET("api/v1/objects/{id}/snapshot")
+    suspend fun getSnapshot(@Path("id") id: String): Response<ResponseBody>
 
     @GET("api/v1/dashboards")
     suspend fun getDashboards(): Response<DashboardListResponseDto>

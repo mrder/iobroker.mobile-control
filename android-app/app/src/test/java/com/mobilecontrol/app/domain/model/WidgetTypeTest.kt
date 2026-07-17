@@ -36,6 +36,7 @@ class WidgetTypeTest {
         assertEquals(WidgetType.ROLLER_SHUTTER, WidgetType.fromSuggestion("shutter"))
         assertEquals(WidgetType.SLIDER, WidgetType.fromSuggestion("slider"))
         assertEquals(WidgetType.ALARM, WidgetType.fromSuggestion("alarm"))
+        assertEquals(WidgetType.CAMERA, WidgetType.fromSuggestion("camera"))
     }
 
     @Test

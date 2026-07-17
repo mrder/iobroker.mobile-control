@@ -11,6 +11,7 @@ import type { DashboardsService } from '../dashboards';
 import type { CommandsService } from '../commands';
 import type { AuditService } from '../audit';
 import type { HistoryService } from '../history';
+import type { CameraService } from '../camera';
 import type { RateLimiter } from '../security/rateLimiter';
 import type { DashboardLayout } from '../lib/types';
 
@@ -26,6 +27,7 @@ export interface ApiServices {
     commands: CommandsService;
     audit: AuditService;
     history: HistoryService;
+    camera: CameraService;
     refreshTokenTtlDays: number;
     authRateLimiter: RateLimiter;
 }
@@ -288,6 +290,21 @@ export function createApiRouter(services: ApiServices): Router {
             res.json({
                 entries: entries.map((e) => ({ value: e.value, timestamp: new Date(e.timestamp).toISOString() })),
             });
+        } catch (err) {
+            sendError(res, err);
+        }
+    });
+
+    // ---- Camera --------------------------------------------------------------
+    // Proxied through this adapter (not a direct link to the camera/its adapter) so the app only
+    // ever needs to reach mobile-control's own auth boundary - see CameraService for why.
+    router.get('/objects/:id/snapshot', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+        try {
+            const { stateId } = services.catalog.resolveAuthorized(req.params.id, req.ctx!, 'read');
+            const snapshot = await services.camera.fetchSnapshot(stateId);
+            res.set('Cache-Control', 'no-store');
+            res.set('X-Snapshot-Timestamp', new Date(snapshot.timestamp).toISOString());
+            res.type(snapshot.contentType).send(snapshot.buffer);
         } catch (err) {
             sendError(res, err);
         }

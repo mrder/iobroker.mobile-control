@@ -1,6 +1,7 @@
 package com.mobilecontrol.app.di
 
 import com.mobilecontrol.app.data.repository.AuthRepositoryImpl
+import com.mobilecontrol.app.data.repository.CameraRepositoryImpl
 import com.mobilecontrol.app.data.repository.CommandRepositoryImpl
 import com.mobilecontrol.app.data.repository.DashboardRepositoryImpl
 import com.mobilecontrol.app.data.repository.DiagnosticsRepositoryImpl
@@ -11,6 +12,7 @@ import com.mobilecontrol.app.data.repository.PairingRepositoryImpl
 import com.mobilecontrol.app.data.repository.SettingsRepositoryImpl
 import com.mobilecontrol.app.data.repository.StateRepositoryImpl
 import com.mobilecontrol.app.domain.repository.AuthRepository
+import com.mobilecontrol.app.domain.repository.CameraRepository
 import com.mobilecontrol.app.domain.repository.CommandRepository
 import com.mobilecontrol.app.domain.repository.DashboardRepository
 import com.mobilecontrol.app.domain.repository.DiagnosticsRepository
@@ -69,4 +71,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindHistoryRepository(impl: HistoryRepositoryImpl): HistoryRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindCameraRepository(impl: CameraRepositoryImpl): CameraRepository
 }
