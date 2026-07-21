@@ -98,7 +98,18 @@ class MobileControlAdapter extends utils.Adapter {
 
     public constructor(options: Partial<utils.AdapterOptions> = {}) {
         super({ ...options, name: 'mobile-control' });
-        this.on('ready', this.onReady.bind(this));
+        // TEMPORARY diagnostic wrapper (remove once the live-test EADDRINUSE-handling mystery is
+        // resolved): logs any error escaping onReady() through our own logger, with its full
+        // stack, before letting it propagate - so we can see exactly what happened even if it
+        // isn't the error our own try/catch blocks inside onReady() were built to handle.
+        this.on('ready', async () => {
+            try {
+                await this.onReady();
+            } catch (err) {
+                this.log.error(`mobile-control: [diag] onReady() rejected: ${(err as Error).message}\n${(err as Error).stack}`);
+                throw err;
+            }
+        });
         this.on('stateChange', this.onStateChange.bind(this));
         this.on('message', this.onMessage.bind(this));
         this.on('unload', this.onUnload.bind(this));
@@ -266,6 +277,10 @@ class MobileControlAdapter extends utils.Adapter {
             this.log.info(`mobile-control: REST/WebSocket API listening on ${config.bindAddress}:${config.port}`);
         } catch (err) {
             const code = (err as NodeJS.ErrnoException).code;
+            // TEMPORARY diagnostic (remove once the live-test EADDRINUSE-handling mystery is
+            // resolved): logged unconditionally, at error level, before any branching below, so we
+            // can tell for certain whether this catch block is even reached at runtime.
+            this.log.error(`mobile-control: [diag] listenWithRetry caught an error, code=${String(code)}, attempt=${attempt}, message=${(err as Error).message}`);
             if (code === 'EADDRINUSE' && attempt < MAX_ATTEMPTS) {
                 this.log.warn(
                     `mobile-control: port ${config.port} is still in use (attempt ${attempt}/${MAX_ATTEMPTS}), retrying in ${RETRY_DELAY_MS}ms...`,

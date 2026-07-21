@@ -1,8 +1,12 @@
 {
   "common": {
     "name": "mobile-control",
-    "version": "0.0.3",
+    "version": "0.0.4",
     "news": {
+      "0.0.4": {
+        "en": "Temporary diagnostic logging to track down why the EADDRINUSE handling isn't taking effect on a real install; also fixes a real bug this surfaced: the onReady() event handler no longer awaited its own promise correctly",
+        "de": "Temporäres Diagnose-Logging, um herauszufinden warum die EADDRINUSE-Behandlung bei einer echten Installation nicht greift; deckte dabei einen echten Bug auf: der onReady()-Event-Handler wartete nicht mehr korrekt auf sein eigenes Promise"
+      },
       "0.0.3": {
         "en": "Fixed a real bug: package.json's \"files\" list excluded src/ and the tsconfigs, so any rebuild inside an already-installed package directory failed with a missing tsconfig.build.json",
         "de": "Echten Bug behoben: \"files\"-Liste in package.json schloss src/ und die tsconfigs aus, wodurch ein Neu-Build innerhalb eines bereits installierten Adapter-Verzeichnisses mit fehlender tsconfig.build.json fehlschlug"

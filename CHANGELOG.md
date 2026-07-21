@@ -8,6 +8,17 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.4] - master, Testbuild
+
+Zwischenstand während der Live-Test-Fehlersuche (EADDRINUSE-Handling greift auf der echten
+Installation nicht, Ursache noch offen):
+
+- Temporäres, unbedingtes Diagnose-Logging in `listenWithRetry`/`onReady`, um zu sehen ob der
+  neue Fehlerbehandlungscode zur Laufzeit überhaupt erreicht wird
+- Dabei einen echten Regressions-Bug in der Diagnose selbst gefunden und gefixt: der
+  `'ready'`-Event-Handler gab das `onReady()`-Promise nicht mehr zurück, wodurch der
+  Integrationstest den Server manchmal noch nicht bereit vorfand (`ECONNREFUSED`)
+
 ## [0.0.3] - master, Testbuild
 
 Gefunden beim ersten echten Livetest gegen eine reale ioBroker-Instanz:
