@@ -1,6 +1,6 @@
 {
   "name": "iobroker.mobile-control",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Sichere Schnittstelle zwischen ioBroker und der Mobile-Control Android-App: Benutzer, Rollen, Geräte-Pairing, gefilterter Objektkatalog, persönliche Dashboards, Aktorsteuerung.",
   "author": {
     "name": "mrder"
@@ -27,6 +27,9 @@
     "admin/jsonConfig.json",
     "admin/mobile-control.png",
     "build/",
+    "src/",
+    "tsconfig.json",
+    "tsconfig.build.json",
     "io-package.json",
     "LICENSE"
   ],

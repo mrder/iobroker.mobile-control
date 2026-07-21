@@ -188,6 +188,18 @@ freigegeben wird, lassen sich Backend- und App-Logs trotzdem einfach als Text ko
    Instanz-Einstellungen einen anderen Port setzen, oder herausfinden was den Port schon belegt
    (`sudo lsof -i :<port>` bzw. `sudo netstat -tlnp | grep <port>`).
 
+   **Falls der manuelle Vordergrund-Start selbst mit `error TS5058: The specified path does not
+   exist: 'tsconfig.build.json'` fehlschlägt:** Das war ein echter Bug (bis 2026-07-21) - npm packt
+   Git-Installs nach dem `prepare`-Skript gemäß der `files`-Liste in `package.json`, und die enthielt
+   `src/`/die tsconfigs nicht. Der allererste Install (`npm install ...@github:...`) baut deshalb
+   noch erfolgreich (läuft gegen den vollen, ungefilterten Klon), aber jeder *spätere* manuelle
+   `npm install`/`npm run build` **innerhalb** des schon installierten, gepackten Verzeichnisses
+   (`node_modules/iobroker.mobile-control`) schlägt fehl, weil der Quellcode dort inzwischen fehlt.
+   Seit dem Fix sind `src/`, `tsconfig.json` und `tsconfig.build.json` Teil der `files`-Liste, ein
+   Neuinstall behebt das. Falls weiterhin ein altes, gepacktes Verzeichnis ohne diese Dateien
+   vorliegt: komplett neu installieren (`rm -rf node_modules/iobroker.mobile-control && npm install
+   ...`), nicht versuchen, im bestehenden Verzeichnis nachzubauen.
+
 **App-Logs (Android), ohne Android Studio:**
 1. Nur "Android SDK Platform-Tools" herunterladen (ZIP, enthält `adb.exe`, keine 10 GB wie die volle
    IDE): https://developer.android.com/tools/releases/platform-tools

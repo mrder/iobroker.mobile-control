@@ -8,6 +8,16 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.3] - master, Testbuild
+
+Gefunden beim ersten echten Livetest gegen eine reale ioBroker-Instanz:
+
+- `package.json`s `files`-Liste schloss `src/` und beide `tsconfig*.json` aus. npm packt
+  Git-Installs nach dem `prepare`-Skript gemäß dieser Liste - der allererste Install baute deshalb
+  noch erfolgreich (voller, ungefilterter Klon), aber jeder spätere manuelle Rebuild **innerhalb**
+  des bereits installierten Verzeichnisses schlug mit `tsconfig.build.json not found` fehl. Jetzt
+  behoben, `src/`/beide tsconfigs sind Teil der `files`-Liste.
+
 ## [0.0.2] - master, Testbuild
 
 ### Backend

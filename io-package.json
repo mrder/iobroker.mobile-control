@@ -1,8 +1,12 @@
 {
   "common": {
     "name": "mobile-control",
-    "version": "0.0.2",
+    "version": "0.0.3",
     "news": {
+      "0.0.3": {
+        "en": "Fixed a real bug: package.json's \"files\" list excluded src/ and the tsconfigs, so any rebuild inside an already-installed package directory failed with a missing tsconfig.build.json",
+        "de": "Echten Bug behoben: \"files\"-Liste in package.json schloss src/ und die tsconfigs aus, wodurch ein Neu-Build innerhalb eines bereits installierten Adapter-Verzeichnisses mit fehlender tsconfig.build.json fehlschlug"
+      },
       "0.0.2": {
         "en": "Camera snapshot widget, security-audit fixes (rate limiting, audit logging), lowered minSdk to 26 for older test devices, clearer port-conflict handling on startup",
         "de": "Kamera-Snapshot-Widget, Sicherheits-Fixes (Rate Limiting, Audit-Logging), minSdk auf 26 gesenkt für ältere Testgeräte, klarere Behandlung von Port-Konflikten beim Start"
