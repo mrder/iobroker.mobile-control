@@ -232,26 +232,38 @@ class MobileControlAdapter extends utils.Adapter {
         await this.listenWithRetry(server, config);
     }
 
+    private tryListen(server: http.Server, port: number, bindAddress: string): Promise<void> {
+        return new Promise<void>((resolve, reject) => {
+            const onError = (err: Error): void => {
+                server.removeListener('listening', onListening);
+                reject(err);
+            };
+            const onListening = (): void => {
+                server.removeListener('error', onError);
+                resolve();
+            };
+            server.once('error', onError);
+            server.once('listening', onListening);
+            server.listen(port, bindAddress);
+        });
+    }
+
     /**
      * Retries a few times on EADDRINUSE before giving up - a restarting adapter instance can
-     * briefly race the just-exited previous process for the same port. Any other listen error, or
-     * EADDRINUSE that is still there after the retries, produces one clear, actionable log line
-     * (instead of the previous behavior: an unhandled rejection out of onReady() that js-controller
-     * only ever surfaced as a generic "UNCAUGHT_EXCEPTION" with a raw Node stack trace) and then a
-     * clean termination via this.terminate() rather than a crash.
+     * briefly race the just-exited previous process for the same port. If the port is still taken
+     * after the retries and no device has ever paired yet (see scanForFreePort), tries a small
+     * range of nearby ports instead. Any other listen error, or EADDRINUSE with no free port found
+     * (or once a device exists), produces one clear, actionable log line (instead of the previous
+     * behavior: an unhandled rejection out of onReady() that js-controller only ever surfaced as a
+     * generic "UNCAUGHT_EXCEPTION" with a raw Node stack trace) and then a clean termination via
+     * this.terminate() rather than a crash.
      */
     private async listenWithRetry(server: http.Server, config: AdapterNativeConfig, attempt = 1): Promise<void> {
         const MAX_ATTEMPTS = 3;
         const RETRY_DELAY_MS = 1000;
         try {
-            await new Promise<void>((resolve, reject) => {
-                server.once('error', reject);
-                server.listen(config.port, config.bindAddress, () => {
-                    server.removeAllListeners('error');
-                    this.log.info(`mobile-control: REST/WebSocket API listening on ${config.bindAddress}:${config.port}`);
-                    resolve();
-                });
-            });
+            await this.tryListen(server, config.port, config.bindAddress);
+            this.log.info(`mobile-control: REST/WebSocket API listening on ${config.bindAddress}:${config.port}`);
         } catch (err) {
             const code = (err as NodeJS.ErrnoException).code;
             if (code === 'EADDRINUSE' && attempt < MAX_ATTEMPTS) {
@@ -260,6 +272,9 @@ class MobileControlAdapter extends utils.Adapter {
                 );
                 await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
                 return this.listenWithRetry(server, config, attempt + 1);
+            }
+            if (code === 'EADDRINUSE' && this.devicesService.list().length === 0) {
+                return this.scanForFreePort(server, config);
             }
             if (code === 'EADDRINUSE') {
                 this.terminate(
@@ -271,6 +286,40 @@ class MobileControlAdapter extends utils.Adapter {
             }
             this.terminate(`Failed to start the REST/WebSocket server: ${(err as Error).message}`, 11);
         }
+    }
+
+    /**
+     * Only reached when no device has ever paired yet (this.devicesService.list() is empty) - it is
+     * safe to silently move to a different port here because nothing yet depends on the originally
+     * configured one (no firewall rule, no reverse proxy, no paired device). Once a real device
+     * exists this path is never taken again - listenWithRetry instead fails loudly on a busy port,
+     * so a port an existing setup already relies on never changes silently underneath it.
+     */
+    private async scanForFreePort(server: http.Server, config: AdapterNativeConfig): Promise<void> {
+        const PORT_SCAN_RANGE = 20;
+        for (let candidate = config.port + 1; candidate <= config.port + PORT_SCAN_RANGE; candidate++) {
+            try {
+                await this.tryListen(server, candidate, config.bindAddress);
+                await this.extendForeignObjectAsync(`system.adapter.${this.namespace}`, { native: { port: candidate } });
+                this.log.warn(
+                    `mobile-control: port ${config.port} was already in use, and no device has paired yet, so this ` +
+                        `first-run automatically picked port ${candidate} instead and saved it to the instance settings. ` +
+                        `Set "Port" explicitly there if you need a specific one (e.g. for a reverse proxy) - this fallback ` +
+                        `only ever runs before the first device pairing.`,
+                );
+                return;
+            } catch (err) {
+                if ((err as NodeJS.ErrnoException).code !== 'EADDRINUSE') {
+                    this.terminate(`Failed to start the REST/WebSocket server: ${(err as Error).message}`, 11);
+                }
+            }
+        }
+        this.terminate(
+            `Port ${config.port} on ${config.bindAddress} is already in use, and no free port was found in the range ` +
+                `${config.port + 1}-${config.port + PORT_SCAN_RANGE} either. Set a different port in the "mobile-control" ` +
+                `instance settings.`,
+            11,
+        );
     }
 
     private onStateChange(id: string, state: ioBroker.State | null | undefined): void {

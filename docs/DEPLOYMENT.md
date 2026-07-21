@@ -178,10 +178,15 @@ freigegeben wird, lassen sich Backend- und App-Logs trotzdem einfach als Text ko
    ```bash
    cd /opt/iobroker && node node_modules/iobroker.mobile-control/build/main.js --instance 0 --debug
    ```
-   Häufigste Ursache beim ersten Start: **Port bereits belegt** (`EADDRINUSE`) - der Adapter loggt
-   das seit einem Fix vom 2026-07-21 als klare Fehlermeldung statt als rohen Stacktrace und nennt
-   den Port; Fix: in den Instanz-Einstellungen einen anderen Port setzen, oder herausfinden was den
-   Port schon belegt (`sudo lsof -i :<port>` bzw. `sudo netstat -tlnp | grep <port>`).
+   Häufigste Ursache beim ersten Start: **Port bereits belegt** (`EADDRINUSE`). Solange noch nie
+   ein Gerät gekoppelt wurde, weicht der Adapter seit einem Fix vom 2026-07-21 in diesem Fall
+   automatisch auf den nächsten freien Port aus (probiert bis zu 20 Ports hoch, speichert den
+   tatsächlich genutzten Port zurück in die Instanz-Einstellungen, loggt das als `warn`-Zeile).
+   Sobald mindestens ein Gerät gekoppelt ist, unterbleibt dieser automatische Wechsel bewusst
+   (könnte sonst eine bestehende Portweiterleitung/Firewall-Regel unbemerkt brechen) - dann kommt
+   stattdessen eine klare Fehlermeldung statt eines rohen Stacktraces; Fix: in den
+   Instanz-Einstellungen einen anderen Port setzen, oder herausfinden was den Port schon belegt
+   (`sudo lsof -i :<port>` bzw. `sudo netstat -tlnp | grep <port>`).
 
 **App-Logs (Android), ohne Android Studio:**
 1. Nur "Android SDK Platform-Tools" herunterladen (ZIP, enthält `adb.exe`, keine 10 GB wie die volle
