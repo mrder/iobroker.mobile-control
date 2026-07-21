@@ -1,8 +1,12 @@
 {
   "common": {
     "name": "mobile-control",
-    "version": "0.0.5",
+    "version": "0.0.6",
     "news": {
+      "0.0.6": {
+        "en": "Found and fixed the real root cause of the live-test EADDRINUSE crash: ws's WebSocketServer forwards the underlying http.Server's error event onto itself, and Node throws synchronously if nothing listens for it - this bypassed all of main.ts's retry/port-scan/clear-error handling from the very first 'error' event, every time, since the project's beginning. RealtimeGateway now listens for it. Diagnostic-only logging removed again.",
+        "de": "Echte Ursache des EADDRINUSE-Absturzes beim Livetest gefunden und behoben: ws' WebSocketServer reicht das 'error'-Event des zugrunde liegenden http.Server an sich selbst weiter, und Node wirft synchron, wenn niemand darauf hört - das umging die komplette Retry-/Port-Scan-/Fehlerbehandlung in main.ts von Anfang an, bei jedem einzelnen 'error'-Event, seit Projektbeginn. RealtimeGateway hört jetzt darauf. Reines Diagnose-Logging wieder entfernt."
+      },
       "0.0.5": {
         "en": "More granular temporary diagnostic checkpoints throughout onReady()/startHttpServer() to pin down exactly where the EADDRINUSE handling is bypassed",
         "de": "Feingranularere temporäre Diagnose-Kontrollpunkte in onReady()/startHttpServer(), um genau einzugrenzen wo die EADDRINUSE-Behandlung umgangen wird"

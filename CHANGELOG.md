@@ -8,6 +8,26 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.6] - master, Testbuild
+
+**Echte Ursache des EADDRINUSE-Absturzes gefunden und behoben** (siehe [0.0.2] bis [0.0.5] für die
+Fehlersuche): Die `ws`-Bibliothek registriert beim Erstellen von `new WebSocketServer({ server })`
+selbst einen `'error'`-Listener auf dem übergebenen `http.Server` und reicht dessen Fehler an sich
+selbst weiter (`wss.emit('error', err)`). Node.js wirft ein `'error'`-Event **synchron** als echte
+ungefangene Exception, wenn dafür kein Listener registriert ist - da `RealtimeGateway` nie auf
+`wss`s eigenes `'error'`-Event gehört hat, crashte **jeder** Listen-Fehler (nicht nur EADDRINUSE)
+den ganzen Adapter-Prozess sofort, bevor die eigene Retry-/Port-Scan-/Fehlerbehandlung in
+`main.ts` (aus den vorherigen Versionen) überhaupt eine Chance hatte zu laufen. Das war ein
+latenter Bug seit Projektbeginn, der erst beim ersten echten Livetest gegen einen belegten Port
+sichtbar wurde.
+
+- `RealtimeGateway` hört jetzt auf `wss`s `'error'`-Event (loggt es nur, die eigentliche Behandlung
+  bleibt in `main.ts`s `server.once('error', ...)`)
+- Neuer Regressionstest (`test/realtime.test.ts`), der einen echten Port-Konflikt erzeugt und
+  verifiziert, dass der Prozess dabei nicht abstürzt
+- Temporäres, ausschließlich der Fehlersuche dienendes Diagnose-Logging aus [0.0.4]/[0.0.5] wieder
+  entfernt
+
 ## [0.0.5] - master, Testbuild
 
 Weitere temporäre Diagnose-Kontrollpunkte (`[diag] 1/6` bis `[diag] 6/6`) durch `onReady()` und

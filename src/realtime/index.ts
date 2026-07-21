@@ -46,6 +46,15 @@ export class RealtimeGateway {
         private readonly commands: CommandsService,
     ) {
         this.wss = new WebSocketServer({ server, path: '/ws/v1' });
+        // The ws library forwards the underlying http.Server's 'error' event onto this
+        // WebSocketServer instance (see ws/lib/websocket-server.js) - Node's EventEmitter throws
+        // synchronously, as a genuine uncaught exception, if an 'error' event has zero listeners.
+        // Without this handler, ANY listen() error (e.g. EADDRINUSE) crashes the process before
+        // main.ts's own listen-retry error handling on `server` ever gets a chance to run, since
+        // this listener was registered first (in construction order) and a throw here aborts the
+        // rest of the underlying EventEmitter's listener queue. Real handling stays in main.ts's
+        // own `server.once('error', ...)` - this only has to exist to stop the crash.
+        this.wss.on('error', (err: Error) => this.adapter.log.debug(`mobile-control: WebSocketServer reported: ${err.message}`));
         this.wss.on('connection', (ws) => this.handleConnection(ws));
         this.commands.on('commandResult', (event: CommandResultEvent) => this.publishCommandResult(event));
         this.heartbeatTimer = setInterval(() => this.heartbeatTick(), HEARTBEAT_INTERVAL_MS);

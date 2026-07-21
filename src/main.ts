@@ -98,15 +98,15 @@ class MobileControlAdapter extends utils.Adapter {
 
     public constructor(options: Partial<utils.AdapterOptions> = {}) {
         super({ ...options, name: 'mobile-control' });
-        // TEMPORARY diagnostic wrapper (remove once the live-test EADDRINUSE-handling mystery is
-        // resolved): logs any error escaping onReady() through our own logger, with its full
-        // stack, before letting it propagate - so we can see exactly what happened even if it
-        // isn't the error our own try/catch blocks inside onReady() were built to handle.
+        // Logs any error escaping onReady() through our own logger, with its full stack, before
+        // letting it propagate - js-controller's own top-level handler only ever logs a bare
+        // "UNCAUGHT_EXCEPTION", which made an unrelated real bug (see RealtimeGateway's wss 'error'
+        // listener) much harder to diagnose during the first live install than it needed to be.
         this.on('ready', async () => {
             try {
                 await this.onReady();
             } catch (err) {
-                this.log.error(`mobile-control: [diag] onReady() rejected: ${(err as Error).message}\n${(err as Error).stack}`);
+                this.log.error(`mobile-control: onReady() failed: ${(err as Error).message}\n${(err as Error).stack}`);
                 throw err;
             }
         });
@@ -116,11 +116,9 @@ class MobileControlAdapter extends utils.Adapter {
     }
 
     private async onReady(): Promise<void> {
-        this.log.error('mobile-control: [diag] 1/6 onReady entered');
         const config = this.config as unknown as AdapterNativeConfig;
 
         await runMigrations(this);
-        this.log.error('mobile-control: [diag] 2/6 migrations done');
 
         let jwtSecret = config.jwtSecret;
         if (!jwtSecret) {
@@ -197,9 +195,7 @@ class MobileControlAdapter extends utils.Adapter {
         this.historyService = new HistoryService(this, config.historyInstance ?? '');
         this.cameraService = new CameraService(this);
 
-        this.log.error('mobile-control: [diag] 3/6 services ready, calling startHttpServer');
         await this.startHttpServer(config);
-        this.log.error('mobile-control: [diag] 6/6 startHttpServer returned successfully');
 
         this.subscribeStates('control.*');
         await this.setStateAsync('info.apiStatus', { val: 'running', ack: true });
@@ -210,7 +206,6 @@ class MobileControlAdapter extends utils.Adapter {
     }
 
     private async startHttpServer(config: AdapterNativeConfig): Promise<void> {
-        this.log.error('mobile-control: [diag] 4/6 startHttpServer entered');
         const app = express();
         app.use(express.json({ limit: '256kb' }));
         app.use(
@@ -245,15 +240,12 @@ class MobileControlAdapter extends utils.Adapter {
             this.commandsService,
         );
 
-        this.log.error(`mobile-control: [diag] 5/6 calling listenWithRetry for ${config.bindAddress}:${config.port}`);
         await this.listenWithRetry(server, config);
     }
 
     private tryListen(server: http.Server, port: number, bindAddress: string): Promise<void> {
-        this.log.error(`mobile-control: [diag] tryListen(${port}, ${bindAddress}) - about to call server.listen`);
         return new Promise<void>((resolve, reject) => {
             const onError = (err: Error): void => {
-                this.log.error(`mobile-control: [diag] tryListen error handler fired: ${err.message}`);
                 server.removeListener('listening', onListening);
                 reject(err);
             };
@@ -285,10 +277,7 @@ class MobileControlAdapter extends utils.Adapter {
             this.log.info(`mobile-control: REST/WebSocket API listening on ${config.bindAddress}:${config.port}`);
         } catch (err) {
             const code = (err as NodeJS.ErrnoException).code;
-            // TEMPORARY diagnostic (remove once the live-test EADDRINUSE-handling mystery is
-            // resolved): logged unconditionally, at error level, before any branching below, so we
-            // can tell for certain whether this catch block is even reached at runtime.
-            this.log.error(`mobile-control: [diag] listenWithRetry caught an error, code=${String(code)}, attempt=${attempt}, message=${(err as Error).message}`);
+            this.log.debug(`mobile-control: listen attempt ${attempt} failed: code=${String(code)}, message=${(err as Error).message}`);
             if (code === 'EADDRINUSE' && attempt < MAX_ATTEMPTS) {
                 this.log.warn(
                     `mobile-control: port ${config.port} is still in use (attempt ${attempt}/${MAX_ATTEMPTS}), retrying in ${RETRY_DELAY_MS}ms...`,
