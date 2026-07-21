@@ -8,6 +8,13 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.5] - master, Testbuild
+
+Weitere temporäre Diagnose-Kontrollpunkte (`[diag] 1/6` bis `[diag] 6/6`) durch `onReady()` und
+`startHttpServer()`, um beim Live-Test genau einzugrenzen, bis wohin der Code beim EADDRINUSE-Absturz
+tatsächlich kommt - die vorherige Diagnose in `listenWithRetry` wurde auf der echten Installation nie
+erreicht.
+
 ## [0.0.4] - master, Testbuild
 
 Zwischenstand während der Live-Test-Fehlersuche (EADDRINUSE-Handling greift auf der echten

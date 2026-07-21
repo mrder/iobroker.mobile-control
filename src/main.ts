@@ -116,9 +116,11 @@ class MobileControlAdapter extends utils.Adapter {
     }
 
     private async onReady(): Promise<void> {
+        this.log.error('mobile-control: [diag] 1/6 onReady entered');
         const config = this.config as unknown as AdapterNativeConfig;
 
         await runMigrations(this);
+        this.log.error('mobile-control: [diag] 2/6 migrations done');
 
         let jwtSecret = config.jwtSecret;
         if (!jwtSecret) {
@@ -195,7 +197,9 @@ class MobileControlAdapter extends utils.Adapter {
         this.historyService = new HistoryService(this, config.historyInstance ?? '');
         this.cameraService = new CameraService(this);
 
+        this.log.error('mobile-control: [diag] 3/6 services ready, calling startHttpServer');
         await this.startHttpServer(config);
+        this.log.error('mobile-control: [diag] 6/6 startHttpServer returned successfully');
 
         this.subscribeStates('control.*');
         await this.setStateAsync('info.apiStatus', { val: 'running', ack: true });
@@ -206,6 +210,7 @@ class MobileControlAdapter extends utils.Adapter {
     }
 
     private async startHttpServer(config: AdapterNativeConfig): Promise<void> {
+        this.log.error('mobile-control: [diag] 4/6 startHttpServer entered');
         const app = express();
         app.use(express.json({ limit: '256kb' }));
         app.use(
@@ -240,12 +245,15 @@ class MobileControlAdapter extends utils.Adapter {
             this.commandsService,
         );
 
+        this.log.error(`mobile-control: [diag] 5/6 calling listenWithRetry for ${config.bindAddress}:${config.port}`);
         await this.listenWithRetry(server, config);
     }
 
     private tryListen(server: http.Server, port: number, bindAddress: string): Promise<void> {
+        this.log.error(`mobile-control: [diag] tryListen(${port}, ${bindAddress}) - about to call server.listen`);
         return new Promise<void>((resolve, reject) => {
             const onError = (err: Error): void => {
+                this.log.error(`mobile-control: [diag] tryListen error handler fired: ${err.message}`);
                 server.removeListener('listening', onListening);
                 reject(err);
             };
