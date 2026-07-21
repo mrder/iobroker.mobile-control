@@ -8,6 +8,25 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.2] - master, Testbuild
+
+### Backend
+- Kamera-Snapshot-Endpoint (`GET /api/v1/objects/{id}/snapshot`), liest Data-URL- oder
+  http(s)-URL-Kamera-States, proxied das Bild statt direktem Netzzugriff der App
+- Rate Limiting auf `/auth/challenge`, `/auth/login`, `/auth/refresh`, `/pairing/claim` (vorher nur
+  auf `/commands`) - Brute-Force-Lücke aus einer Konzept-Lückenanalyse
+- Audit-Log für einzelne Freigabe-Änderungen und für Refresh-Token-Wiederverwendung
+- Verbindungs-Info-Anzeige (lokale IP-Adressen, Port) im Admin-Tab für VPN/Reverse-Proxy-Einrichtung
+- Klarere Fehlerbehandlung bei belegtem Port beim Start: automatischer Ausweich-Port-Scan, solange
+  noch kein Gerät gekoppelt wurde; danach klare Fehlermeldung statt Absturz mit rohem Stacktrace
+- Release-Automatisierung (`.github/workflows/release.yml`) und Versions-Konsistenzprüfung
+
+### Android
+- `CommandStatus.BLOCKED` wird jetzt tatsächlich für `LOCAL_ONLY`-Ablehnungen verwendet
+- `minSdk` von 34 (Android 14) auf 26 (Android 8.0) gesenkt für Tests auf älterer Hardware
+- CI baut bei jedem Push eine installierbare Debug-APK als Artefakt
+- 90 JVM-Unit-Tests (vorher 39): neue ViewModel-Tests mit Fake-Repositories
+
 ## [0.0.1] - master, Testbuild
 
 Erster vollständiger MVP-Stand auf `master`. Backend und Android-App sind funktional komplett
