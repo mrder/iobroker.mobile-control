@@ -13,7 +13,12 @@ android {
 
     defaultConfig {
         applicationId = "com.mobilecontrol.app"
-        minSdk = 34
+        // Lowered from the original concept's minSdk 34 (see docs/MASTERKONZEPT.md §12/§"Android-Version")
+        // deliberately, to support testing on older real hardware (e.g. Fire OS 7.x tablets, Android 9).
+        // No code in this app actually requires API 34 - Keystore/EC-P256, BiometricPrompt, CameraX,
+        // ML Kit (bundled model, no Play Services dependency), Compose, Room and Hilt all work fine
+        // down to API 26. compileSdk/targetSdk stay at the current release per the concept.
+        minSdk = 26
         targetSdk = 34
         versionCode = 1
         versionName = "0.1.0"

@@ -402,10 +402,13 @@ WorkManager
 ### Android-Version
 
 ```kotlin
-minSdk = 34
+minSdk = 26
 ```
 
-Damit ist Android 14 Mindestversion.
+Ursprünglich als `minSdk = 34` (Android 14) geplant. Bewusst auf 26 (Android 8.0) abgesenkt, um Tests
+auf älterer echter Hardware zu ermöglichen (u.a. Fire-OS-7.x-Tablets, Android-9-Basis) - keine der
+verwendeten APIs (Android Keystore/EC-P256, BiometricPrompt mit PIN-Fallback, CameraX, ML Kit mit
+gebündeltem Modell ohne Play-Services-Abhängigkeit, Compose, Room, Hilt) erfordert tatsächlich API 34.
 
 `targetSdk` und `compileSdk` werden unabhängig davon auf dem bei Veröffentlichung aktuellen Stand gehalten.
 

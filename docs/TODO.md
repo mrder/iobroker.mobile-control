@@ -105,7 +105,7 @@
 
 - [x] Kotlin
 - [x] Compose
-- [x] minSdk 34
+- [x] minSdk 26 (ursprünglich 34/Android 14 geplant, bewusst abgesenkt für Tests auf älterer Hardware - siehe MASTERKONZEPT.md "Android-Version"; compileSdk/targetSdk bleiben 34)
 - [x] Material 3
 - [x] Room
 - [x] DataStore
@@ -230,7 +230,7 @@
 - [x] falsche Alias-ID (OBJECT_NOT_FOUND)
 - [ ] Offline
 - [ ] Netzwechsel
-- [ ] Android 14 Geräte
+- [ ] echte Geräte über den unterstützten Bereich (Android 8-14, minSdk jetzt 26) - u.a. ein Fire-OS-7.x-Tablet als geplantes Testgerät
 - [ ] 7-Tage-Dauertest
 - [x] OWASP API (Abgleich in DEPLOYMENT.md, kein externes Pentest)
 - [x] OWASP MASVS (Abgleich in DEPLOYMENT.md, kein externes Pentest)

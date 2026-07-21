@@ -7,7 +7,9 @@ ioBroker-Objektbaum, sondern nur den vom Server gefilterten, freigegebenen Objek
 
 - Android Studio (aktuelle stabile Version, "Ladybug" oder neuer empfohlen)
 - JDK 17 (wird von Android Studio i.d.R. mitgebracht; `compileOptions`/`kotlinOptions` sind auf 17 gesetzt)
-- Android SDK Platform 34, minSdk 34 (App läuft nur auf Android 14+)
+- Android SDK Platform 34 (compileSdk/targetSdk), minSdk 26 (App läuft ab Android 8.0 - abgesenkt
+  von ursprünglich geplant Android 14, siehe docs/MASTERKONZEPT.md "Android-Version"; getestet u.a.
+  auf Fire-OS-7.x-Tablets ohne Google Play Services, da die App keine GMS/Firebase-Abhängigkeit hat)
 - Ein physisches Gerät oder Emulator mit Kamera-Unterstützung (für den QR-Scan) und
   Biometrie-Unterstützung (für den optionalen biometrischen App-Lock), falls diese Flows getestet werden sollen
 
@@ -16,7 +18,7 @@ ioBroker-Objektbaum, sondern nur den vom Server gefilterten, freigegebenen Objek
 1. Projekt in Android Studio öffnen: `File → Open…` und den Ordner `android-app/` auswählen
    (nicht das Repo-Root — die App ist ein eigenständiges Gradle-Projekt).
 2. Gradle-Sync abwarten (lädt Compose BOM, Hilt, Room, CameraX, ML Kit etc. herunter).
-3. `app`-Run-Konfiguration auf einem Gerät/Emulator mit API 34+ starten.
+3. `app`-Run-Konfiguration auf einem Gerät/Emulator mit API 26+ starten.
 4. Alternativ per Kommandozeile: `./gradlew :app:assembleDebug` (Gradle Wrapper-JAR muss vorher
    einmal über Android Studio oder `gradle wrapper` erzeugt werden, da Binärdateien hier nicht
    eingecheckt sind).

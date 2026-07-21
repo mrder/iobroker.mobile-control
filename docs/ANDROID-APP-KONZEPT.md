@@ -3,10 +3,11 @@
 ## 1. Plattform
 
 ```kotlin
-minSdk = 34
+minSdk = 26
 ```
 
-Android 14 ist Mindestversion.
+Android 8.0 ist Mindestversion (ursprünglich Android 14 geplant, siehe MASTERKONZEPT.md
+"Android-Version" für die Begründung der Absenkung).
 
 Technik:
 
