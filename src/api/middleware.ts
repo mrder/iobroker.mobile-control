@@ -57,8 +57,10 @@ export function createAuthMiddleware(auth: AuthService, sessions: SessionsServic
             }
             req.ctx = { userId: payload.sub, deviceId: payload.deviceId, roleId: payload.roleId };
             req.sessionId = session.id;
-            void devices.touch(device.id, req.ip ?? null);
-            void sessions.touch(session.id, req.ip ?? null);
+            // Best-effort bookkeeping (last-seen timestamp) - never let a transient storage error
+            // here fail the request or, worse, crash the process via an unhandled rejection.
+            devices.touch(device.id, req.ip ?? null).catch(() => undefined);
+            sessions.touch(session.id, req.ip ?? null).catch(() => undefined);
             next();
         } catch (err) {
             sendError(res, err instanceof ApiError ? err : new ApiError('AUTH_REQUIRED'));

@@ -1,8 +1,12 @@
 {
   "common": {
     "name": "mobile-control",
-    "version": "0.0.6",
+    "version": "0.0.7",
     "news": {
+      "0.0.7": {
+        "en": "Hardened every fire-and-forget async call in the backend with proper error handling, so a single transient storage/network failure can never again crash the whole adapter process - found while auditing the codebase for the same class of bug as the ws EADDRINUSE crash",
+        "de": "Alle Fire-and-Forget-Async-Aufrufe im Backend mit richtiger Fehlerbehandlung abgesichert, damit ein einzelner vorübergehender Storage-/Netzwerkfehler nie wieder den ganzen Adapter-Prozess mitreißen kann - gefunden bei der Suche nach derselben Fehlerklasse wie beim ws-EADDRINUSE-Absturz"
+      },
       "0.0.6": {
         "en": "Found and fixed the real root cause of the live-test EADDRINUSE crash: ws's WebSocketServer forwards the underlying http.Server's error event onto itself, and Node throws synchronously if nothing listens for it - this bypassed all of main.ts's retry/port-scan/clear-error handling from the very first 'error' event, every time, since the project's beginning. RealtimeGateway now listens for it. Diagnostic-only logging removed again.",
         "de": "Echte Ursache des EADDRINUSE-Absturzes beim Livetest gefunden und behoben: ws' WebSocketServer reicht das 'error'-Event des zugrunde liegenden http.Server an sich selbst weiter, und Node wirft synchron, wenn niemand darauf hört - das umging die komplette Retry-/Port-Scan-/Fehlerbehandlung in main.ts von Anfang an, bei jedem einzelnen 'error'-Event, seit Projektbeginn. RealtimeGateway hört jetzt darauf. Reines Diagnose-Logging wieder entfernt."

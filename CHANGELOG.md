@@ -8,6 +8,15 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.7] - master, Testbuild
+
+Nach dem ws-Fund in [0.0.6] gezielt nach derselben Fehlerklasse gesucht: "Fire-and-forget"
+Async-Aufrufe (`void asyncFn()`), deren Ablehnung nirgendwo abgefangen wird und damit potenziell
+den ganzen Adapter-Prozess crashen könnte (unhandled promise rejection), genau wie beim
+ws-Bug. Acht Stellen gefunden und mit `.catch(...)` abgesichert (Session-/Geräte-Bookkeeping,
+Kommando-Bestätigung/-Timeout, Status-States, Session-Widerruf, WebSocket-Nachrichtenverarbeitung).
+Eine Stelle (Admin-Message-Handler) war bereits durch ein eigenes vollständiges try/catch sicher.
+
 ## [0.0.6] - master, Testbuild
 
 **Echte Ursache des EADDRINUSE-Absturzes gefunden und behoben** (siehe [0.0.2] bis [0.0.5] für die

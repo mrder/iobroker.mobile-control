@@ -194,7 +194,9 @@ export class CommandsService extends EventEmitter {
         await this.store.put(executedRecord);
         this.emit('commandResult', { deviceId: ctx.deviceId, commandId: executedRecord.id, status: 'executed' } satisfies CommandResultEvent);
 
-        void this.awaitConfirmation(stateId, executedRecord.id);
+        this.awaitConfirmation(stateId, executedRecord.id).catch((err: unknown) =>
+            this.adapter.log.error(`mobile-control: awaitConfirmation failed: ${(err as Error).message}`),
+        );
 
         return executedRecord;
     }
@@ -247,7 +249,9 @@ export class CommandsService extends EventEmitter {
             clearTimeout(previous.timer);
         }
         const timer = setTimeout(() => {
-            void this.timeoutCommand(stateId);
+            this.timeoutCommand(stateId).catch((err: unknown) =>
+                this.adapter.log.error(`mobile-control: timeoutCommand failed: ${(err as Error).message}`),
+            );
         }, CONFIRMATION_TIMEOUT_MS);
         this.pendingByStateId.set(stateId, { commandId, timer });
     }

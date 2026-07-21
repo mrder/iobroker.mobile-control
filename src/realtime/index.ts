@@ -83,7 +83,9 @@ export class RealtimeGateway {
         });
 
         ws.on('message', (raw: Buffer) => {
-            void this.handleMessage(connection, raw.toString());
+            this.handleMessage(connection, raw.toString()).catch((err: unknown) =>
+                this.adapter.log.error(`mobile-control: WS handleMessage failed: ${(err as Error).message}`),
+            );
         });
 
         ws.on('close', () => {
@@ -312,7 +314,9 @@ export class RealtimeGateway {
     private cleanupConnection(connection: Connection): void {
         this.connections.delete(connection);
         for (const sub of connection.subscriptions.values()) {
-            void this.releaseSubscription(connection, sub.stateId);
+            this.releaseSubscription(connection, sub.stateId).catch((err: unknown) =>
+                this.adapter.log.error(`mobile-control: releaseSubscription failed: ${(err as Error).message}`),
+            );
         }
     }
 

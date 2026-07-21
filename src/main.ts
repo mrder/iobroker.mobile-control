@@ -201,8 +201,13 @@ class MobileControlAdapter extends utils.Adapter {
         await this.setStateAsync('info.apiStatus', { val: 'running', ack: true });
         await this.setStateAsync('info.websocketStatus', { val: 'running', ack: true });
 
-        this.statusInterval = setInterval(() => void this.updateStatusStates(), STATUS_INTERVAL_MS);
-        void this.updateStatusStates();
+        this.statusInterval = setInterval(() => this.updateStatusStatesSafely(), STATUS_INTERVAL_MS);
+        this.updateStatusStatesSafely();
+    }
+
+    /** Fire-and-forget wrapper - a transient state-write failure here must never crash the adapter. */
+    private updateStatusStatesSafely(): void {
+        this.updateStatusStates().catch((err: unknown) => this.log.error(`mobile-control: updateStatusStates failed: ${(err as Error).message}`));
     }
 
     private async startHttpServer(config: AdapterNativeConfig): Promise<void> {
@@ -336,14 +341,18 @@ class MobileControlAdapter extends utils.Adapter {
 
     private onStateChange(id: string, state: ioBroker.State | null | undefined): void {
         if (id === `${this.namespace}.control.revokeAllSessions` && state && !state.ack && state.val) {
-            void this.handleRevokeAllSessions();
+            this.handleRevokeAllSessions().catch((err: unknown) =>
+                this.log.error(`mobile-control: handleRevokeAllSessions failed: ${(err as Error).message}`),
+            );
             return;
         }
         if (id.startsWith(`${this.namespace}.`)) {
             return; // control/info states are not part of the exposed catalog
         }
 
-        void this.commandsService?.handleForeignStateChange(id, state);
+        this.commandsService
+            ?.handleForeignStateChange(id, state)
+            .catch((err: unknown) => this.log.error(`mobile-control: handleForeignStateChange failed: ${(err as Error).message}`));
         this.realtimeGateway?.publishStateChange(id, state);
     }
 
