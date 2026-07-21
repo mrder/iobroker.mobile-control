@@ -171,7 +171,17 @@ freigegeben wird, lassen sich Backend- und App-Logs trotzdem einfach als Text ko
 1. Admin-Oberfläche → Instanz "mobile-control" → Zahnrad → Log-Level für den Testzeitraum auf
    `debug` stellen (Standard ist `info`, siehe `io-package.json` `loglevel`)
 2. Admin-Oberfläche → Tab "Log" (oder `iobroker logs mobile-control.0` direkt am Host) → nach
-   "mobile-control" filtern → relevanten Ausschnitt kopieren
+   "mobile-control" filtern → relevanten Ausschnitt kopieren. Falls die Instanz sofort nach dem
+   Start abstürzt und in der Admin-Log-Ansicht keine eigene "mobile-control.0"-Quelle zur Auswahl
+   steht (der Adapter wurde noch nie erfolgreich vollständig hochgefahren), hilft ein manueller
+   Vordergrund-Start, der den rohen Fehler unverfälscht zeigt:
+   ```bash
+   cd /opt/iobroker && node node_modules/iobroker.mobile-control/build/main.js --instance 0 --debug
+   ```
+   Häufigste Ursache beim ersten Start: **Port bereits belegt** (`EADDRINUSE`) - der Adapter loggt
+   das seit einem Fix vom 2026-07-21 als klare Fehlermeldung statt als rohen Stacktrace und nennt
+   den Port; Fix: in den Instanz-Einstellungen einen anderen Port setzen, oder herausfinden was den
+   Port schon belegt (`sudo lsof -i :<port>` bzw. `sudo netstat -tlnp | grep <port>`).
 
 **App-Logs (Android), ohne Android Studio:**
 1. Nur "Android SDK Platform-Tools" herunterladen (ZIP, enthält `adb.exe`, keine 10 GB wie die volle

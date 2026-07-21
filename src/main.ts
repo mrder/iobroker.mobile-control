@@ -229,13 +229,48 @@ class MobileControlAdapter extends utils.Adapter {
             this.commandsService,
         );
 
-        await new Promise<void>((resolve, reject) => {
-            server.once('error', reject);
-            server.listen(config.port, config.bindAddress, () => {
-                this.log.info(`mobile-control: REST/WebSocket API listening on ${config.bindAddress}:${config.port}`);
-                resolve();
+        await this.listenWithRetry(server, config);
+    }
+
+    /**
+     * Retries a few times on EADDRINUSE before giving up - a restarting adapter instance can
+     * briefly race the just-exited previous process for the same port. Any other listen error, or
+     * EADDRINUSE that is still there after the retries, produces one clear, actionable log line
+     * (instead of the previous behavior: an unhandled rejection out of onReady() that js-controller
+     * only ever surfaced as a generic "UNCAUGHT_EXCEPTION" with a raw Node stack trace) and then a
+     * clean termination via this.terminate() rather than a crash.
+     */
+    private async listenWithRetry(server: http.Server, config: AdapterNativeConfig, attempt = 1): Promise<void> {
+        const MAX_ATTEMPTS = 3;
+        const RETRY_DELAY_MS = 1000;
+        try {
+            await new Promise<void>((resolve, reject) => {
+                server.once('error', reject);
+                server.listen(config.port, config.bindAddress, () => {
+                    server.removeAllListeners('error');
+                    this.log.info(`mobile-control: REST/WebSocket API listening on ${config.bindAddress}:${config.port}`);
+                    resolve();
+                });
             });
-        });
+        } catch (err) {
+            const code = (err as NodeJS.ErrnoException).code;
+            if (code === 'EADDRINUSE' && attempt < MAX_ATTEMPTS) {
+                this.log.warn(
+                    `mobile-control: port ${config.port} is still in use (attempt ${attempt}/${MAX_ATTEMPTS}), retrying in ${RETRY_DELAY_MS}ms...`,
+                );
+                await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+                return this.listenWithRetry(server, config, attempt + 1);
+            }
+            if (code === 'EADDRINUSE') {
+                this.terminate(
+                    `Port ${config.port} on ${config.bindAddress} is already in use by another process. ` +
+                        `Set a different port in the "mobile-control" instance settings, or free port ${config.port} first ` +
+                        `(e.g. "sudo lsof -i :${config.port}" / "sudo netstat -tlnp | grep ${config.port}" to find what's using it).`,
+                    11,
+                );
+            }
+            this.terminate(`Failed to start the REST/WebSocket server: ${(err as Error).message}`, 11);
+        }
     }
 
     private onStateChange(id: string, state: ioBroker.State | null | undefined): void {
