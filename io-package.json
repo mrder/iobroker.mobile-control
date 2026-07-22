@@ -1,8 +1,12 @@
 {
   "common": {
     "name": "mobile-control",
-    "version": "0.0.21",
+    "version": "0.0.22",
     "news": {
+      "0.0.22": {
+        "en": "Fixed a real crash found live right after 0.0.21 (indentation cap wasn't the actual cause): opening a JSON-type datapoint (e.g. an event log) crashed with the exact same \"maxWidth must be >= minWidth\" error. Root cause: the object list row rendered the live value directly and unbounded in ListItem's trailing text - for a multi-KB value, Compose's intrinsic (unconstrained) width measurement of that single unbroken string produced a negative remaining width for the rest of the row. The displayed value is now hard-truncated to 120 characters before it ever reaches Compose, not just visually ellipsized (which would still require measuring the full string first).",
+        "de": "Echten, direkt nach 0.0.21 live gefundenen Absturz behoben (die Einrückungs-Obergrenze war nicht die eigentliche Ursache): Das Öffnen eines JSON-Datenpunkts (z.B. eines Ereignisprotokolls) stürzte mit demselben \"maxWidth must be >= minWidth\"-Fehler ab. Ursache: Die Objektlistenzeile hat den Live-Wert direkt und unbegrenzt im ListItem-Trailing-Text dargestellt - bei einem mehrere KB großen Wert erzeugte Composes intrinsische (unbeschränkte) Breitenmessung dieses einen zusammenhängenden Strings eine negative verbleibende Breite für den Rest der Zeile. Der angezeigte Wert wird jetzt vor der Anzeige hart auf 120 Zeichen gekürzt, nicht nur visuell mit Auslassungspunkten (das würde weiterhin erfordern, zuerst den vollständigen String zu vermessen)."
+      },
       "0.0.21": {
         "en": "Fixed a real crash found live while scrolling the object tree: java.lang.IllegalArgumentException \"maxWidth must be >= minWidth\" inside ListItem's measure pass. Root cause: the tree indented each level by 16dp with no upper bound, and some real catalogs (e.g. growmanager's database.group-<id>.<subgroup> structure) nest deep enough that the indentation ate into more width than the row had available, going negative. Indentation now stops growing past 8 levels; deeper items render at that same indent instead of pushing width negative.",
         "de": "Echten, live beim Scrollen im Objektbaum gefundenen Absturz behoben: java.lang.IllegalArgumentException \"maxWidth must be >= minWidth\" in ListItems Messvorgang. Ursache: Der Baum hat jede Ebene um 16dp eingerückt, ohne Obergrenze - manche echten Kataloge (z.B. growmanagers database.group-<id>.<subgroup>-Struktur) sind tief genug verschachtelt, dass die Einrückung mehr Breite gefressen hat als die Zeile zur Verfügung hatte, und ins Negative ging. Die Einrückung wächst jetzt nicht mehr über 8 Ebenen hinaus; tiefere Objekte werden mit derselben Einrückung dargestellt statt die Breite ins Negative zu drücken."
@@ -78,10 +82,6 @@
       "0.0.3": {
         "en": "Fixed a real bug: package.json's \"files\" list excluded src/ and the tsconfigs, so any rebuild inside an already-installed package directory failed with a missing tsconfig.build.json",
         "de": "Echten Bug behoben: \"files\"-Liste in package.json schloss src/ und die tsconfigs aus, wodurch ein Neu-Build innerhalb eines bereits installierten Adapter-Verzeichnisses mit fehlender tsconfig.build.json fehlschlug"
-      },
-      "0.0.2": {
-        "en": "Camera snapshot widget, security-audit fixes (rate limiting, audit logging), lowered minSdk to 26 for older test devices, clearer port-conflict handling on startup",
-        "de": "Kamera-Snapshot-Widget, Sicherheits-Fixes (Rate Limiting, Audit-Logging), minSdk auf 26 gesenkt für ältere Testgeräte, klarere Behandlung von Port-Konflikten beim Start"
       }
     },
     "title": "Mobile Control",

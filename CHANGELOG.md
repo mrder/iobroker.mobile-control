@@ -8,6 +8,29 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.22] - master, Testbuild
+
+**Echter Absturz, live direkt nach [0.0.21] gefunden - die Einrückungs-Obergrenze war nicht die
+eigentliche Ursache:** Das Öffnen eines JSON-Datenpunkts (Ereignisprotokoll, mehrere KB groß)
+stürzte mit demselben Fehlerbild ab:
+
+```
+java.lang.IllegalArgumentException: maxWidth(-250) must be >= than minWidth(0)
+    at androidx.compose.material3.ListItemMeasurePolicy.measure-3p2s80s(ListItem.kt:234)
+```
+
+Ursache: Die Objektlisten-Zeile hat den Live-Wert direkt und unbegrenzt im `ListItem`-Trailing-Text
+angezeigt. Compose misst bei einem `Text` zuerst die *intrinsische* (unbeschränkte) Breite, bevor
+es umbricht/abschneidet - bei einem mehrere KB großen, zusammenhängenden String führte das zu
+einer negativen verbleibenden Breite für den Rest der Zeile.
+
+- Neue Funktion `formatLiveValueForDisplay()`
+  ([LiveValueFormatting.kt](android-app/app/src/main/java/com/mobilecontrol/app/domain/model/LiveValueFormatting.kt)):
+  kürzt den angezeigten Wert **vor** der Anzeige hart auf 120 Zeichen - nicht nur visuell mit
+  Auslassungspunkten, das würde weiterhin erfordern, zuerst den vollständigen String zu vermessen
+- Neue Tests (`LiveValueFormattingTest.kt`), inkl. eines Regressionstests mit einem echten,
+  mehrere KB großen JSON-Blob wie dem, der live abgestürzt ist
+
 ## [0.0.21] - master, Testbuild
 
 **Echter Absturz, live beim Scrollen im Objektbaum gefunden** (per Logcat vom echten Testgerät

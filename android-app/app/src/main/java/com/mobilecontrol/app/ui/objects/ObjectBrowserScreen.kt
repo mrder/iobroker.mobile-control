@@ -44,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -51,6 +52,7 @@ import com.mobilecontrol.app.R
 import com.mobilecontrol.app.domain.model.LiveValue
 import com.mobilecontrol.app.domain.model.ObjectCatalogItem
 import com.mobilecontrol.app.domain.model.ObjectTreeNode
+import com.mobilecontrol.app.domain.model.formatLiveValueForDisplay
 import com.mobilecontrol.app.domain.model.visibleLeafIds
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -225,8 +227,10 @@ private fun ObjectListRow(item: ObjectCatalogItem, liveValue: Any?) {
         },
         trailingContent = {
             Text(
-                text = liveValue?.let { "$it${item.unit?.let { u -> " $u" } ?: ""}" } ?: "—",
+                text = formatLiveValueForDisplay(liveValue, item.unit),
                 style = MaterialTheme.typography.bodyLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         },
     )
