@@ -8,6 +8,20 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.9] - master, Testbuild
+
+**Den echten Grund für den fehlenden Admin-Tab gefunden** (0.0.8 hat das Problem nicht vollständig
+gelöst, wie der Nutzer live bestätigt hat: `adminUI.tab: "html"` war korrekt installiert,
+`iobroker upload mobile-control` lief erfolgreich durch, aber der Tab tauchte weiterhin nicht in
+der Seitenleiste auf). Ursache: `adminUI.tab` bestimmt nur, *wie* ein Tab gerendert wird (html vs.
+json vs. materialize) - der eigentliche Seitenleisten-Eintrag wird über ein komplett separates
+Feld `common.adminTab` registriert (siehe `@iobroker/types`s `AdapterCommon`-Interface), das in
+unserer `io-package.json` schlicht nie existiert hat. Bestätigt durch Vergleich mit zwei echten,
+funktionierenden Custom-Tab-Adaptern (`ioBroker.devices`, `ioBroker.javascript`), die beide ein
+`adminTab`-Objekt (`singleton`, `name`) deklarieren, genau wie jetzt bei uns. Da unser Tab bereits
+unter dem von `adminTab` erwarteten Standardpfad `admin/tab.html` liegt, war kein zusätzliches
+`link`-Feld nötig.
+
 ## [0.0.8] - master, Testbuild
 
 **Weiterer echter Bug, live beim Nutzer gefunden:** Der eigene Admin-Tab tauchte in der
