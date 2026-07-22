@@ -44,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mobilecontrol.app.R
@@ -154,6 +155,16 @@ fun ObjectBrowserScreen(viewModel: ObjectBrowserViewModel = hiltViewModel()) {
     }
 }
 
+/** Indentation stops growing past this many levels - real catalogs can nest much deeper than a
+ *  screen is wide (e.g. growmanager's database.group-<id>.<subgroup>... structure), and unbounded
+ *  `depth * INDENT_STEP` eventually exceeds the row's available width, which crashes ListItem's
+ *  measure pass with "maxWidth must be >= minWidth" instead of just clipping visually. Deeper
+ *  levels render at this same indent rather than growing further. */
+private const val MAX_INDENT_LEVELS = 8
+private val INDENT_STEP = 16.dp
+
+private fun indentFor(depth: Int): Dp = INDENT_STEP * minOf(depth, MAX_INDENT_LEVELS)
+
 /** Recursively appends this node's folders and leaf items to a LazyListScope, depth-first,
  *  skipping subtrees of collapsed folders entirely (they're neither composed nor subscribed). */
 private fun LazyListScope.objectTreeItems(
@@ -173,7 +184,7 @@ private fun LazyListScope.objectTreeItems(
         }
     }
     items(node.items, key = { "item:${it.id}" }) { catalogItem ->
-        Box(modifier = Modifier.padding(start = (depth * 16).dp)) {
+        Box(modifier = Modifier.padding(start = indentFor(depth))) {
             ObjectListRow(item = catalogItem, liveValue = liveValues[catalogItem.id]?.value)
         }
     }
@@ -183,7 +194,7 @@ private fun LazyListScope.objectTreeItems(
 private fun ObjectFolderRow(name: String, depth: Int, expanded: Boolean, onClick: () -> Unit) {
     ListItem(
         modifier = Modifier
-            .padding(start = (depth * 16).dp)
+            .padding(start = indentFor(depth))
             .clickable(onClick = onClick),
         leadingContent = {
             Row {

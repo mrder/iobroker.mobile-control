@@ -8,6 +8,26 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.21] - master, Testbuild
+
+**Echter Absturz, live beim Scrollen im Objektbaum gefunden** (per Logcat vom echten Testgerät
+diagnostiziert):
+
+```
+java.lang.IllegalArgumentException: maxWidth(-250) must be >= than minWidth(0)
+    at androidx.compose.material3.ListItemMeasurePolicy.measure-3p2s80s(ListItem.kt:234)
+```
+
+Ursache: Jede Baumebene wurde um `depth * 16dp` eingerückt, ohne Obergrenze. Manche echten
+Kataloge (z.B. growmanagers `database.group-<id>.<subgroup>`-Struktur) verschachteln tief genug,
+dass die Einrückung mehr Breite verbraucht hat als die Zeile zur Verfügung hatte - die für
+`ListItem` verbleibende Breite ging ins Negative, was Compose beim nächsten Scroll-Remeasure hart
+mit einer `IllegalArgumentException` quittiert (kein sanftes Clipping).
+
+Fix: Einrückung wächst jetzt nicht mehr über 8 Ebenen (128dp) hinaus - tiefer verschachtelte
+Objekte werden mit derselben Einrückung wie Ebene 8 dargestellt statt die Breite weiter zu
+verringern.
+
 ## [0.0.20] - master, Testbuild
 
 CI-Compile-Fehler aus [0.0.19] behoben: unnötiger expliziter Import von `Modifier.weight` löste

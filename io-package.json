@@ -1,8 +1,12 @@
 {
   "common": {
     "name": "mobile-control",
-    "version": "0.0.20",
+    "version": "0.0.21",
     "news": {
+      "0.0.21": {
+        "en": "Fixed a real crash found live while scrolling the object tree: java.lang.IllegalArgumentException \"maxWidth must be >= minWidth\" inside ListItem's measure pass. Root cause: the tree indented each level by 16dp with no upper bound, and some real catalogs (e.g. growmanager's database.group-<id>.<subgroup> structure) nest deep enough that the indentation ate into more width than the row had available, going negative. Indentation now stops growing past 8 levels; deeper items render at that same indent instead of pushing width negative.",
+        "de": "Echten, live beim Scrollen im Objektbaum gefundenen Absturz behoben: java.lang.IllegalArgumentException \"maxWidth must be >= minWidth\" in ListItems Messvorgang. Ursache: Der Baum hat jede Ebene um 16dp eingerückt, ohne Obergrenze - manche echten Kataloge (z.B. growmanagers database.group-<id>.<subgroup>-Struktur) sind tief genug verschachtelt, dass die Einrückung mehr Breite gefressen hat als die Zeile zur Verfügung hatte, und ins Negative ging. Die Einrückung wächst jetzt nicht mehr über 8 Ebenen hinaus; tiefere Objekte werden mit derselben Einrückung dargestellt statt die Breite ins Negative zu drücken."
+      },
       "0.0.20": {
         "en": "Fixed a CI compile break from the previous push: an unnecessary explicit import of Modifier.weight resolved to an internal, inaccessible symbol instead of the RowScope member that's already implicitly in scope inside a Row {} lambda (no import needed at all for that one). Removed the import; no functional change.",
         "de": "CI-Compile-Fehler aus dem vorherigen Push behoben: ein unnötiger expliziter Import von Modifier.weight löste sich auf ein internes, nicht zugängliches Symbol auf statt auf das RowScope-Member, das innerhalb eines Row {}-Lambdas ohnehin schon implizit verfügbar ist (dafür ist gar kein Import nötig). Import entfernt, keine funktionale Änderung."
