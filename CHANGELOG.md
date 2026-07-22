@@ -8,6 +8,30 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.14] - master, Testbuild
+
+**Zwei echte Android-Bugs, live direkt nach 0.0.13 gefunden** (Nutzer bemängelte zu Recht, dass
+ein abgelaufenes Pairing als rohes "HTTP 410" statt einer verständlichen Meldung angezeigt wurde):
+
+1. `ApiErrorCode.kt` fehlten 7 der 19 Backend-Fehlercodes komplett (`PAIRING_INVALID`,
+   `PAIRING_EXPIRED`, `CHALLENGE_INVALID`, `SIGNATURE_INVALID`, `NOT_FOUND`, `VALIDATION_ERROR`,
+   `REPLAY_DETECTED`) - die fielen alle stillschweigend auf `UNKNOWN` zurück.
+2. **Deutlich größerer Fund dabei**: `ErrorEnvelopeDto.kt` erwartete die Fehler-Antwort als
+   verschachteltes `{"error": {"code": "...", "message": "..."}}`, das Backend schickt aber
+   tatsächlich ein flaches `{"error": "CODE_STRING", "message": "..."}` (siehe
+   `ApiError.toBody()` in `src/lib/errors.ts`). Durch diesen Typ-Mismatch ist das Deserialisieren
+   des Fehler-Bodys seit der ursprünglichen Android-Implementierung bei **jeder einzelnen**
+   Fehlerantwort des Servers stillschweigend fehlgeschlagen - die App hat den Fehlercode nie aus
+   der Antwort gelesen, sondern immer nur grob aus dem rohen HTTP-Status geraten (und für Codes
+   wie 400/410/428, die vorher gar nicht in dieser Rate-Fallback-Tabelle standen, landete das
+   sogar direkt bei `UNKNOWN`).
+
+Beide behoben: `ErrorEnvelopeDto` liest jetzt die echte Form, `mapHttpError` deckt alle Status ab,
+und das Pairing zeigt jetzt echte deutsche Meldungen ("Die Kopplungsanfrage ist abgelaufen. Bitte
+scanne den QR-Code erneut." usw. statt "HTTP 410"). Neue Tests: `ApiCallExecutorTest.kt`
+(reale Backend-Fehlerform, Status-Fallback, unbekannter Code). **Erfordert einen neuen
+Android-Build.**
+
 ## [0.0.13] - master, Testbuild
 
 **Echter Bug, live beim Onboarding gefunden:** Die App zeigte bei jedem einzelnen Pairing-Versuch

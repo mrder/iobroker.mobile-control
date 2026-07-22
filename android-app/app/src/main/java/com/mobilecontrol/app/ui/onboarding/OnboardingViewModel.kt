@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.mobilecontrol.app.data.crypto.FingerprintCheckResult
 import com.mobilecontrol.app.data.crypto.KeystoreManager
 import com.mobilecontrol.app.data.crypto.ServerFingerprintChecker
+import com.mobilecontrol.app.domain.model.ApiErrorCode
+import com.mobilecontrol.app.domain.model.ApiException
 import com.mobilecontrol.app.domain.model.DeviceProfile
 import com.mobilecontrol.app.domain.model.PairingQrPayload
 import com.mobilecontrol.app.domain.model.PairingStatus
@@ -98,9 +100,27 @@ class OnboardingViewModel @Inject constructor(
                     startPolling(payload.serverUrl, claim.claimId)
                 },
                 onFailure = { error ->
-                    _uiState.update { it.copy(pairingError = error.message ?: "Kopplung fehlgeschlagen") }
+                    _uiState.update { it.copy(pairingError = claimErrorMessage(error)) }
                 },
             )
+        }
+    }
+
+    /** Turns a claim() failure into text a user can actually act on - previously this always
+     *  showed the raw "HTTP 410" (etc.) from ApiException's message, which was both because
+     *  ApiErrorCode was missing PAIRING_EXPIRED/PAIRING_INVALID entirely (fell through to
+     *  UNKNOWN) and because mapHttpError() never produced a human message in the first place. */
+    private fun claimErrorMessage(error: Throwable): String {
+        return when ((error as? ApiException)?.errorCode) {
+            ApiErrorCode.PAIRING_EXPIRED ->
+                "Die Kopplungsanfrage ist abgelaufen. Bitte scanne den QR-Code erneut."
+            ApiErrorCode.PAIRING_INVALID ->
+                "Der Pairing-Code ist ungültig oder wurde bereits verwendet. Bitte scanne einen neuen QR-Code."
+            ApiErrorCode.RATE_LIMITED ->
+                "Zu viele Versuche. Bitte kurz warten und erneut versuchen."
+            ApiErrorCode.SERVER_UNAVAILABLE ->
+                "Der Server ist gerade nicht erreichbar. Bitte später erneut versuchen."
+            else -> error.message ?: "Kopplung fehlgeschlagen"
         }
     }
 

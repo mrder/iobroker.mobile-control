@@ -1,6 +1,10 @@
 package com.mobilecontrol.app.domain.model
 
-/** Mirrors the server's error code contract 1:1 so UI layers can branch on a closed set. */
+/** Mirrors the server's error code contract 1:1 so UI layers can branch on a closed set.
+ *  Must stay in sync with src/lib/errors.ts' ERROR_CODES on the backend - this enum was
+ *  missing 7 of the 19 backend codes (PAIRING_INVALID, PAIRING_EXPIRED, CHALLENGE_INVALID,
+ *  SIGNATURE_INVALID, NOT_FOUND, VALIDATION_ERROR, REPLAY_DETECTED), so all of those silently
+ *  fell through to UNKNOWN and lost their specific meaning to callers/UI. */
 enum class ApiErrorCode {
     AUTH_REQUIRED,
     TOKEN_EXPIRED,
@@ -16,6 +20,13 @@ enum class ApiErrorCode {
     COMMAND_TIMEOUT,
     REVISION_CONFLICT,
     SERVER_UNAVAILABLE,
+    PAIRING_INVALID,
+    PAIRING_EXPIRED,
+    CHALLENGE_INVALID,
+    SIGNATURE_INVALID,
+    NOT_FOUND,
+    VALIDATION_ERROR,
+    REPLAY_DETECTED,
     UNKNOWN,
     ;
 
