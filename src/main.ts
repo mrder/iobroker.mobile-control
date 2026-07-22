@@ -36,6 +36,7 @@ import { AuditService } from './audit';
 import { HistoryService } from './history';
 import { CameraService } from './camera';
 import { RateLimiter } from './security/rateLimiter';
+import { AbuseGuard } from './security/abuseGuard';
 import { ReplayGuard } from './security/replayGuard';
 import { RealtimeGateway } from './realtime';
 import { createApiRouter } from './api/router';
@@ -53,6 +54,10 @@ interface AdapterNativeConfig {
     rateLimitPerMinute: number;
     /** Per-IP limit for the unauthenticated auth/pairing endpoints (brute-force protection). */
     authRateLimitPerMinute: number;
+    /** Failed auth/pairing attempts from one IP within 5 minutes before it's temporarily blocked. */
+    abuseBlockThreshold: number;
+    /** How long an IP stays blocked once it crosses abuseBlockThreshold. */
+    abuseBlockMinutes: number;
     localOnlyByDefault: boolean;
     /** e.g. "history.0", "sql.0" - empty disables the /api/v1/history endpoint entirely */
     historyInstance: string;
@@ -230,6 +235,14 @@ class MobileControlAdapter extends utils.Adapter {
                 camera: this.cameraService,
                 refreshTokenTtlDays: config.refreshTokenTtlDays,
                 authRateLimiter: new RateLimiter(config.authRateLimitPerMinute),
+                // Falls back to sane defaults if missing (e.g. an instance configured before
+                // this setting existed) rather than silently disabling blocking (0/undefined
+                // would make the ">= maxFailures" check in AbuseGuard never trip).
+                abuseGuard: new AbuseGuard({
+                    maxFailures: config.abuseBlockThreshold || 10,
+                    windowMs: 5 * 60_000,
+                    blockMs: (config.abuseBlockMinutes || 30) * 60_000,
+                }),
             }),
         );
 

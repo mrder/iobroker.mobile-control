@@ -1,8 +1,12 @@
 {
   "common": {
     "name": "mobile-control",
-    "version": "0.0.14",
+    "version": "0.0.15",
     "news": {
+      "0.0.15": {
+        "en": "Security hardening requested after a live Q&A about pairing safety: added AbuseGuard, a temporary per-IP block (default: 10 failed attempts within 5 minutes -> 30 minute block) on /pairing/claim, /auth/challenge, /auth/login and /auth/refresh, on top of the existing per-minute rate limit. A block also now logs a visible warning in the adapter's own log, not just the audit log. Both thresholds are configurable in the instance settings.",
+        "de": "Sicherheits-Härtung nach einer Live-Nachfrage zur Pairing-Sicherheit: AbuseGuard hinzugefügt, eine temporäre IP-Sperre (Standard: 10 Fehlversuche in 5 Minuten -> 30 Minuten Sperre) auf /pairing/claim, /auth/challenge, /auth/login und /auth/refresh, zusätzlich zum bisherigen Minuten-Rate-Limit. Eine Sperre erzeugt jetzt außerdem eine sichtbare Warnung im normalen Adapter-Log, nicht nur im Audit-Log. Beide Schwellwerte sind in den Instanz-Einstellungen konfigurierbar."
+      },
       "0.0.14": {
         "en": "Fixed two real Android bugs found live right after 0.0.13: (1) a pairing failure (e.g. an expired invite, HTTP 410) always showed a raw \"HTTP 410\" instead of an actionable message, because Android's ApiErrorCode enum was missing 7 of the backend's 19 error codes entirely (including PAIRING_EXPIRED); (2) much bigger - the app's error-body DTO expected a nested {error:{code,message}} shape, but the backend actually sends a flat {error:\"CODE\",message:\"...\"} string, so every single error response body has silently failed to parse since the app's original implementation, always falling back to guessing the error purely from the HTTP status code. Both fixed; pairing failures now show real German messages (\"Die Kopplungsanfrage ist abgelaufen. Bitte scanne den QR-Code erneut.\" etc). Requires a new Android build.",
         "de": "Zwei echte Android-Bugs behoben, live direkt nach 0.0.13 gefunden: (1) Ein fehlgeschlagenes Pairing (z.B. eine abgelaufene Einladung, HTTP 410) zeigte immer nur ein rohes \"HTTP 410\" statt einer verständlichen Meldung, weil Androids ApiErrorCode-Enum 7 von 19 Backend-Fehlercodes komplett fehlten (u.a. PAIRING_EXPIRED); (2) deutlich größer - das Fehler-DTO der App erwartete ein verschachteltes {error:{code,message}}, das Backend schickt aber tatsächlich ein flaches {error:\"CODE\",message:\"...\"}, wodurch jeder einzelne Fehler-Response-Body seit der ursprünglichen App-Implementierung still am Parsen gescheitert ist und die App immer nur anhand des rohen HTTP-Status geraten hat. Beides behoben; fehlgeschlagenes Pairing zeigt jetzt echte deutsche Meldungen (\"Die Kopplungsanfrage ist abgelaufen. Bitte scanne den QR-Code erneut.\" usw). Erfordert einen neuen Android-Build."
@@ -128,6 +132,8 @@
     "requireAdminApproval": true,
     "rateLimitPerMinute": 60,
     "authRateLimitPerMinute": 20,
+    "abuseBlockThreshold": 10,
+    "abuseBlockMinutes": 30,
     "localOnlyByDefault": false,
     "historyInstance": ""
   },

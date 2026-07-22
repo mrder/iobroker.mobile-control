@@ -1,6 +1,12 @@
 import { Router, type Request, type Response } from 'express';
 import { ApiError } from '../lib/errors';
-import { sendError, createAuthMiddleware, createRateLimitMiddleware, type AuthenticatedRequest } from './middleware';
+import {
+    sendError,
+    createAuthMiddleware,
+    createRateLimitMiddleware,
+    createAbuseGuardMiddleware,
+    type AuthenticatedRequest,
+} from './middleware';
 import type { AuthService } from '../auth';
 import type { SessionsService } from '../sessions';
 import type { DevicesService } from '../devices';
@@ -13,6 +19,7 @@ import type { AuditService } from '../audit';
 import type { HistoryService } from '../history';
 import type { CameraService } from '../camera';
 import type { RateLimiter } from '../security/rateLimiter';
+import type { AbuseGuard } from '../security/abuseGuard';
 import type { DashboardLayout } from '../lib/types';
 
 export interface ApiServices {
@@ -30,6 +37,20 @@ export interface ApiServices {
     camera: CameraService;
     refreshTokenTtlDays: number;
     authRateLimiter: RateLimiter;
+    abuseGuard: AbuseGuard;
+}
+
+/** Records a failed attempt and, the moment it crosses the threshold and triggers a new
+ *  temporary block, logs a warning - visible in the adapter's normal log, not just buried in
+ *  the audit log (which recorded every attempt already, but never actively surfaced a pattern). */
+function recordAbuseFailure(services: ApiServices, ip: string | null, reason: string): void {
+    const key = ip ?? 'unknown';
+    const justBlocked = services.abuseGuard.recordFailure(key);
+    if (justBlocked) {
+        services.adapter.log.warn(
+            `mobile-control: repeated failed ${reason} attempts from ${key} - temporarily blocking this IP`,
+        );
+    }
 }
 
 async function issueSessionAndTokens(
@@ -56,6 +77,7 @@ export function createApiRouter(services: ApiServices): Router {
     const router = Router();
     const requireAuth = createAuthMiddleware(services.auth, services.sessions, services.devices);
     const rateLimitByIp = createRateLimitMiddleware(services.authRateLimiter);
+    const blockIfAbusive = createAbuseGuardMiddleware(services.abuseGuard);
 
     // ---- Server info ------------------------------------------------------
     // Intentionally unauthenticated: the value itself isn't a secret, it's the same
@@ -68,16 +90,18 @@ export function createApiRouter(services: ApiServices): Router {
     });
 
     // ---- Pairing --------------------------------------------------------
-    router.post('/pairing/claim', rateLimitByIp, async (req: Request, res: Response) => {
+    router.post('/pairing/claim', blockIfAbusive, rateLimitByIp, async (req: Request, res: Response) => {
         try {
             const { pairingId, pairingSecret, deviceName, platform, appVersion, publicKey } = req.body ?? {};
             if (!pairingId || !pairingSecret || !deviceName || !platform || !appVersion || !publicKey) {
                 throw new ApiError('VALIDATION_ERROR', 'missing required fields');
             }
             const result = await services.pairing.claim({ pairingId, pairingSecret, deviceName, platform, appVersion, publicKey });
+            services.abuseGuard.recordSuccess(req.ip ?? 'unknown');
             await services.audit.log({ action: 'pairing.claim', result: 'success', ip: req.ip ?? null, detail: pairingId });
             res.json(result);
         } catch (err) {
+            recordAbuseFailure(services, req.ip ?? null, 'pairing');
             await services.audit.log({
                 action: 'pairing.claim',
                 result: 'failure',
@@ -134,7 +158,11 @@ export function createApiRouter(services: ApiServices): Router {
     });
 
     // ---- Auth -------------------------------------------------------------
-    router.post('/auth/challenge', rateLimitByIp, async (req: Request, res: Response) => {
+    // Challenge success isn't cryptographic proof of anything (just that a deviceId exists and
+    // is usable), so unlike claim/login/refresh below it deliberately does NOT call
+    // abuseGuard.recordSuccess() - that would let device-id enumeration reset the failure
+    // counter for free, defeating the point of tracking it at all.
+    router.post('/auth/challenge', blockIfAbusive, rateLimitByIp, async (req: Request, res: Response) => {
         try {
             const { deviceId } = req.body ?? {};
             if (!deviceId) {
@@ -142,11 +170,12 @@ export function createApiRouter(services: ApiServices): Router {
             }
             res.json(services.auth.createChallenge(deviceId));
         } catch (err) {
+            recordAbuseFailure(services, req.ip ?? null, 'auth challenge');
             sendError(res, err);
         }
     });
 
-    router.post('/auth/login', rateLimitByIp, async (req: Request, res: Response) => {
+    router.post('/auth/login', blockIfAbusive, rateLimitByIp, async (req: Request, res: Response) => {
         try {
             const { deviceId, challengeId, signature } = req.body ?? {};
             if (!deviceId || !challengeId || !signature) {
@@ -162,6 +191,7 @@ export function createApiRouter(services: ApiServices): Router {
                 req.ip ?? null,
                 (req.headers['user-agent'] as string) ?? null,
             );
+            services.abuseGuard.recordSuccess(req.ip ?? 'unknown');
             await services.audit.log({
                 action: 'auth.login',
                 actorUserId: user.id,
@@ -177,6 +207,7 @@ export function createApiRouter(services: ApiServices): Router {
                 user: { id: user.id, name: user.name },
             });
         } catch (err) {
+            recordAbuseFailure(services, req.ip ?? null, 'auth login');
             await services.audit.log({
                 action: 'auth.login',
                 result: 'failure',
@@ -187,7 +218,7 @@ export function createApiRouter(services: ApiServices): Router {
         }
     });
 
-    router.post('/auth/refresh', rateLimitByIp, async (req: Request, res: Response) => {
+    router.post('/auth/refresh', blockIfAbusive, rateLimitByIp, async (req: Request, res: Response) => {
         try {
             const { deviceId, refreshToken } = req.body ?? {};
             if (!deviceId || !refreshToken) {
@@ -202,6 +233,7 @@ export function createApiRouter(services: ApiServices): Router {
                 throw new ApiError('SESSION_REVOKED', 'unknown refresh token');
             }
             const rotated = await services.sessions.rotate(session.id, refreshToken);
+            services.abuseGuard.recordSuccess(req.ip ?? 'unknown');
             const access = services.auth.issueAccessToken({
                 sub: rotated.session.userId,
                 deviceId,
@@ -218,6 +250,7 @@ export function createApiRouter(services: ApiServices): Router {
             });
             res.json({ accessToken: access.token, refreshToken: rotated.refreshToken, expiresIn: access.expiresIn });
         } catch (err) {
+            recordAbuseFailure(services, req.ip ?? null, 'auth refresh');
             await services.audit.log({
                 action: 'auth.refresh',
                 result: 'failure',

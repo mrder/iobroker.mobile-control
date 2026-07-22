@@ -86,6 +86,21 @@
             "max": 1000,
             "sm": 4
         },
+        "abuseBlockThreshold": {
+            "type": "number",
+            "label": "Fehlversuche bis temporäre IP-Sperre",
+            "help": "Innerhalb von 5 Minuten - danach wird die IP komplett blockiert statt nur gedrosselt, bis die Sperrzeit abläuft",
+            "min": 2,
+            "max": 100,
+            "sm": 4
+        },
+        "abuseBlockMinutes": {
+            "type": "number",
+            "label": "Dauer der IP-Sperre (Minuten)",
+            "min": 1,
+            "max": 1440,
+            "sm": 4
+        },
         "_historyHeader": {
             "type": "header",
             "text": "Verlauf (optional)",

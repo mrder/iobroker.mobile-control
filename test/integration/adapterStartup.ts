@@ -70,6 +70,8 @@ async function main(): Promise<void> {
                 requireAdminApproval: true,
                 rateLimitPerMinute: 60,
                 authRateLimitPerMinute: 60,
+                abuseBlockThreshold: 3,
+                abuseBlockMinutes: 30,
                 localOnlyByDefault: false,
                 historyInstance: 'history.0',
             };
@@ -286,6 +288,32 @@ async function main(): Promise<void> {
         // the original access token was already rotated away by the refresh-token step above,
         // so this also doubles as a check that a stale (but well-formed) JWT is rejected.
         assert.equal(authedRes.status, 401);
+    });
+
+    // Must be the LAST step: AbuseGuard blocks by IP for abuseBlockMinutes (30 here), and every
+    // request in this whole script comes from the same loopback IP - tripping the block earlier
+    // would break every legitimate call in the steps above it.
+    await step('repeated failed /auth/challenge attempts trigger a temporary block (AbuseGuard)', async () => {
+        const attempt = () =>
+            fetch(`${BASE_URL}/api/v1/auth/challenge`, {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ deviceId: 'no-such-device' }),
+            });
+
+        // abuseBlockThreshold is configured to 3 above - the first 3 failures should each fail
+        // as a normal "device not found", not yet be blocked.
+        for (let i = 0; i < 3; i++) {
+            const res = await attempt();
+            assert.equal(res.status, 404, `attempt ${i + 1} should be a normal not-found, not a block`);
+        }
+
+        // The 4th request should now be rejected by AbuseGuard itself before even reaching the
+        // route handler - still a 4xx, but for a different reason (RATE_LIMITED, not NOT_FOUND).
+        const blockedRes = await attempt();
+        assert.equal(blockedRes.status, 429);
+        const blockedBody = (await blockedRes.json()) as { error: string };
+        assert.equal(blockedBody.error, 'RATE_LIMITED');
     });
 
     await new Promise<void>((resolve) => adapter.unloadHandler!(resolve));

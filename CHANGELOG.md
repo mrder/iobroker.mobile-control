@@ -8,6 +8,31 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.15] - master, Testbuild
+
+**Sicherheits-Härtung**, ausgelöst durch eine berechtigte Live-Nachfrage: "ist das Pairing sicher,
+gibt es eine Warnung oder ein Blacklisting bei wiederholten Fehlversuchen?" Die ehrliche Antwort
+war vorher: Kryptografie (256-Bit-Pairing-Secrets, EC-Signaturen) plus Admin-Freigabepflicht
+schützen bereits zuverlässig vor echtem Zugriff, aber es gab weder eine aktive Warnung noch eine
+eskalierende Sperre bei Dauerbeschuss - nur ein nicht-eskalierendes 60-Sekunden-Rate-Limit pro IP.
+
+- Neuer `AbuseGuard` ([src/security/abuseGuard.ts](src/security/abuseGuard.ts)): zählt
+  Fehlversuche pro IP über ein 5-Minuten-Fenster; ab einem konfigurierbaren Schwellwert (Standard
+  10) wird die IP komplett blockiert (Standard 30 Minuten), nicht nur gedrosselt
+- Greift auf `/pairing/claim`, `/auth/challenge`, `/auth/login`, `/auth/refresh` - zusätzlich zum
+  bisherigen `RateLimiter`, der reines Anfragevolumen unabhängig vom Ausgang drosselt
+- Eine neue Sperre erzeugt jetzt eine sichtbare `adapter.log.warn(...)`-Zeile im normalen
+  Adapter-Log, nicht nur einen Eintrag im (bisher nur manuell einsehbaren) Audit-Log
+- Ein Erfolg (bewiesen durch Secret/Signatur/gültigen Refresh-Token) löscht die
+  Fehlversuchs-Historie der IP wieder - `/auth/challenge` bewusst ausgenommen, da ein Erfolg dort
+  keine echte Identität beweist und Geräte-ID-Enumeration sonst den Zähler kostenlos zurücksetzen
+  könnte
+- Beide Schwellwerte konfigurierbar in den Instanz-Einstellungen (`abuseBlockThreshold`,
+  `abuseBlockMinutes`)
+- Neue Tests: `test/abuseGuard.test.ts` (isolierte Logik) sowie ein echter Ende-zu-Ende-Schritt
+  in `test/integration/adapterStartup.ts`, der über die reale HTTP-Schnittstelle eine Sperre
+  auslöst und verifiziert
+
 ## [0.0.14] - master, Testbuild
 
 **Zwei echte Android-Bugs, live direkt nach 0.0.13 gefunden** (Nutzer bemängelte zu Recht, dass

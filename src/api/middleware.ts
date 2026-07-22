@@ -5,6 +5,7 @@ import type { SessionsService } from '../sessions';
 import type { DevicesService } from '../devices';
 import type { AuthContext } from '../authorization';
 import type { RateLimiter } from '../security/rateLimiter';
+import type { AbuseGuard } from '../security/abuseGuard';
 import { isPrivateIp } from './localNetwork';
 
 export interface AuthenticatedRequest extends Request {
@@ -32,6 +33,25 @@ export function createRateLimitMiddleware(rateLimiter: RateLimiter) {
         const key = req.ip ?? req.socket.remoteAddress ?? 'unknown';
         if (!rateLimiter.consume(key)) {
             sendError(res, new ApiError('RATE_LIMITED'));
+            return;
+        }
+        next();
+    };
+}
+
+/**
+ * Rejects requests from an IP currently under a temporary block from AbuseGuard, before they
+ * even reach the route handler (and before RateLimiter's per-minute counter, so a blocked IP
+ * doesn't get to "wait out" the block by staying under the raw rate limit). Route handlers are
+ * responsible for calling guard.recordFailure()/recordSuccess() themselves, since only they know
+ * whether a given request actually succeeded (e.g. right vs. wrong pairing secret) - this
+ * middleware only enforces blocks that already exist.
+ */
+export function createAbuseGuardMiddleware(guard: AbuseGuard) {
+    return (req: Request, res: Response, next: NextFunction): void => {
+        const key = req.ip ?? req.socket.remoteAddress ?? 'unknown';
+        if (guard.isBlocked(key)) {
+            sendError(res, new ApiError('RATE_LIMITED', 'temporarily blocked after repeated failed attempts'));
             return;
         }
         next();

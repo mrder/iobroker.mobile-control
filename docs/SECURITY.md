@@ -67,6 +67,7 @@ Prüfen:
 - kein direkter Adminzugriff
 - keine allgemeine ioBroker-API
 - Rate Limiting
+- temporäre IP-Sperre bei wiederholten Fehlversuchen (AbuseGuard, unabhängig vom reinen Rate-Limit)
 - Größenlimits
 - sichere Fehlertexte
 
