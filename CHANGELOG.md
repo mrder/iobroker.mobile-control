@@ -8,6 +8,24 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.16] - master, Testbuild
+
+**Feature-Wunsch:** Der Objektbrowser in der Android-App (Hauptnavigation "Objekte") war eine
+flache, unstrukturierte Liste aller freigegebenen Datenpunkte - auf einem Gerät mit vielen
+Objekten mühsam zu durchsuchen. Baut jetzt denselben Ansatz wie der Freigabe-Baum im Admin-Tab
+([0.0.12]): ein echter, aufklappbarer Ordnerbaum, gruppiert nach `path` (rein clientseitig
+synthetisiert, da die App - anders als der Admin-Tab - nie echte Channel-/Device-Objekte sieht,
+nur den bereits gefilterten flachen Katalog).
+
+- Neues `ObjectTreeNode`-Modell + `buildObjectTree()`/`visibleLeafIds()`
+  ([ObjectTreeNode.kt](android-app/app/src/main/java/com/mobilecontrol/app/domain/model/ObjectTreeNode.kt))
+- Ohne aktiven Suchbegriff/Filter: aufklappbarer Ordnerbaum (Standardansicht). Mit Suchbegriff
+  oder Filter (Raum/Rolle/nur schreibbar): bisherige flache, durchsuchbare Liste bleibt erhalten
+- Nur Objekte in tatsächlich aufgeklappten Ordnern werden live abonniert (`visibleLeafIds`) -
+  vermeidet, Hunderte verborgener States gleichzeitig zu abonnieren
+- Neue Tests: `ObjectTreeNodeTest.kt`, Erweiterungen in `ObjectBrowserViewModelTest.kt`
+- **Erfordert einen neuen Android-Build.**
+
 ## [0.0.15] - master, Testbuild
 
 **Sicherheits-Härtung**, ausgelöst durch eine berechtigte Live-Nachfrage: "ist das Pairing sicher,

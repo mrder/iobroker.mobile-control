@@ -143,6 +143,37 @@ class ObjectBrowserViewModelTest {
     }
 
     @Test
+    fun `hasActiveFilter is false unfiltered and true as soon as any single filter is set`() = runTest {
+        val catalogRepo = FakeObjectCatalogRepository(listOf(livingRoomLamp, kitchenSensor))
+        val viewModel = ObjectBrowserViewModel(catalogRepo, FakeStateRepository())
+        val collector = launch { viewModel.uiState.collect {} }
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.hasActiveFilter)
+        viewModel.setSearchQuery("lampe")
+        assertTrue(viewModel.uiState.value.hasActiveFilter)
+        viewModel.setSearchQuery("")
+        assertFalse(viewModel.uiState.value.hasActiveFilter)
+        viewModel.setWritableOnly(true)
+        assertTrue(viewModel.uiState.value.hasActiveFilter)
+        collector.cancel()
+    }
+
+    @Test
+    fun `tree groups the unfiltered catalog by room regardless of active filters`() = runTest {
+        val catalogRepo = FakeObjectCatalogRepository(listOf(livingRoomLamp, kitchenSensor))
+        val viewModel = ObjectBrowserViewModel(catalogRepo, FakeStateRepository())
+        val collector = launch { viewModel.uiState.collect {} }
+        advanceUntilIdle()
+
+        viewModel.setRoomFilter("Wohnzimmer") // the tree itself must stay the full, unfiltered catalog
+
+        val roomNames = viewModel.uiState.value.tree.children.map { it.name }.sorted()
+        assertEquals(listOf("Küche", "Wohnzimmer"), roomNames)
+        collector.cancel()
+    }
+
+    @Test
     fun `subscribeVisible subscribes and fetches initial states for exactly the given ids`() = runTest {
         val stateRepo = FakeStateRepository()
         val viewModel = ObjectBrowserViewModel(FakeObjectCatalogRepository(emptyList()), stateRepo)

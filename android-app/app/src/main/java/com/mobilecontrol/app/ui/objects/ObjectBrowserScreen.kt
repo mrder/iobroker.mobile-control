@@ -1,18 +1,27 @@
 package com.mobilecontrol.app.ui.objects
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -31,15 +40,28 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mobilecontrol.app.R
+import com.mobilecontrol.app.domain.model.LiveValue
 import com.mobilecontrol.app.domain.model.ObjectCatalogItem
+import com.mobilecontrol.app.domain.model.ObjectTreeNode
+import com.mobilecontrol.app.domain.model.visibleLeafIds
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ObjectBrowserScreen(viewModel: ObjectBrowserViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsState()
+    var expandedFolders by remember { mutableStateOf(setOf<String>()) }
 
-    DisposableEffect(state.filteredObjects.map { it.id }) {
-        val visibleIds = state.filteredObjects.take(50).map { it.id }.toSet()
+    // Unfiltered: only subscribe to leaf items actually visible given which folders are
+    // expanded (collapsed folders may hide hundreds of items - no point live-subscribing to
+    // those). Filtered: unchanged flat-list behavior, capped at 50 like before.
+    val tree = state.tree
+    val visibleIds = if (state.hasActiveFilter) {
+        state.filteredObjects.take(50).map { it.id }.toSet()
+    } else {
+        tree.visibleLeafIds(expandedFolders).toSet()
+    }
+
+    DisposableEffect(visibleIds) {
         viewModel.subscribeVisible(visibleIds)
         onDispose { viewModel.unsubscribeVisible(visibleIds) }
     }
@@ -66,21 +88,85 @@ fun ObjectBrowserScreen(viewModel: ObjectBrowserViewModel = hiltViewModel()) {
                 )
             }
 
-            if (state.filteredObjects.isEmpty()) {
+            if (state.allObjects.isEmpty()) {
                 Text(
                     stringResource(R.string.objects_empty),
                     modifier = Modifier.padding(16.dp),
                     style = MaterialTheme.typography.bodyMedium,
                 )
+            } else if (state.hasActiveFilter) {
+                if (state.filteredObjects.isEmpty()) {
+                    Text(
+                        stringResource(R.string.objects_empty),
+                        modifier = Modifier.padding(16.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                } else {
+                    LazyColumn {
+                        items(state.filteredObjects, key = { it.id }) { item ->
+                            ObjectListRow(item = item, liveValue = state.liveValues[item.id]?.value)
+                        }
+                    }
+                }
             } else {
                 LazyColumn {
-                    items(state.filteredObjects, key = { it.id }) { item ->
-                        ObjectListRow(item = item, liveValue = state.liveValues[item.id]?.value)
-                    }
+                    objectTreeItems(
+                        node = tree,
+                        depth = 0,
+                        expanded = expandedFolders,
+                        onToggle = { id ->
+                            expandedFolders = if (id in expandedFolders) expandedFolders - id else expandedFolders + id
+                        },
+                        liveValues = state.liveValues,
+                    )
                 }
             }
         }
     }
+}
+
+/** Recursively appends this node's folders and leaf items to a LazyListScope, depth-first,
+ *  skipping subtrees of collapsed folders entirely (they're neither composed nor subscribed). */
+private fun LazyListScope.objectTreeItems(
+    node: ObjectTreeNode,
+    depth: Int,
+    expanded: Set<String>,
+    onToggle: (String) -> Unit,
+    liveValues: Map<String, LiveValue>,
+) {
+    for (folder in node.children) {
+        val isOpen = folder.id in expanded
+        item(key = "folder:${folder.id}") {
+            ObjectFolderRow(name = folder.name, depth = depth, expanded = isOpen, onClick = { onToggle(folder.id) })
+        }
+        if (isOpen) {
+            objectTreeItems(folder, depth + 1, expanded, onToggle, liveValues)
+        }
+    }
+    items(node.items, key = { "item:${it.id}" }) { catalogItem ->
+        Box(modifier = Modifier.padding(start = (depth * 16).dp)) {
+            ObjectListRow(item = catalogItem, liveValue = liveValues[catalogItem.id]?.value)
+        }
+    }
+}
+
+@Composable
+private fun ObjectFolderRow(name: String, depth: Int, expanded: Boolean, onClick: () -> Unit) {
+    ListItem(
+        modifier = Modifier
+            .padding(start = (depth * 16).dp)
+            .clickable(onClick = onClick),
+        leadingContent = {
+            Row {
+                Icon(
+                    imageVector = if (expanded) Icons.Filled.ExpandMore else Icons.Filled.ChevronRight,
+                    contentDescription = null,
+                )
+                Icon(imageVector = Icons.Filled.Folder, contentDescription = null, modifier = Modifier.size(20.dp))
+            }
+        },
+        headlineContent = { Text(name, style = MaterialTheme.typography.titleSmall) },
+    )
 }
 
 @Composable

@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mobilecontrol.app.domain.model.LiveValue
 import com.mobilecontrol.app.domain.model.ObjectCatalogItem
+import com.mobilecontrol.app.domain.model.ObjectTreeNode
+import com.mobilecontrol.app.domain.model.buildObjectTree
 import com.mobilecontrol.app.domain.repository.ConnectionState
 import com.mobilecontrol.app.domain.repository.ObjectCatalogRepository
 import com.mobilecontrol.app.domain.repository.StateRepository
@@ -37,6 +39,14 @@ data class ObjectBrowserUiState(
                 (selectedRole == null || item.role == selectedRole) &&
                 (!writableOnly || item.canWrite)
         }
+
+    /** True while any filter narrows the result - the tree view only makes sense unfiltered
+     *  (it shows everything, grouped); once the user is actively searching/filtering, a flat,
+     *  ranked result list is more useful than making them expand folders to find a match. */
+    val hasActiveFilter: Boolean
+        get() = searchQuery.isNotBlank() || selectedRoom != null || selectedRole != null || writableOnly
+
+    val tree: ObjectTreeNode get() = buildObjectTree(allObjects)
 }
 
 @HiltViewModel

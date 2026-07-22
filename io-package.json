@@ -1,8 +1,12 @@
 {
   "common": {
     "name": "mobile-control",
-    "version": "0.0.15",
+    "version": "0.0.16",
     "news": {
+      "0.0.16": {
+        "en": "Feature request: the Android object browser was a flat, unstructured list of every exposed datapoint, making it hard to find anything on a device with many objects. It now renders a real, expandable folder tree grouped by path (the same approach as the admin tab's exposure tree) by default, falling back to the existing flat searchable/filterable list once a search term or any filter is active. Only expanded folders' items are live-subscribed, to avoid subscribing to hundreds of hidden states at once. Requires a new Android build.",
+        "de": "Feature-Wunsch: Der Objektbrowser in der Android-App war eine flache, unstrukturierte Liste aller freigegebenen Datenpunkte, was das Auffinden auf einem Gerät mit vielen Objekten mühsam machte. Er zeigt jetzt standardmäßig einen echten, aufklappbaren Ordnerbaum nach Pfad gruppiert (dasselbe Prinzip wie der Freigabe-Baum im Admin-Tab), bei aktivem Suchbegriff oder Filter bleibt die bisherige flache, durchsuchbare Liste erhalten. Nur Objekte in aufgeklappten Ordnern werden live abonniert, um nicht Hunderte verborgener States gleichzeitig zu abonnieren. Erfordert einen neuen Android-Build."
+      },
       "0.0.15": {
         "en": "Security hardening requested after a live Q&A about pairing safety: added AbuseGuard, a temporary per-IP block (default: 10 failed attempts within 5 minutes -> 30 minute block) on /pairing/claim, /auth/challenge, /auth/login and /auth/refresh, on top of the existing per-minute rate limit. A block also now logs a visible warning in the adapter's own log, not just the audit log. Both thresholds are configurable in the instance settings.",
         "de": "Sicherheits-Härtung nach einer Live-Nachfrage zur Pairing-Sicherheit: AbuseGuard hinzugefügt, eine temporäre IP-Sperre (Standard: 10 Fehlversuche in 5 Minuten -> 30 Minuten Sperre) auf /pairing/claim, /auth/challenge, /auth/login und /auth/refresh, zusätzlich zum bisherigen Minuten-Rate-Limit. Eine Sperre erzeugt jetzt außerdem eine sichtbare Warnung im normalen Adapter-Log, nicht nur im Audit-Log. Beide Schwellwerte sind in den Instanz-Einstellungen konfigurierbar."
