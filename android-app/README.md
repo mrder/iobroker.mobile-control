@@ -152,14 +152,21 @@ erzeugt (Single-Module-App, keine mehrfach wiederverwendete Geschäftslogik übe
 
 ## Bewusste Vereinfachungen
 
-- **Certificate Pinning**: Statt eines dynamisch aus dem QR-Code aufgebauten OkHttp
-  `CertificatePinner` (der den TLS-Handshake bei Mismatch hart abbricht) vergleicht
-  `data/crypto/ServerFingerprintChecker.kt` den SPKI-SHA256-Fingerprint des Server-Zertifikats
-  **nach** einem normalen Handshake gegen den Systemtrust-Store und zeigt dem Nutzer bei Abweichung
-  eine explizite Warnung mit der Möglichkeit, trotzdem fortzufahren. Das ist schwächer als echtes
-  Pinning (ein MITM mit CA-vertrautem Zertifikat würde nicht auffallen), erfüllt aber die im
-  Lastenheft vorgesehene Fallback-Anforderung "warnen statt hart blockieren". Ein echter
-  `CertificatePinner` ist ein guter Folgeschritt.
+- **Certificate Pinning**: Der Adapter terminiert selbst kein TLS (VPN/Reverse-Proxy wird davor
+  erwartet), es gibt beim Pairing also kein echtes Server-Zertifikat, gegen das gepinnt werden
+  könnte. `data/crypto/ServerFingerprintChecker.kt` holt sich stattdessen den `serverFingerprint`
+  (ein aus dem JWT-Secret des Adapters abgeleiteter Identitätswert, kein Zertifikats-Hash) live
+  von `GET /api/v1/server/info` und vergleicht ihn direkt gegen den Wert aus dem QR-Code - beide
+  Seiten berechnen ihn gleich, ein Mismatch bedeutet trotzdem zuverlässig "das ist nicht der
+  Server, der diesen QR-Code ausgestellt hat" (z.B. ein veralteter QR-Code von vor einer
+  Secret-Rotation, oder ein anderer/gefälschter Server). Bei Abweichung zeigt die App eine
+  explizite Warnung mit der Möglichkeit, trotzdem fortzufahren (Lastenheft-Fallback "warnen statt
+  hart blockieren"). Eine frühere Version verglich stattdessen den SPKI-Fingerprint des
+  TLS-Zertifikats aus einem echten Handshake - das war ein echter Bug, kein bewusster Kompromiss:
+  beide Werte werden komplett unterschiedlich berechnet und stimmten dadurch bei jedem einzelnen
+  Pairing nie überein, egal ob über einfaches HTTP (gar kein Handshake) oder über einen
+  HTTPS-Reverse-Proxy (dessen Zertifikat der Adapter gar nicht kennt). Echtes Certificate Pinning
+  bliebe ein sinnvoller Folgeschritt, sobald der Adapter selbst TLS terminiert.
 - **Drag&Drop-Kollisionsregel im Dashboard-Editor**: Wird ein Widget auf eine bereits belegte
   Grid-Zelle gezogen, wird der Drop verworfen (Widget springt auf seine letzte Position zurück,
   während des Ziehens zeigt ein roter Rahmen die ungültige Zielzelle an) statt die kollidierenden

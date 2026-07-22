@@ -8,6 +8,32 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.13] - master, Testbuild
+
+**Echter Bug, live beim Onboarding gefunden:** Die App zeigte bei jedem einzelnen Pairing-Versuch
+"Achtung: der Server-Fingerabdruck stimmt nicht mit dem erwarteten Wert überein" - unabhängig vom
+Netzwerk oder Reverse-Proxy-Zustand. Ursache: `ServerFingerprintChecker.kt` verglich den
+`serverFingerprint` aus dem QR-Code gegen den SPKI-SHA256-Hash des **echten TLS-Zertifikats** aus
+einem Live-Handshake. Dieser Adapter terminiert aber selbst kein TLS (ein VPN/Reverse-Proxy wird
+davor erwartet, siehe `docs/MASTERKONZEPT.md` §4) - der `serverFingerprint`, den der Adapter in
+jede QR-Einladung packt, ist tatsächlich ein Hash des adapter-eigenen JWT-Signierschlüssels, kein
+Zertifikats-Hash. Zwei grundverschiedene Werte im selben String-Format (`sha256/BASE64`), die
+niemals übereinstimmen konnten - weder über einfaches lokales HTTP (gar kein TLS-Handshake) noch
+über einen HTTPS-Reverse-Proxy (dessen Zertifikat der Adapter gar nicht kennt). Das war kein
+Netzwerkproblem, sondern ein Vertrags-Bug zwischen Backend und App seit der ursprünglichen
+Android-Implementierung.
+
+- Neuer, unauthentifizierter Endpunkt `GET /api/v1/server/info` liefert denselben Fingerprint,
+  den auch jede QR-Einladung enthält
+- `ServerFingerprintChecker.kt` holt sich diesen Wert jetzt live von dort und vergleicht direkt
+  (kein TLS-Handshake mehr nötig) - ein Mismatch bedeutet weiterhin zuverlässig "das ist nicht der
+  Server, der diesen QR-Code ausgestellt hat" (z.B. veralteter QR-Code nach einer
+  Secret-Rotation), nur eben ohne echtes Zertifikats-Pinning vorzutäuschen
+- `docs/openapi.yaml`, `docs/API-VERTRAG.md` und `android-app/README.md` entsprechend
+  aktualisiert; neue Tests (`test/pairing.test.ts`, `test/integration/adapterStartup.ts`)
+- **Erfordert einen neuen Android-Build** (APK aus der CI ziehen und auf dem Testgerät neu
+  installieren) - der bisherige Fingerprint-Check bleibt sonst bestehen
+
 ## [0.0.12] - master, Testbuild
 
 **Feature-Wunsch aus dem Livetest** (nicht mehr in "immer wieder ein neuer Bug"-Kategorie, sondern

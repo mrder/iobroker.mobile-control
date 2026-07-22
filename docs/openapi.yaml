@@ -12,6 +12,7 @@ servers:
   - url: /api/v1
 
 tags:
+  - name: server
   - name: pairing
   - name: auth
   - name: catalog
@@ -19,6 +20,29 @@ tags:
   - name: dashboards
 
 paths:
+  /server/info:
+    get:
+      tags: [server]
+      summary: Live server identity fingerprint
+      description: |
+        Returns the same `serverFingerprint` value embedded in every QR pairing invite. The
+        adapter does not terminate TLS itself (a VPN or reverse proxy is expected in front of
+        it for remote access), so there is no real certificate to pin against during onboarding
+        - the app instead fetches this live and compares it against the QR code's copy to detect
+        a stale or spoofed invite. Intentionally unauthenticated: the value is not a secret.
+      security: []
+      responses:
+        '200':
+          description: Current server fingerprint
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  fingerprint:
+                    type: string
+                    example: sha256/3sQ9...
+
   /pairing/claim:
     post:
       tags: [pairing]

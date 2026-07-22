@@ -1,12 +1,11 @@
 package com.mobilecontrol.app.data.crypto
 
-import android.util.Base64
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import java.security.MessageDigest
-import java.security.cert.X509Certificate
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -16,30 +15,43 @@ sealed interface FingerprintCheckResult {
     data class Failure(val message: String) : FingerprintCheckResult
 }
 
+@Serializable
+private data class ServerInfoDto(val fingerprint: String)
+
 /**
- * Simplified certificate pinning for MVP: a full dynamic OkHttp CertificatePinner would hard-abort
- * the TLS handshake on mismatch, which forecloses the "warn the user, let them decide" UX the spec
- * asks for as a fallback. Instead we let the handshake complete against the platform trust store,
- * then compare the leaf certificate's SPKI SHA-256 fingerprint (same "sha256/BASE64" format OkHttp's
- * CertificatePinner uses) against the value embedded in the QR code, and surface any mismatch as an
- * explicit warning before pairing proceeds. This is weaker than true pinning (a MITM with a
- * CA-trusted cert would pass silently) - a real CertificatePinner is a good follow-up.
+ * The backend does not terminate TLS itself - it expects a VPN or reverse proxy in front of it
+ * for remote access (see PairingService's serverFingerprint comment on the backend side), so
+ * there is no real TLS certificate to pin against here. An earlier version of this class tried
+ * to compare the QR code's fingerprint against the leaf TLS certificate's SPKI hash from a live
+ * handshake - that compared two fundamentally different values (a certificate hash vs. a hash of
+ * the adapter's JWT signing secret) and was guaranteed to mismatch on every single pairing,
+ * behind plain HTTP (no handshake at all) or any HTTPS reverse proxy alike.
+ *
+ * Instead, this fetches the same identity value live from the server's own unauthenticated
+ * /api/v1/server/info and compares it directly against the QR code's copy - both sides compute
+ * it the same way, so a mismatch still reliably flags "this is not the server that issued this
+ * QR code" (e.g. a stale QR from before the adapter's secret was regenerated, or a genuinely
+ * different server), even though it isn't a certificate pin. Surfaced as an explicit, dismissable
+ * warning rather than a hard abort, per the spec's "warn instead of hard-block" fallback
+ * requirement.
  */
 @Singleton
 class ServerFingerprintChecker @Inject constructor() {
 
-    private val plainClient = OkHttpClient.Builder().build()
+    private val client = OkHttpClient.Builder().build()
+    private val json = Json { ignoreUnknownKeys = true }
 
     suspend fun check(serverUrl: String, expectedFingerprint: String): FingerprintCheckResult = withContext(Dispatchers.IO) {
         try {
-            val request = Request.Builder().url(serverUrl).head().build()
-            val response = plainClient.newCall(request).execute()
-            val leafCert = response.handshake?.peerCertificates?.firstOrNull() as? X509Certificate
+            val infoUrl = serverUrl.trimEnd('/') + "/api/v1/server/info"
+            val request = Request.Builder().url(infoUrl).get().build()
+            val response = client.newCall(request).execute()
+            val body = response.body?.string()
             response.close()
-            if (leafCert == null) {
-                FingerprintCheckResult.Failure("Kein TLS-Zertifikat erhalten")
+            if (!response.isSuccessful || body.isNullOrBlank()) {
+                FingerprintCheckResult.Failure("Server nicht erreichbar (HTTP ${response.code})")
             } else {
-                val actual = spkiFingerprint(leafCert)
+                val actual = json.decodeFromString(ServerInfoDto.serializer(), body).fingerprint
                 if (actual.equals(expectedFingerprint, ignoreCase = true)) {
                     FingerprintCheckResult.Match(actual)
                 } else {
@@ -49,11 +61,5 @@ class ServerFingerprintChecker @Inject constructor() {
         } catch (ex: Exception) {
             FingerprintCheckResult.Failure(ex.message ?: "Verbindung fehlgeschlagen")
         }
-    }
-
-    private fun spkiFingerprint(cert: X509Certificate): String {
-        val spki = cert.publicKey.encoded
-        val digest = MessageDigest.getInstance("SHA-256").digest(spki)
-        return "sha256/" + Base64.encodeToString(digest, Base64.NO_WRAP)
     }
 }

@@ -117,17 +117,33 @@ async function main(): Promise<void> {
         assert.equal(body.error, 'AUTH_REQUIRED');
     });
 
+    await step('GET /api/v1/server/info is reachable without auth and returns a fingerprint', async () => {
+        const res = await fetch(`${BASE_URL}/api/v1/server/info`);
+        assert.equal(res.status, 200);
+        const body = (await res.json()) as { fingerprint: string };
+        assert.equal(typeof body.fingerprint, 'string');
+        assert.ok(body.fingerprint.length > 0);
+    });
+
     let firstDeviceStatus!: { status: string; deviceId: string; accessToken: string; refreshToken: string };
 
     await step('full pairing -> approval -> token flow issues working tokens', async () => {
         const user = await callAdmin<{ id: string }>('createUser', { name: 'Integration Test User', roleId: 'viewer' });
         assert.ok(user.id);
 
-        const invite = await callAdmin<{ invite: { id: string }; qrPayload: { pairingId: string; pairingSecret: string } }>(
-            'createPairingInvite',
-            { userId: user.id, roleId: 'viewer' },
-        );
+        const invite = await callAdmin<{
+            invite: { id: string };
+            qrPayload: { pairingId: string; pairingSecret: string; serverFingerprint: string };
+        }>('createPairingInvite', { userId: user.id, roleId: 'viewer' });
         assert.equal(invite.qrPayload.pairingId, invite.invite.id);
+
+        const serverInfoRes = await fetch(`${BASE_URL}/api/v1/server/info`);
+        const serverInfo = (await serverInfoRes.json()) as { fingerprint: string };
+        assert.equal(
+            serverInfo.fingerprint,
+            invite.qrPayload.serverFingerprint,
+            'GET /api/v1/server/info must return exactly the fingerprint embedded in QR invites, so the app can verify a scanned QR against it',
+        );
 
         const { publicKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' });
         const publicKeyBase64 = publicKey.export({ type: 'spki', format: 'der' }).toString('base64');

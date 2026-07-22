@@ -19,6 +19,21 @@ Jede App meldet:
 
 ## 2. Pairing
 
+### `GET /api/v1/server/info`
+
+Unauthentifiziert, keine Rate-Limit-Ausnahme (läuft trotzdem durch `rateLimitByIp`). Liefert
+denselben `serverFingerprint`-Wert, der auch in jeder QR-Pairing-Einladung steckt - der Adapter
+terminiert selbst kein TLS (VPN/Reverse-Proxy wird davor erwartet), es gibt beim Pairing also
+kein echtes Server-Zertifikat, gegen das die App pinnen könnte. Stattdessen holt sie sich diesen
+Wert live und vergleicht ihn direkt gegen den Wert aus dem gescannten QR-Code (siehe
+`android-app/README.md` "Bewusste Vereinfachungen" → Certificate Pinning).
+
+Response:
+
+```json
+{ "fingerprint": "sha256/…" }
+```
+
 ### `POST /api/v1/pairing/claim`
 
 Request:

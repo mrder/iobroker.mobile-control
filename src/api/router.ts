@@ -57,6 +57,16 @@ export function createApiRouter(services: ApiServices): Router {
     const requireAuth = createAuthMiddleware(services.auth, services.sessions, services.devices);
     const rateLimitByIp = createRateLimitMiddleware(services.authRateLimiter);
 
+    // ---- Server info ------------------------------------------------------
+    // Intentionally unauthenticated: the value itself isn't a secret, it's the same
+    // serverFingerprint already embedded in every QR pairing invite. Exists purely so the app can
+    // re-fetch it live over its own connection during onboarding and compare it against the QR
+    // code's copy (see ServerFingerprintChecker.kt on the Android side) - this backend doesn't
+    // terminate TLS itself, so there's no real certificate to pin against instead.
+    router.get('/server/info', rateLimitByIp, (_req: Request, res: Response) => {
+        res.json({ fingerprint: services.pairing.getServerFingerprint() });
+    });
+
     // ---- Pairing --------------------------------------------------------
     router.post('/pairing/claim', rateLimitByIp, async (req: Request, res: Response) => {
         try {

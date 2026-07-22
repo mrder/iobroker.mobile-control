@@ -52,6 +52,13 @@ export class PairingService {
         private readonly config: PairingConfig,
     ) {}
 
+    /** Same value embedded in every QR invite's serverFingerprint - exposed so the app can
+     *  re-fetch and compare it live over its own connection (see ServerFingerprintChecker.kt on
+     *  the Android side for why: there's no real TLS cert to pin against here). */
+    getServerFingerprint(): string {
+        return this.config.serverFingerprint;
+    }
+
     async createInvite(userId: string, roleId: string): Promise<CreatedInvite> {
         this.users.require(userId);
         this.roles.require(roleId);

@@ -47,6 +47,11 @@ describe('PairingService end-to-end flow', () => {
         assert.equal(qrPayload.instanceId, 'mobile-control.0');
     });
 
+    it('getServerFingerprint() returns the exact same value embedded in QR invites, for GET /server/info', async () => {
+        const { pairing } = await setup();
+        assert.equal(pairing.getServerFingerprint(), 'sha256/test-fingerprint');
+    });
+
     it('claiming with the correct secret puts the device into waiting_for_approval when admin approval is required', async () => {
         const { pairing, user } = await setup({ requireAdminApproval: true });
         const { invite, qrPayload } = await pairing.createInvite(user.id, 'viewer');
