@@ -1,8 +1,12 @@
 {
   "common": {
     "name": "mobile-control",
-    "version": "0.0.19",
+    "version": "0.0.20",
     "news": {
+      "0.0.20": {
+        "en": "Fixed a CI compile break from the previous push: an unnecessary explicit import of Modifier.weight resolved to an internal, inaccessible symbol instead of the RowScope member that's already implicitly in scope inside a Row {} lambda (no import needed at all for that one). Removed the import; no functional change.",
+        "de": "CI-Compile-Fehler aus dem vorherigen Push behoben: ein unnötiger expliziter Import von Modifier.weight löste sich auf ein internes, nicht zugängliches Symbol auf statt auf das RowScope-Member, das innerhalb eines Row {}-Lambdas ohnehin schon implizit verfügbar ist (dafür ist gar kein Import nötig). Import entfernt, keine funktionale Änderung."
+      },
       "0.0.19": {
         "en": "The object catalog screen only left a couple of visible list rows on a tablet: search field, room chip, role chip, and a writable-only checkbox each took their own full-width row, stacked above the actual list/tree and below the bottom navigation bar. Collapsed room/role/writable-only into a single filter icon (with a badge showing how many are active) next to the search field, opening a compact dialog instead - reclaims roughly two rows of vertical space for the actual content.",
         "de": "Der Objektkatalog-Bildschirm ließ auf einem Tablet nur wenige sichtbare Listenzeilen übrig: Suchfeld, Raum-Chip, Rollen-Chip und eine \"Nur schreibbar\"-Checkbox belegten jeweils eine eigene volle Zeile, gestapelt über der eigentlichen Liste/dem Baum und unter der unteren Navigationsleiste. Raum/Rolle/Nur-schreibbar sind jetzt in einem einzigen Filter-Symbol (mit Badge für die Anzahl aktiver Filter) neben dem Suchfeld zusammengefasst, das einen kompakten Dialog öffnet - gewinnt rund zwei Zeilen vertikalen Platz für den eigentlichen Inhalt zurück."

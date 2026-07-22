@@ -8,6 +8,13 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.20] - master, Testbuild
+
+CI-Compile-Fehler aus [0.0.19] behoben: unnötiger expliziter Import von `Modifier.weight` löste
+sich auf ein internes, nicht zugängliches Symbol auf statt auf das `RowScope`-Member, das
+innerhalb eines `Row {}`-Lambdas ohnehin implizit verfügbar ist (kein Import nötig). Keine
+funktionale Änderung.
+
 ## [0.0.19] - master, Testbuild
 
 Live-Feedback zum Objektkatalog: auf dem Tablet blieb nur ein winziger sichtbarer Streifen für die
