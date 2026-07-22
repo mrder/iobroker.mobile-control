@@ -1,8 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import { Grid, Paper, Typography, Button, Box, Alert, Chip } from '@mui/material';
+import {
+    Grid,
+    Paper,
+    Typography,
+    Button,
+    Box,
+    Alert,
+    Chip,
+    Table,
+    TableHead,
+    TableRow,
+    TableCell,
+    TableBody,
+} from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { callAdapter } from '../connection';
-import type { ConnectionInfo, Overview } from '../types';
+import type { AbuseSnapshotEntry, ConnectionInfo, Overview } from '../types';
 
 function StatCard({ label, value }: { label: string; value: number | string }): JSX.Element {
     return (
@@ -18,14 +31,20 @@ function StatCard({ label, value }: { label: string; value: number | string }): 
 export default function OverviewTab(): JSX.Element {
     const [overview, setOverview] = useState<Overview | null>(null);
     const [connection, setConnection] = useState<ConnectionInfo | null>(null);
+    const [abuseState, setAbuseState] = useState<AbuseSnapshotEntry[]>([]);
     const [loading, setLoading] = useState(false);
 
     const load = (): void => {
         setLoading(true);
-        Promise.all([callAdapter<Overview>('getOverview'), callAdapter<ConnectionInfo>('getConnectionInfo')])
-            .then(([o, c]) => {
+        Promise.all([
+            callAdapter<Overview>('getOverview'),
+            callAdapter<ConnectionInfo>('getConnectionInfo'),
+            callAdapter<AbuseSnapshotEntry[]>('listAbuseState'),
+        ])
+            .then(([o, c, a]) => {
                 setOverview(o);
                 setConnection(c);
+                setAbuseState(a);
             })
             .finally(() => setLoading(false));
     };
@@ -102,6 +121,53 @@ export default function OverviewTab(): JSX.Element {
                             Firewall-Checkliste: <code>docs/DEPLOYMENT.md</code> im Repository.
                         </Alert>
                     </>
+                )}
+            </Paper>
+
+            <Paper sx={{ p: 2, mt: 3 }}>
+                <Typography variant="h6" gutterBottom>
+                    Auffällige IPs (Pairing/Login)
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Fehlversuche auf /pairing/claim, /auth/challenge, /auth/login und /auth/refresh der letzten 5
+                    Minuten. Ab dem konfigurierten Schwellwert wird eine IP temporär komplett gesperrt (siehe
+                    Instanz-Einstellungen „Fehlversuche bis temporäre IP-Sperre").
+                </Typography>
+                {abuseState.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">
+                        Keine auffälligen Fehlversuche aktuell.
+                    </Typography>
+                ) : (
+                    <Table size="small">
+                        <TableHead>
+                            <TableRow>
+                                <TableCell>IP-Adresse</TableCell>
+                                <TableCell>Fehlversuche</TableCell>
+                                <TableCell>Letzte Anfrage</TableCell>
+                                <TableCell>Status</TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {abuseState.map((entry) => (
+                                <TableRow key={entry.key}>
+                                    <TableCell sx={{ fontFamily: 'monospace' }}>{entry.key}</TableCell>
+                                    <TableCell>{entry.failures}</TableCell>
+                                    <TableCell>{entry.lastReason ?? '–'}</TableCell>
+                                    <TableCell>
+                                        {entry.blocked ? (
+                                            <Chip
+                                                size="small"
+                                                color="error"
+                                                label={`Gesperrt bis ${new Date(entry.blockedUntil ?? 0).toLocaleTimeString()}`}
+                                            />
+                                        ) : (
+                                            <Chip size="small" color="warning" label="Beobachtet" />
+                                        )}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
                 )}
             </Paper>
         </Box>

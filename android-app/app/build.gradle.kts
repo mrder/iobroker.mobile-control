@@ -29,19 +29,39 @@ android {
         buildConfigField("String", "API_VERSION", "\"v1\"")
     }
 
+    signingConfigs {
+        getByName("debug") {
+            // Without this, Gradle falls back to its own auto-generated ~/.android/debug.keystore
+            // - fine locally (persists on your machine), but on CI every job runs in a fresh,
+            // ephemeral VM with no prior state, so a brand new random debug keystore got created
+            // on literally every single build. Every CI-built APK was signed differently from the
+            // last one, so every update required uninstalling first (adb: INSTALL_FAILED_UPDATE_
+            // INCOMPATIBLE) - which wipes the Keystore-held device key pair and the paired-device
+            // profile, forcing a full re-pair via QR code on every single app update. This fixed,
+            // committed keystore (debug-only, never used for release signing - not sensitive)
+            // makes every debug/staging build reproducibly signed the same way, so in-place
+            // updates (adb install -r) work and pairing survives an app update.
+            storeFile = file("../debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         debug {
             isMinifyEnabled = false
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
+            signingConfig = signingConfigs.getByName("debug")
         }
         create("staging") {
             // Looks like a release build (minified/shrunk, closer to what will actually ship) but
             // stays debuggable/test-friendly like `debug` - initWith(debug) copies debug's flags
             // (isDebuggable, testCoverageEnabled, etc.) before the release-like overrides below.
             // No real release keystore exists in this repo (see README "Store-Release-Signing-
-            // Pipeline"), so staging deliberately reuses the auto-generated debug signing config -
-            // that keeps it installable side-by-side with debug/release without creating any new
+            // Pipeline"), so staging deliberately reuses the fixed debug signing config (see above)
+            // - that keeps it installable side-by-side with debug/release without creating any new
             // signing material.
             initWith(getByName("debug"))
             applicationIdSuffix = ".staging"

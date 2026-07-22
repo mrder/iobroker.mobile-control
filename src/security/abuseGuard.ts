@@ -2,6 +2,7 @@ interface AbuseBucket {
     failures: number;
     windowStart: number;
     blockedUntil: number | null;
+    lastReason: string | null;
 }
 
 export interface AbuseGuardConfig {
@@ -11,6 +12,15 @@ export interface AbuseGuardConfig {
     windowMs: number;
     /** How long a key stays blocked once it crosses `maxFailures`. */
     blockMs: number;
+}
+
+export interface AbuseSnapshotEntry {
+    key: string;
+    failures: number;
+    blocked: boolean;
+    blockedUntil: number | null;
+    windowStart: number;
+    lastReason: string | null;
 }
 
 /**
@@ -38,18 +48,23 @@ export class AbuseGuard {
         return true;
     }
 
-    /** Records a failed attempt. Returns true exactly once, the moment this call causes a new
-     *  block to start - callers use that to log a warning without spamming on every retry. */
-    recordFailure(key: string): boolean {
+    /** Records a failed attempt. `reason` is a short label (e.g. "pairing", "auth login") kept
+     *  purely for visibility (see snapshot()) - it does not affect the counting itself. Returns
+     *  true exactly once, the moment this call causes a new block to start - callers use that to
+     *  log a warning without spamming on every retry. */
+    recordFailure(key: string, reason?: string): boolean {
         const now = Date.now();
         let bucket = this.buckets.get(key);
         if (!bucket || now - bucket.windowStart >= this.config.windowMs) {
-            bucket = { failures: 0, windowStart: now, blockedUntil: null };
+            bucket = { failures: 0, windowStart: now, blockedUntil: null, lastReason: null };
             this.buckets.set(key, bucket);
         }
         // Deliberately increments and checks the threshold on every call, including the first
         // failure in a brand new window - a maxFailures of 1 must still block immediately.
         bucket.failures += 1;
+        if (reason) {
+            bucket.lastReason = reason;
+        }
         if (bucket.failures >= this.config.maxFailures && !bucket.blockedUntil) {
             bucket.blockedUntil = now + this.config.blockMs;
             return true;
@@ -60,5 +75,41 @@ export class AbuseGuard {
     /** A successful attempt clears any accumulated failure history for this key. */
     recordSuccess(key: string): void {
         this.buckets.delete(key);
+    }
+
+    /** Current failure count for a key within its active window (0 if untracked or the window
+     *  has since expired) - used to build a detailed "10/10 attempts" log message. */
+    getFailureCount(key: string): number {
+        const bucket = this.buckets.get(key);
+        if (!bucket || Date.now() - bucket.windowStart >= this.config.windowMs) {
+            return 0;
+        }
+        return bucket.failures;
+    }
+
+    /** Every key currently worth showing an admin (still within its failure window, or still
+     *  blocked), most failures first. Opportunistically prunes stale entries (window expired,
+     *  not blocked) while iterating, so this also bounds the map's long-term memory use without
+     *  needing a separate cleanup timer. */
+    snapshot(): AbuseSnapshotEntry[] {
+        const now = Date.now();
+        const entries: AbuseSnapshotEntry[] = [];
+        for (const [key, bucket] of this.buckets) {
+            const blocked = bucket.blockedUntil !== null && bucket.blockedUntil > now;
+            const windowActive = now - bucket.windowStart < this.config.windowMs;
+            if (!blocked && !windowActive) {
+                this.buckets.delete(key);
+                continue;
+            }
+            entries.push({
+                key,
+                failures: bucket.failures,
+                blocked,
+                blockedUntil: bucket.blockedUntil,
+                windowStart: bucket.windowStart,
+                lastReason: bucket.lastReason,
+            });
+        }
+        return entries.sort((a, b) => b.failures - a.failures);
     }
 }

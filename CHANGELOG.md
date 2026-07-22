@@ -8,6 +8,30 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.17] - master, Testbuild
+
+**Zwei Folgepunkte aus Live-Feedback:**
+
+1. **Echter CI-Bug behoben:** Jeder Debug-APK-Build in CI wurde mit einem anderen, zufällig
+   automatisch erzeugten Debug-Keystore signiert (jede GitHub-Actions-VM startet leer, nichts
+   bleibt zwischen Läufen erhalten - Gradle erzeugt ohne expliziten `signingConfigs.debug` bei
+   Bedarf einen eigenen `~/.android/debug.keystore`). Dadurch war jedes einzelne in dieser Session
+   installierte APK-Update anders signiert als das vorherige, was ein Deinstallieren erzwang
+   (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`) - und damit den Keystore-Schlüssel und das gekoppelte
+   Geräteprofil löschte, sodass nach jedem App-Update ein komplett neues Pairing per QR-Code nötig
+   war. Fix: fester, mit eingecheckter Debug-Keystore
+   (`android-app/debug.keystore`, unsensibel, nie für Release-Signing genutzt) plus expliziter
+   `signingConfigs.debug` in `build.gradle.kts` - jeder `debug`/`staging`-Build ist jetzt
+   reproduzierbar gleich signiert, `adb install -r` funktioniert, Pairing übersteht Updates.
+2. **Sichtbarkeit für AbuseGuard** ([0.0.15]): Neues Panel „Auffällige IPs (Pairing/Login)" in der
+   Admin-Tab-Übersicht zeigt live jede IP mit aktuell laufenden Fehlversuchen oder aktiver Sperre -
+   Anzahl der Fehlversuche, zuletzt versuchter Endpunkt, Sperrstatus/-ende. Vorher gab es nur die
+   einmalige Log-Zeile beim Auslösen einer neuen Sperre.
+   - `AbuseGuard.snapshot()`/`getFailureCount()` neu, neuer sendTo-Befehl `listAbuseState`
+   - Log-Warnung enthält jetzt auch die tatsächliche Anzahl Fehlversuche, nicht nur den Grund
+   - Neue Tests (`test/abuseGuard.test.ts` erweitert, echter Ende-zu-Ende-Check in
+     `test/integration/adapterStartup.ts`)
+
 ## [0.0.16] - master, Testbuild
 
 **Feature-Wunsch:** Der Objektbrowser in der Android-App (Hauptnavigation "Objekte") war eine

@@ -314,6 +314,16 @@ async function main(): Promise<void> {
         assert.equal(blockedRes.status, 429);
         const blockedBody = (await blockedRes.json()) as { error: string };
         assert.equal(blockedBody.error, 'RATE_LIMITED');
+
+        // The admin tab's 'listAbuseState' message must show this exact block, for the live
+        // visibility panel in OverviewTab.tsx.
+        const state = await callAdmin<{ key: string; failures: number; blocked: boolean; lastReason: string | null }[]>(
+            'listAbuseState',
+        );
+        const ownEntry = state.find((e) => e.failures >= 3);
+        assert.ok(ownEntry, 'expected a blocked entry for this test run\'s IP in listAbuseState');
+        assert.equal(ownEntry!.blocked, true);
+        assert.equal(ownEntry!.lastReason, 'auth challenge');
     });
 
     await new Promise<void>((resolve) => adapter.unloadHandler!(resolve));

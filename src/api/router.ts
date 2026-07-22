@@ -42,13 +42,16 @@ export interface ApiServices {
 
 /** Records a failed attempt and, the moment it crosses the threshold and triggers a new
  *  temporary block, logs a warning - visible in the adapter's normal log, not just buried in
- *  the audit log (which recorded every attempt already, but never actively surfaced a pattern). */
+ *  the audit log (which recorded every attempt already, but never actively surfaced a pattern).
+ *  The full per-IP picture (failure counts, reasons, block status) is also queryable live from
+ *  the admin tab via the 'listAbuseState' message, not just this one-shot log line. */
 function recordAbuseFailure(services: ApiServices, ip: string | null, reason: string): void {
     const key = ip ?? 'unknown';
-    const justBlocked = services.abuseGuard.recordFailure(key);
+    const justBlocked = services.abuseGuard.recordFailure(key, reason);
     if (justBlocked) {
+        const count = services.abuseGuard.getFailureCount(key);
         services.adapter.log.warn(
-            `mobile-control: repeated failed ${reason} attempts from ${key} - temporarily blocking this IP`,
+            `mobile-control: ${count} failed ${reason} attempts from ${key} within a few minutes - temporarily blocking this IP`,
         );
     }
 }

@@ -120,6 +120,15 @@ export interface ConnectionInfo {
     localAddresses: string[];
 }
 
+export interface AbuseSnapshotEntry {
+    key: string;
+    failures: number;
+    blocked: boolean;
+    blockedUntil: number | null;
+    windowStart: number;
+    lastReason: string | null;
+}
+
 export type ExposureRuleTemplate = Omit<ExposureRule, 'id' | 'roleId' | 'userId' | 'deviceId' | 'createdAt'>;
 
 export interface ExposureProfile {

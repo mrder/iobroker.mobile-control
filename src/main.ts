@@ -100,6 +100,7 @@ class MobileControlAdapter extends utils.Adapter {
     private auditService!: AuditService;
     private historyService!: HistoryService;
     private cameraService!: CameraService;
+    private abuseGuard!: AbuseGuard;
 
     public constructor(options: Partial<utils.AdapterOptions> = {}) {
         super({ ...options, name: 'mobile-control' });
@@ -216,6 +217,16 @@ class MobileControlAdapter extends utils.Adapter {
     }
 
     private async startHttpServer(config: AdapterNativeConfig): Promise<void> {
+        // Falls back to sane defaults if missing (e.g. an instance configured before this setting
+        // existed) rather than silently disabling blocking (0/undefined would make the
+        // ">= maxFailures" check in AbuseGuard never trip). Kept as an instance field (not just a
+        // local here) so the 'listAbuseState' admin message handler can read its live snapshot.
+        this.abuseGuard = new AbuseGuard({
+            maxFailures: config.abuseBlockThreshold || 10,
+            windowMs: 5 * 60_000,
+            blockMs: (config.abuseBlockMinutes || 30) * 60_000,
+        });
+
         const app = express();
         app.use(express.json({ limit: '256kb' }));
         app.use(
@@ -235,14 +246,7 @@ class MobileControlAdapter extends utils.Adapter {
                 camera: this.cameraService,
                 refreshTokenTtlDays: config.refreshTokenTtlDays,
                 authRateLimiter: new RateLimiter(config.authRateLimitPerMinute),
-                // Falls back to sane defaults if missing (e.g. an instance configured before
-                // this setting existed) rather than silently disabling blocking (0/undefined
-                // would make the ">= maxFailures" check in AbuseGuard never trip).
-                abuseGuard: new AbuseGuard({
-                    maxFailures: config.abuseBlockThreshold || 10,
-                    windowMs: 5 * 60_000,
-                    blockMs: (config.abuseBlockMinutes || 30) * 60_000,
-                }),
+                abuseGuard: this.abuseGuard,
             }),
         );
 
@@ -627,6 +631,13 @@ class MobileControlAdapter extends utils.Adapter {
                     });
                     break;
                 }
+
+                // Live visibility into AbuseGuard, requested after a live Q&A about pairing
+                // security: "which IP tried what, how many times" - the log warning in
+                // router.ts only fires once per new block, this is the full current picture.
+                case 'listAbuseState':
+                    respond(this.abuseGuard?.snapshot() ?? []);
+                    break;
 
                 default:
                     if (obj.callback) {

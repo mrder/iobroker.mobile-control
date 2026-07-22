@@ -145,6 +145,15 @@ erzeugt (Single-Module-App, keine mehrfach wiederverwendete Geschäftslogik übe
   minifiziert/shrunk wie Release, aber weiterhin debugfähig und über den Debug-Signing-Config
   installierbar) und `release` (kein Suffix, unsigniert, siehe TODO Signing-Pipeline) — dank der
   unterschiedlichen `applicationId`-Suffixe können alle drei parallel auf einem Gerät installiert sein
+- **Fester Debug-Keystore** (`android-app/debug.keystore`, bewusst mit eingecheckt - Debug-Keys
+  sind nicht sensibel, nie für Release-Signing genutzt): Ohne diesen erzeugt Gradle bei jedem Build
+  automatisch einen eigenen `~/.android/debug.keystore` - auf einem lokalen Rechner unproblematisch
+  (bleibt erhalten), aber jeder CI-Lauf startet in einer frischen, leeren VM, sodass jeder einzelne
+  CI-Build mit einem komplett anderen zufälligen Schlüssel signiert wurde. Jedes Update erforderte
+  dadurch ein vorheriges Deinstallieren (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`), was den
+  Keystore-Schlüssel und das gekoppelte Geräteprofil löschte und jedes Mal ein erneutes Pairing per
+  QR-Code nötig machte. Mit dem festen Keystore signiert jeder `debug`/`staging`-Build reproduzierbar
+  gleich, `adb install -r` funktioniert und das Pairing übersteht ein App-Update.
 - Sicherheit: Privater Schlüssel verlässt nie den Keystore, Tokens nur in
   `EncryptedSharedPreferences`, keine Logcat-Ausgaben von Tokens/Signaturen (auch der
   `HttpLoggingInterceptor` läuft nur auf `BASIC`-Level, nie `BODY`/`HEADERS`), `FLAG_SECURE` auf
