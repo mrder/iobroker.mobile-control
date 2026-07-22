@@ -1,8 +1,12 @@
 {
   "common": {
     "name": "mobile-control",
-    "version": "0.0.7",
+    "version": "0.0.8",
     "news": {
+      "0.0.8": {
+        "en": "Fixed a real bug found live: adminUI.tab was set to the invalid value \"custom\" instead of \"html\" (per the actual ioBroker schema: 'html'|'json'|'materialize'), so the custom admin tab never registered in the admin UI sidebar - it has been unreachable since the project's beginning, only ever verified by inspecting the built files directly, never by installing on a real ioBroker instance. Also wires in @iobroker/testing's official package-file validator, which was not being run at all before.",
+        "de": "Echten, live gefundenen Bug behoben: adminUI.tab stand auf dem ungültigen Wert \"custom\" statt \"html\" (laut echtem ioBroker-Schema: 'html'|'json'|'materialize'), wodurch der eigene Admin-Tab nie in der Admin-Seitenleiste registriert wurde - seit Projektbeginn unerreichbar, nur je durch direkte Prüfung der gebauten Dateien verifiziert, nie durch eine echte ioBroker-Installation. Bindet außerdem den offiziellen Package-File-Validator von @iobroker/testing ein, der bisher gar nicht lief."
+      },
       "0.0.7": {
         "en": "Hardened every fire-and-forget async call in the backend with proper error handling, so a single transient storage/network failure can never again crash the whole adapter process - found while auditing the codebase for the same class of bug as the ws EADDRINUSE crash",
         "de": "Alle Fire-and-Forget-Async-Aufrufe im Backend mit richtiger Fehlerbehandlung abgesichert, damit ein einzelner vorübergehender Storage-/Netzwerkfehler nie wieder den ganzen Adapter-Prozess mitreißen kann - gefunden bei der Suche nach derselben Fehlerklasse wie beim ws-EADDRINUSE-Absturz"
@@ -66,7 +70,7 @@
     "dataSource": "push",
     "adminUI": {
       "config": "json",
-      "tab": "custom"
+      "tab": "html"
     },
     "dependencies": [
       {

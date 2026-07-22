@@ -8,6 +8,23 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.8] - master, Testbuild
+
+**Weiterer echter Bug, live beim Nutzer gefunden:** Der eigene Admin-Tab tauchte in der
+ioBroker-Admin-Seitenleiste überhaupt nicht auf. Ursache: `io-package.json`s `adminUI.tab` stand
+auf `"custom"` - laut echtem ioBroker-Schema (`@iobroker/types`) sind dort aber nur
+`'html' | 'json' | 'materialize'` gültig. Mit dem ungültigen Wert registrierte die Admin-UI den
+Tab still schweigend gar nicht erst. Das war seit Projektbeginn so und wurde nie bemerkt, weil
+zuvor nur die gebauten `admin/tab.html`/`tab-assets`-Dateien direkt geprüft wurden, nie eine echte
+ioBroker-Installation. Auf `"tab": "html"` korrigiert (unser Tab ist eine reine HTML-Datei, die
+den React-Bundle lädt).
+
+Außerdem: `@iobroker/testing`s offizieller Package-File-Validator (`validatePackageFiles`) lief
+bisher gar nicht mit - jetzt als `test/packageFiles.test.ts` eingebunden (prüft u.a.
+`package.json`/`io-package.json`-Konsistenz, gültige `adminUI.config`, Lizenzfelder; hätte den
+`adminUI.tab`-Fehler selbst nicht gefangen, das ist trotzdem eine echte Lücke in der bisherigen
+Testabdeckung).
+
 ## [0.0.7] - master, Testbuild
 
 Nach dem ws-Fund in [0.0.6] gezielt nach derselben Fehlerklasse gesucht: "Fire-and-forget"
