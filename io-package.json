@@ -1,8 +1,12 @@
 {
   "common": {
     "name": "mobile-control",
-    "version": "0.0.10",
+    "version": "0.0.11",
     "news": {
+      "0.0.11": {
+        "en": "Fixed a real bug found live right after the socket.io fix: the tab connects fine now, but every action (listing/creating roles and users, browsing the object tree for exposure rules, sessions, audit) silently did nothing. Root cause: io-package.json never declared common.supportedMessages.custom (the modern replacement for the legacy common.messagebox flag), so js-controller never created the instance's messagebox and had no reason to deliver any of the admin tab's sendTo() calls to the adapter - every single one of them was being dropped before it ever reached our onMessage handler. Confirmed via @iobroker/types' SupportedMessages interface and ioBroker.javascript's real, working custom tab (which declares the same flag for the same reason: a React tab that talks to its adapter over sendTo).",
+        "de": "Echten, direkt im Anschluss an den socket.io-Fix live gefundenen Bug behoben: Der Tab verbindet sich jetzt sauber, aber jede Aktion (Rollen/Benutzer auflisten oder anlegen, Objektbaum für Freigaben durchsuchen, Sessions, Audit) tat scheinbar nichts. Ursache: io-package.json hat nie common.supportedMessages.custom deklariert (der moderne Ersatz für das veraltete common.messagebox-Flag), wodurch js-controller nie die Messagebox der Instanz angelegt hat und keinen Grund hatte, irgendeinen der sendTo()-Aufrufe des Admin-Tabs überhaupt an den Adapter zuzustellen - jeder einzelne wurde verworfen, bevor er unseren onMessage-Handler je erreichte. Bestätigt anhand von @iobroker/types' SupportedMessages-Interface und dem echten, funktionierenden Custom-Tab von ioBroker.javascript (der dasselbe Flag aus demselben Grund deklariert: ein React-Tab, der mit seinem Adapter über sendTo kommuniziert)."
+      },
       "0.0.10": {
         "en": "Fixed a real bug found live right after the adminTab fix: the tab now appears in the sidebar, but clicking it showed \"Socket connection could not be initialized: Error: Socket library could not be loaded!\". Root cause: @iobroker/adapter-react-v5's Connection expects the socket.io client library to already be loaded as a global (window.io) - it only polls for up to 3s and never loads it itself. tab.html never loaded it. Fixed by adding a plain <script src=\"../../lib/js/socket.io.js\"> before the app bundle, the same pattern used by ioBroker.javascript's real admin tab, pointing at the shared static path js-controller serves for every adapter.",
         "de": "Echten, direkt im Anschluss an den adminTab-Fix live gefundenen Bug behoben: Der Tab erscheint jetzt in der Seitenleiste, aber beim Anklicken kam \"Socket connection could not be initialized: Error: Socket library could not be loaded!\". Ursache: @iobroker/adapter-react-v5s Connection erwartet, dass die socket.io-Client-Bibliothek bereits als globale Variable (window.io) geladen ist - sie lädt sie selbst nicht, sondern wartet nur bis zu 3s. tab.html hat sie nie geladen. Behoben durch ein einfaches <script src=\"../../lib/js/socket.io.js\"> vor dem App-Bundle, nach demselben Muster wie im echten Admin-Tab von ioBroker.javascript, das auf den von js-controller für jeden Adapter bereitgestellten gemeinsamen statischen Pfad zeigt."
@@ -76,6 +80,9 @@
     "compact": true,
     "connectionType": "local",
     "dataSource": "push",
+    "supportedMessages": {
+      "custom": true
+    },
     "adminUI": {
       "config": "json",
       "tab": "html"

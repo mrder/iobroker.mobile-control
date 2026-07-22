@@ -8,6 +8,21 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.11] - master, Testbuild
+
+**Echter Folgebug, live direkt nach dem socket.io-Fix gefunden:** Der Tab verbindet sich jetzt
+sauber (kein Fehler-Popup mehr), aber jede Aktion darin - Rollen/Benutzer anlegen oder auch nur
+auflisten, den Objektbaum für Freigaben durchsuchen, Sessions, Audit - tat scheinbar gar nichts,
+ohne jede Fehlermeldung. Ursache: `io-package.json` hat nie `common.supportedMessages.custom`
+deklariert (den modernen Ersatz für das veraltete `common.messagebox`-Flag). Ohne dieses Flag legt
+js-controller für die Instanz gar keine Messagebox an und hat keinen Grund, auch nur einen der
+`sendTo()`-Aufrufe des Admin-Tabs (`callAdapter(...)` in `admin/tab-src/src/connection.ts`, von
+praktisch jedem Tab benutzt) an den Adapter zuzustellen - jeder einzelne wurde verworfen, bevor er
+unseren `onMessage`-Handler in `main.ts` je erreichte. Bestätigt anhand von `@iobroker/types`s
+`SupportedMessages`-Interface und dem echten, funktionierenden Custom-Tab von
+`ioBroker.javascript` (kommuniziert genau wie unserer über `sendTo` und deklariert dasselbe Flag).
+Jetzt in `io-package.json` ergänzt: `"supportedMessages": { "custom": true }`.
+
 ## [0.0.10] - master, Testbuild
 
 **Echter Folgebug, live direkt nach dem adminTab-Fix gefunden:** Der Tab erschien nach [0.0.9]
