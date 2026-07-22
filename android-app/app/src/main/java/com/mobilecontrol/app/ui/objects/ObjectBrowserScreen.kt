@@ -9,24 +9,31 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -35,6 +42,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -66,25 +74,47 @@ fun ObjectBrowserScreen(viewModel: ObjectBrowserViewModel = hiltViewModel()) {
         onDispose { viewModel.unsubscribeVisible(visibleIds) }
     }
 
+    var showFilterDialog by remember { mutableStateOf(false) }
+
     Scaffold(topBar = { TopAppBar(title = { Text(stringResource(R.string.objects_title)) }) }) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            OutlinedTextField(
-                value = state.searchQuery,
-                onValueChange = viewModel::setSearchQuery,
-                label = { Text(stringResource(R.string.objects_search_hint)) },
+            // Search + a single filter icon (opens FilterDialog) instead of always-visible
+            // room/role chip rows and a checkbox row - on a small tablet those 2-3 extra rows,
+            // stacked on top of the TopAppBar and below the bottom NavigationBar, left almost no
+            // vertical room for the actual list/tree content.
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-            )
-
-            Row(modifier = Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                RoomFilterChip(state.rooms, state.selectedRoom, viewModel::setRoomFilter)
-                RoleFilterChip(state.roles, state.selectedRole, viewModel::setRoleFilter)
+            ) {
+                OutlinedTextField(
+                    value = state.searchQuery,
+                    onValueChange = viewModel::setSearchQuery,
+                    label = { Text(stringResource(R.string.objects_search_hint)) },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                )
+                val activeFilterCount = listOfNotNull(state.selectedRoom, state.selectedRole).size + if (state.writableOnly) 1 else 0
+                BadgedBox(
+                    badge = { if (activeFilterCount > 0) Badge { Text("$activeFilterCount") } },
+                    modifier = Modifier.padding(start = 4.dp),
+                ) {
+                    IconButton(onClick = { showFilterDialog = true }) {
+                        Icon(Icons.Filled.FilterList, contentDescription = stringResource(R.string.objects_filter_title))
+                    }
+                }
             }
 
-            Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
-                Checkbox(checked = state.writableOnly, onCheckedChange = viewModel::setWritableOnly)
-                Text(
-                    stringResource(R.string.objects_filter_writable_only),
-                    modifier = Modifier.padding(top = 12.dp),
+            if (showFilterDialog) {
+                FilterDialog(
+                    rooms = state.rooms,
+                    roles = state.roles,
+                    selectedRoom = state.selectedRoom,
+                    selectedRole = state.selectedRole,
+                    writableOnly = state.writableOnly,
+                    onRoomSelect = viewModel::setRoomFilter,
+                    onRoleSelect = viewModel::setRoleFilter,
+                    onWritableOnlyChange = viewModel::setWritableOnly,
+                    onDismiss = { showFilterDialog = false },
                 )
             }
 
@@ -224,4 +254,42 @@ private fun RoleFilterChip(roles: List<String>, selected: String?, onSelect: (St
             DropdownMenuItem(text = { Text(role) }, onClick = { onSelect(role); expanded = false })
         }
     }
+}
+
+@Composable
+private fun FilterDialog(
+    rooms: List<String>,
+    roles: List<String>,
+    selectedRoom: String?,
+    selectedRole: String?,
+    writableOnly: Boolean,
+    onRoomSelect: (String?) -> Unit,
+    onRoleSelect: (String?) -> Unit,
+    onWritableOnlyChange: (Boolean) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.objects_filter_title)) },
+        text = {
+            Column {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    RoomFilterChip(rooms, selectedRoom, onRoomSelect)
+                    RoleFilterChip(roles, selectedRole, onRoleSelect)
+                }
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
+                    Checkbox(checked = writableOnly, onCheckedChange = onWritableOnlyChange)
+                    Text(stringResource(R.string.objects_filter_writable_only))
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_ok)) } },
+        dismissButton = {
+            TextButton(onClick = {
+                onRoomSelect(null)
+                onRoleSelect(null)
+                onWritableOnlyChange(false)
+            }) { Text(stringResource(R.string.objects_filter_reset)) }
+        },
+    )
 }

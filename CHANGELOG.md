@@ -8,6 +8,16 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.19] - master, Testbuild
+
+Live-Feedback zum Objektkatalog: auf dem Tablet blieb nur ein winziger sichtbarer Streifen für die
+eigentliche Liste/den Baum übrig ("2,5 Zeilen"), weil Suchfeld, Raum-Chip, Rollen-Chip und die
+"Nur schreibbar"-Checkbox jeweils eine eigene volle Zeile belegten - gestapelt über der Liste und
+unter der unteren Navigationsleiste. Raum/Rolle/Nur-schreibbar sind jetzt in einem einzigen
+Filter-Symbol neben dem Suchfeld zusammengefasst (mit Badge für die Anzahl aktiver Filter), das
+einen kompakten Dialog öffnet statt permanent Platz zu belegen - gewinnt rund zwei Zeilen
+vertikalen Platz zurück.
+
 ## [0.0.18] - master, Testbuild
 
 Der vorgeschlagene Gerätename beim Onboarding war `Build.MODEL` - live am echten Testgerät

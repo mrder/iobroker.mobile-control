@@ -54,6 +54,8 @@
     <string name="objects_filter_room">Raum</string>
     <string name="objects_filter_role">Rolle</string>
     <string name="objects_filter_writable_only">Nur schreibbare Objekte</string>
+    <string name="objects_filter_title">Filter</string>
+    <string name="objects_filter_reset">Zurücksetzen</string>
     <string name="objects_empty">Keine Objekte gefunden.</string>
 
     <!-- Settings -->
