@@ -8,6 +8,28 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.12] - master, Testbuild
+
+**Feature-Wunsch aus dem Livetest** (nicht mehr in "immer wieder ein neuer Bug"-Kategorie, sondern
+echtes Feedback nach dem ersten funktionierenden Durchklicken): Der Objektbaum unter
+"Objektfreigaben" war eine flache, auf 200 Treffer begrenzte Liste ohne jede Ordnerstruktur -
+`browseObjectTree()` hat bisher nur `type: 'state'`-Objekte geliefert, nie die dazugehörigen
+Channel-/Device-/Folder-Objekte mit ihren echten Namen. Außerdem ließ sich nur ein einzelner
+Datenpunkt freigeben, obwohl `ExposureService` serverseitig `scope: 'channel'|'device'|'adapter'`
+(Präfix-Match gegen alle Datenpunkte darunter) schon immer unterstützt hat - das war nur nie aus
+der UI heraus erreichbar, weil `ExposureTab.tsx` beim Anlegen einer Regel `scope: 'state'` fest
+verdrahtet hatte.
+
+- `browseObjectTree()` liefert jetzt zusätzlich alle `channel`/`device`/`folder`/`adapter`/
+  `instance`-Objekte, mit `kind: 'state' | 'container'` unterschieden
+- Admin-Tab baut daraus einen echten, aufklappbaren Ordnerbaum (Standardansicht, wenn das
+  Suchfeld leer ist); bei eingegebenem Suchbegriff bleibt die bisherige flache, durchsuchbare
+  Liste erhalten
+- "Freigeben" funktioniert jetzt auf jeder Ebene - auf einem Ordner erzeugt es automatisch eine
+  `channel`-Scope-Regel, die alle Datenpunkte darunter abdeckt
+- Neuer Test (`test/exposureTree.test.ts`) für die state/container-Unterscheidung und die
+  Präfix-Match-Semantik einer Ordner-Regel
+
 ## [0.0.11] - master, Testbuild
 
 **Echter Folgebug, live direkt nach dem socket.io-Fix gefunden:** Der Tab verbindet sich jetzt

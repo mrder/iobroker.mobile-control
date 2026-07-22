@@ -77,6 +77,7 @@ export interface ObjectTreeEntry {
     type: string;
     unit: string | null;
     path: string[];
+    kind: 'state' | 'container';
 }
 
 export interface Session {

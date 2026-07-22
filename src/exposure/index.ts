@@ -10,6 +10,8 @@ export interface ObjectTreeEntry {
     type: string;
     unit: string | null;
     path: string[];
+    /** 'state' = an actual datapoint (leaf); 'container' = channel/device/folder/adapter grouping */
+    kind: 'state' | 'container';
 }
 
 /** system.* is mandatory per BACKEND-KONZEPT.md §3; the rest are common secret/config namespaces. */
@@ -54,12 +56,26 @@ export class ExposureService {
         private readonly store: CollectionStore<ExposureRule>,
     ) {}
 
-    /** Admin UI object browser: real ioBroker state tree, minus the mandatory blocklist. */
+    /** Object types that count as a folder-like grouping rather than an actual datapoint. */
+    private static readonly CONTAINER_TYPES = new Set(['channel', 'device', 'folder', 'adapter', 'instance']);
+
+    /**
+     * Admin UI object browser: real ioBroker state tree, minus the mandatory blocklist. Includes
+     * both leaf states AND their container objects (channel/device/folder) so the admin tab can
+     * render an actual folder hierarchy with real display names instead of only a flat list of
+     * datapoints - a rule can then be granted on a container (scope 'channel', prefix-matched
+     * against every state underneath it, see matchesScope) just as well as on a single state.
+     */
     async browseObjectTree(): Promise<ObjectTreeEntry[]> {
-        const objects = await this.adapter.getForeignObjectsAsync('*', 'state');
+        const objects = await this.adapter.getForeignObjectsAsync('*');
         const entries: ObjectTreeEntry[] = [];
         for (const [id, obj] of Object.entries(objects)) {
             if (isBlockedStateId(id) || !obj) {
+                continue;
+            }
+            const isState = obj.type === 'state';
+            const isContainer = ExposureService.CONTAINER_TYPES.has(obj.type);
+            if (!isState && !isContainer) {
                 continue;
             }
             const common = obj.common as ioBroker.StateCommon | undefined;
@@ -68,9 +84,10 @@ export class ExposureService {
                 id,
                 name,
                 role: common?.role ?? '',
-                type: (common?.type as string) ?? 'mixed',
-                unit: common?.unit ?? null,
+                type: isState ? ((common?.type as string) ?? 'mixed') : obj.type,
+                unit: isState ? (common?.unit ?? null) : null,
                 path: id.split('.'),
+                kind: isState ? 'state' : 'container',
             });
         }
         return entries.sort((a, b) => a.id.localeCompare(b.id));
