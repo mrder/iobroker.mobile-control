@@ -82,10 +82,6 @@
       "0.0.2": {
         "en": "Camera snapshot widget, security-audit fixes (rate limiting, audit logging), lowered minSdk to 26 for older test devices, clearer port-conflict handling on startup",
         "de": "Kamera-Snapshot-Widget, Sicherheits-Fixes (Rate Limiting, Audit-Logging), minSdk auf 26 gesenkt für ältere Testgeräte, klarere Behandlung von Port-Konflikten beim Start"
-      },
-      "0.0.1": {
-        "en": "initial test build on master (pre-release)",
-        "de": "erster Testbuild auf master (vor dem ersten Release)"
       }
     },
     "title": "Mobile Control",
