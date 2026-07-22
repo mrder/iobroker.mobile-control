@@ -1,8 +1,12 @@
 {
   "common": {
     "name": "mobile-control",
-    "version": "0.0.17",
+    "version": "0.0.18",
     "news": {
+      "0.0.18": {
+        "en": "The suggested device name during onboarding was Build.MODEL, which is frequently an internal hardware codename rather than something recognizable (e.g. \"KFONWI\" on an Amazon Fire tablet, not \"Fire Tablet\") - confirmed live on the actual test device. Now reads the device's own Bluetooth name first (Settings.Secure \"bluetooth_name\", no special permission needed), falling back to Build.MODEL only if that's unset. Still just a suggestion, freely editable before pairing.",
+        "de": "Der vorgeschlagene Gerätename beim Onboarding war Build.MODEL, das häufig ein interner Hardware-Codename ist statt etwas Erkennbarem (z.B. \"KFONWI\" auf einem Amazon-Fire-Tablet statt \"Fire Tablet\") - live am echten Testgerät bestätigt. Liest jetzt zuerst den vom Gerät selbst gesetzten Bluetooth-Namen (Settings.Secure \"bluetooth_name\", keine besondere Berechtigung nötig), fällt nur auf Build.MODEL zurück wenn der nicht gesetzt ist. Bleibt weiterhin nur ein Vorschlag, vor dem Koppeln frei änderbar."
+      },
       "0.0.17": {
         "en": "Two follow-ups from live feedback: (1) fixed a real CI bug where every debug APK build was signed with a different, randomly auto-generated keystore (fresh CI VM every run, nothing persists), forcing an uninstall - and a full QR re-pair - on every single app update. A fixed, committed debug keystore now makes builds reproducibly signed, so adb install -r works and pairing survives updates. (2) Added live visibility for AbuseGuard: a new 'Auffällige IPs' panel in the admin tab's Übersicht shows every IP currently accumulating failures or blocked, with its failure count, last endpoint tried and block status - not just a one-shot log line.",
         "de": "Zwei Folgepunkte aus Live-Feedback: (1) Echten CI-Bug behoben, bei dem jeder Debug-APK-Build mit einem anderen, zufällig automatisch erzeugten Keystore signiert wurde (jeder CI-Lauf eine frische VM, nichts bleibt erhalten) - das erzwang bei jedem einzelnen App-Update ein Deinstallieren und damit ein komplett neues Pairing per QR-Code. Ein fester, mit eingecheckter Debug-Keystore sorgt jetzt für reproduzierbar gleich signierte Builds, `adb install -r` funktioniert und das Pairing übersteht Updates. (2) Sichtbarkeit für AbuseGuard ergänzt: neues Panel „Auffällige IPs\" in der Admin-Tab-Übersicht zeigt jede IP mit aktuell laufenden Fehlversuchen oder Sperre, inkl. Anzahl, zuletzt versuchtem Endpunkt und Sperrstatus - nicht nur eine einmalige Log-Zeile."

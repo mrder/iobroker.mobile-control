@@ -8,6 +8,17 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.18] - master, Testbuild
+
+Der vorgeschlagene Gerätename beim Onboarding war `Build.MODEL` - live am echten Testgerät
+bestätigt, dass das auf einem Amazon-Fire-Tablet `"KFONWI"` liefert (interner Hardware-Codename),
+nicht `"Fire Tablet"`. Neuer `DeviceNameProvider`
+([DeviceNameProvider.kt](android-app/app/src/main/java/com/mobilecontrol/app/data/local/DeviceNameProvider.kt)):
+liest zuerst den vom Nutzer selbst gesetzten Bluetooth-Namen (`Settings.Secure`
+`"bluetooth_name"`, keine besondere Berechtigung nötig, anders als
+`BluetoothAdapter.name` ab API 31), fällt nur auf `Build.MODEL` zurück falls der nicht gesetzt
+ist. Bleibt weiterhin nur ein Vorschlag im Textfeld, frei änderbar vor dem Koppeln.
+
 ## [0.0.17] - master, Testbuild
 
 **Zwei Folgepunkte aus Live-Feedback:**

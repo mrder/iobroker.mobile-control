@@ -1,11 +1,11 @@
 package com.mobilecontrol.app.ui.onboarding
 
-import android.os.Build
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mobilecontrol.app.data.crypto.FingerprintCheckResult
 import com.mobilecontrol.app.data.crypto.KeystoreManager
 import com.mobilecontrol.app.data.crypto.ServerFingerprintChecker
+import com.mobilecontrol.app.data.local.DeviceNameProvider
 import com.mobilecontrol.app.domain.model.ApiErrorCode
 import com.mobilecontrol.app.domain.model.ApiException
 import com.mobilecontrol.app.domain.model.DeviceProfile
@@ -31,7 +31,7 @@ data class OnboardingUiState(
     val fingerprintResult: FingerprintCheckResult? = null,
     val fingerprintChecking: Boolean = false,
     val userAcceptedMismatch: Boolean = false,
-    val deviceName: String = Build.MODEL ?: "Android-Gerät",
+    val deviceName: String = "",
     val keyGenerated: Boolean = false,
     val claimId: String? = null,
     val pairingStatus: PairingStatus? = null,
@@ -46,11 +46,12 @@ class OnboardingViewModel @Inject constructor(
     private val fingerprintChecker: ServerFingerprintChecker,
     private val authRepository: AuthRepository,
     private val settingsRepository: SettingsRepository,
+    deviceNameProvider: DeviceNameProvider,
 ) : ViewModel() {
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    private val _uiState = MutableStateFlow(OnboardingUiState())
+    private val _uiState = MutableStateFlow(OnboardingUiState(deviceName = deviceNameProvider.suggestedName()))
     val uiState: StateFlow<OnboardingUiState> = _uiState
 
     private var pollingJob: Job? = null
