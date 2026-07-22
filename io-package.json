@@ -1,8 +1,12 @@
 {
   "common": {
     "name": "mobile-control",
-    "version": "0.0.9",
+    "version": "0.0.10",
     "news": {
+      "0.0.10": {
+        "en": "Fixed a real bug found live right after the adminTab fix: the tab now appears in the sidebar, but clicking it showed \"Socket connection could not be initialized: Error: Socket library could not be loaded!\". Root cause: @iobroker/adapter-react-v5's Connection expects the socket.io client library to already be loaded as a global (window.io) - it only polls for up to 3s and never loads it itself. tab.html never loaded it. Fixed by adding a plain <script src=\"../../lib/js/socket.io.js\"> before the app bundle, the same pattern used by ioBroker.javascript's real admin tab, pointing at the shared static path js-controller serves for every adapter.",
+        "de": "Echten, direkt im Anschluss an den adminTab-Fix live gefundenen Bug behoben: Der Tab erscheint jetzt in der Seitenleiste, aber beim Anklicken kam \"Socket connection could not be initialized: Error: Socket library could not be loaded!\". Ursache: @iobroker/adapter-react-v5s Connection erwartet, dass die socket.io-Client-Bibliothek bereits als globale Variable (window.io) geladen ist - sie lädt sie selbst nicht, sondern wartet nur bis zu 3s. tab.html hat sie nie geladen. Behoben durch ein einfaches <script src=\"../../lib/js/socket.io.js\"> vor dem App-Bundle, nach demselben Muster wie im echten Admin-Tab von ioBroker.javascript, das auf den von js-controller für jeden Adapter bereitgestellten gemeinsamen statischen Pfad zeigt."
+      },
       "0.0.9": {
         "en": "Fixed the real reason the custom admin tab never appeared in the sidebar, even after the 0.0.8 adminUI.tab fix: the sidebar entry itself is registered via a separate common.adminTab object (per @iobroker/types' AdapterCommon interface), which io-package.json never had at all. adminUI.tab only selects the tab's rendering mode, not whether it's registered in the nav - confirmed against two real working custom-tab adapters (ioBroker.devices, ioBroker.javascript), both of which declare adminTab.",
         "de": "Den eigentlichen Grund behoben, warum der eigene Admin-Tab auch nach dem adminUI.tab-Fix in 0.0.8 nie in der Seitenleiste erschien: Der Seitenleisten-Eintrag selbst wird über ein separates common.adminTab-Objekt registriert (laut @iobroker/types' AdapterCommon-Interface), das in io-package.json komplett gefehlt hat. adminUI.tab wählt nur den Rendering-Modus des Tabs, nicht ob er im Menü registriert wird - bestätigt anhand zweier echter, funktionierender Custom-Tab-Adapter (ioBroker.devices, ioBroker.javascript), die beide adminTab deklarieren."

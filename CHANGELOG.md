@@ -8,6 +8,21 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.10] - master, Testbuild
+
+**Echter Folgebug, live direkt nach dem adminTab-Fix gefunden:** Der Tab erschien nach [0.0.9]
+korrekt in der Seitenleiste, aber beim Öffnen kam sofort ein Fehler-Popup: "Socket connection
+could not be initialized: Error: Socket library could not be loaded!". Ursache: `Connection` aus
+`@iobroker/adapter-react-v5` (bzw. `@iobroker/socket-client`) erwartet, dass die
+socket.io-Client-Bibliothek bereits als globale Variable `window.io` vorhanden ist, wenn sie
+konstruiert wird - sie lädt die Bibliothek selbst **nicht**, sondern wartet nur bis zu 3 Sekunden
+darauf und wirft dann exakt diesen Fehler. Unser `tab.html` hat `socket.io.js` nie geladen. Fix:
+ein einfaches `<script src="../../lib/js/socket.io.js">` (kein `type="module"`, läuft daher
+garantiert vor unserem App-Bundle) vor dem eigentlichen Tab-Bundle in
+`admin/tab-src/tab.html` ergänzt - derselbe relative Pfad, den auch der echte, funktionierende
+Admin-Tab von `ioBroker.javascript` benutzt, und der auf den von js-controller für jeden Adapter
+bereitgestellten gemeinsamen statischen Pfad zeigt.
+
 ## [0.0.9] - master, Testbuild
 
 **Den echten Grund für den fehlenden Admin-Tab gefunden** (0.0.8 hat das Problem nicht vollständig

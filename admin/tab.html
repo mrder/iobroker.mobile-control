@@ -7,6 +7,17 @@
         <style>
             html, body, #root { height: 100%; margin: 0; font-family: Roboto, Arial, sans-serif; }
         </style>
+        <!--
+          @iobroker/adapter-react-v5's Connection expects window.io (the socket.io client)
+          to already be a global by the time it's constructed - it does not load the library
+          itself, only polls for up to 3s and then fails with "Socket library could not be
+          loaded!" (see @iobroker/socket-client's Connection.waitForSocketLib). This tab is
+          served by js-controller under admin/mobile-control/tab.html, so two levels up is the
+          shared, always-available static path js-controller exposes for every adapter's admin
+          content. A plain (non-module) script tag executes before our type="module" bundle
+          below, so window.io is guaranteed to be set before Connection is ever constructed.
+        -->
+        <script src="../../lib/js/socket.io.js"></script>
       <script type="module" crossorigin src="./tab-assets/tab-BqQvaUUe.js"></script>
     </head>
     <body>
