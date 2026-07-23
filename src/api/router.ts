@@ -19,6 +19,7 @@ import type { AuditService } from '../audit';
 import type { HistoryService } from '../history';
 import type { CameraService } from '../camera';
 import type { UrlEmbedsService } from '../urlEmbeds';
+import type { AlarmEventsService } from '../alarms';
 import type { RateLimiter } from '../security/rateLimiter';
 import type { AbuseGuard } from '../security/abuseGuard';
 import type { DashboardLayout } from '../lib/types';
@@ -37,6 +38,7 @@ export interface ApiServices {
     history: HistoryService;
     camera: CameraService;
     urlEmbeds: UrlEmbedsService;
+    alarms: AlarmEventsService;
     refreshTokenTtlDays: number;
     authRateLimiter: RateLimiter;
     abuseGuard: AbuseGuard;
@@ -379,6 +381,28 @@ export function createApiRouter(services: ApiServices): Router {
     router.get('/url-embeds/:id/resolve', requireAuth, (req: AuthenticatedRequest, res: Response) => {
         try {
             res.json({ url: services.urlEmbeds.resolve(req.params.id) });
+        } catch (err) {
+            sendError(res, err);
+        }
+    });
+
+    // ---- Alarm events ---------------------------------------------------------
+    // "Catch up on what I missed" for a client that was closed/backgrounded when an alarm fired -
+    // see AlarmEventsService's own docs. Authorization is checked per-event here (not at
+    // collection time), same pattern as the rest of this router.
+    router.get('/alarm-events', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+        try {
+            const since = typeof req.query.since === 'string' ? Number(req.query.since) : 0;
+            const sinceMs = Number.isFinite(since) ? since : 0;
+            const events = [];
+            for (const event of services.alarms.listSince(sinceMs)) {
+                if (!services.catalog.canRead(event.stateId, req.ctx!)) {
+                    continue;
+                }
+                const mapping = await services.catalog.getOrCreateMapping(event.stateId);
+                events.push({ objectId: mapping.id, value: event.value, timestamp: new Date(event.timestamp).toISOString() });
+            }
+            res.json({ events });
         } catch (err) {
             sendError(res, err);
         }

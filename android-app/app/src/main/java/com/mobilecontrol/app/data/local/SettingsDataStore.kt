@@ -34,6 +34,8 @@ class SettingsDataStore @Inject constructor(
         val START_DASHBOARD_ID = stringPreferencesKey("start_dashboard_id")
         val LAST_CONNECTION_AT = longPreferencesKey("last_connection_at")
         val THEME_MODE = stringPreferencesKey("theme_mode")
+        val PUSH_NOTIFICATIONS_ENABLED = booleanPreferencesKey("push_notifications_enabled")
+        val LAST_ALARM_CATCH_UP_AT = longPreferencesKey("last_alarm_catch_up_at")
     }
 
     fun observeDeviceProfile(): Flow<DeviceProfile?> = context.dataStore.data.map { prefs ->
@@ -101,5 +103,19 @@ class SettingsDataStore @Inject constructor(
 
     suspend fun setThemeMode(mode: ThemeMode) {
         context.dataStore.edit { it[Keys.THEME_MODE] = mode.wireName }
+    }
+
+    fun observePushNotificationsEnabled(): Flow<Boolean> = context.dataStore.data.map { it[Keys.PUSH_NOTIFICATIONS_ENABLED] ?: false }
+
+    suspend fun setPushNotificationsEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.PUSH_NOTIFICATIONS_ENABLED] = enabled }
+    }
+
+    /** Watermark for AlarmMonitor's catch-up fetch (GET /alarm-events?since=) - 0 means "never
+     *  caught up before", so the very first run asks for everything the server still retains. */
+    suspend fun getLastAlarmCatchUpAt(): Long = context.dataStore.data.map { it[Keys.LAST_ALARM_CATCH_UP_AT] ?: 0L }.first()
+
+    suspend fun setLastAlarmCatchUpAt(epochMillis: Long) {
+        context.dataStore.edit { it[Keys.LAST_ALARM_CATCH_UP_AT] = epochMillis }
     }
 }

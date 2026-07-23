@@ -99,6 +99,14 @@ describe('CatalogService', () => {
         );
     });
 
+    it('canRead checks authorization by the real stateId directly, without needing a public UUID mapping', async () => {
+        const { exposureStore, catalog } = await setup();
+        assert.equal(catalog.canRead(SMOKE_ALARM_STATE_ID, CTX), false);
+
+        await exposureStore.put(baseRule({ target: SMOKE_ALARM_STATE_ID, roleId: 'viewer', read: true }));
+        assert.equal(catalog.canRead(SMOKE_ALARM_STATE_ID, CTX), true);
+    });
+
     it('revoking (deleting) an exposure rule immediately removes access - no caching/staleness', async () => {
         const { exposureStore, catalog } = await setup();
         const mapping = await catalog.getOrCreateMapping(STATE_ID);

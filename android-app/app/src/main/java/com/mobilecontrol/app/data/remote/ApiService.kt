@@ -1,5 +1,6 @@
 package com.mobilecontrol.app.data.remote
 
+import com.mobilecontrol.app.data.remote.dto.AlarmEventListResponseDto
 import com.mobilecontrol.app.data.remote.dto.CatalogResponseDto
 import com.mobilecontrol.app.data.remote.dto.ChallengeRequestDto
 import com.mobilecontrol.app.data.remote.dto.ChallengeResponseDto
@@ -65,6 +66,9 @@ interface ApiService {
     @Streaming
     @GET("api/v1/objects/{id}/snapshot")
     suspend fun getSnapshot(@Path("id") id: String): Response<ResponseBody>
+
+    @GET("api/v1/alarm-events")
+    suspend fun getAlarmEvents(@Query("since") sinceEpochMillis: Long): Response<AlarmEventListResponseDto>
 
     @GET("api/v1/url-embeds")
     suspend fun getUrlEmbeds(): Response<UrlEmbedListResponseDto>

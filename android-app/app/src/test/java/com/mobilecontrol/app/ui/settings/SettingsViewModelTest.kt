@@ -8,6 +8,7 @@ import com.mobilecontrol.app.domain.repository.AuthRepository
 import com.mobilecontrol.app.domain.repository.DiagnosticsRepository
 import com.mobilecontrol.app.domain.repository.LogEntry
 import com.mobilecontrol.app.domain.repository.SettingsRepository
+import com.mobilecontrol.app.push.PushServiceController
 import com.mobilecontrol.app.util.MainDispatcherRule
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,6 +27,7 @@ private class FakeSettingsRepository : SettingsRepository {
     val biometricEnabled = MutableStateFlow(false)
     val lastConnectionAt = MutableStateFlow<Long?>(null)
     val themeMode = MutableStateFlow(ThemeMode.SYSTEM)
+    val pushNotificationsEnabled = MutableStateFlow(false)
     var clearCacheCalled = false
 
     override fun observeDeviceProfile(): Flow<DeviceProfile?> = deviceProfile
@@ -49,6 +51,12 @@ private class FakeSettingsRepository : SettingsRepository {
 
     override fun observeThemeMode(): Flow<ThemeMode> = themeMode
     override suspend fun setThemeMode(mode: ThemeMode) { themeMode.value = mode }
+
+    override fun observePushNotificationsEnabled(): Flow<Boolean> = pushNotificationsEnabled
+    override suspend fun setPushNotificationsEnabled(enabled: Boolean) { pushNotificationsEnabled.value = enabled }
+
+    override suspend fun getLastAlarmCatchUpAt(): Long = 0L
+    override suspend fun setLastAlarmCatchUpAt(epochMillis: Long) {}
 }
 
 private class FakeAuthRepository : AuthRepository {
@@ -80,6 +88,13 @@ private class FakeDiagnosticsRepository : DiagnosticsRepository {
     override fun clear() { _recentLogs.value = emptyList() }
 }
 
+private class FakePushServiceController : PushServiceController {
+    var startCalls = 0
+    var stopCalls = 0
+    override fun start() { startCalls++ }
+    override fun stop() { stopCalls++ }
+}
+
 class SettingsViewModelTest {
 
     @get:Rule
@@ -87,7 +102,7 @@ class SettingsViewModelTest {
 
     @Test
     fun `appVersion and apiVersion are read straight from BuildConfig`() {
-        val viewModel = SettingsViewModel(FakeSettingsRepository(), FakeAuthRepository(), FakeDiagnosticsRepository())
+        val viewModel = SettingsViewModel(FakeSettingsRepository(), FakeAuthRepository(), FakeDiagnosticsRepository(), FakePushServiceController())
 
         assertEquals(BuildConfig.VERSION_NAME, viewModel.appVersion)
         assertEquals(BuildConfig.API_VERSION, viewModel.apiVersion)
@@ -103,7 +118,7 @@ class SettingsViewModelTest {
         val diagnosticsRepo = FakeDiagnosticsRepository()
         diagnosticsRepo.log(LogEntry.Level.WARN, "test entry")
 
-        val viewModel = SettingsViewModel(settingsRepo, FakeAuthRepository(), diagnosticsRepo)
+        val viewModel = SettingsViewModel(settingsRepo, FakeAuthRepository(), diagnosticsRepo, FakePushServiceController())
         val collector = launch { viewModel.uiState.collect {} }
         advanceUntilIdle()
 
@@ -118,7 +133,7 @@ class SettingsViewModelTest {
     @Test
     fun `setAppLockEnabled forwards the flag to the repository`() = runTest {
         val settingsRepo = FakeSettingsRepository()
-        val viewModel = SettingsViewModel(settingsRepo, FakeAuthRepository(), FakeDiagnosticsRepository())
+        val viewModel = SettingsViewModel(settingsRepo, FakeAuthRepository(), FakeDiagnosticsRepository(), FakePushServiceController())
 
         viewModel.setAppLockEnabled(false)
         advanceUntilIdle()
@@ -129,7 +144,7 @@ class SettingsViewModelTest {
     @Test
     fun `setBiometricEnabled forwards the flag to the repository`() = runTest {
         val settingsRepo = FakeSettingsRepository()
-        val viewModel = SettingsViewModel(settingsRepo, FakeAuthRepository(), FakeDiagnosticsRepository())
+        val viewModel = SettingsViewModel(settingsRepo, FakeAuthRepository(), FakeDiagnosticsRepository(), FakePushServiceController())
 
         viewModel.setBiometricEnabled(true)
         advanceUntilIdle()
@@ -138,9 +153,37 @@ class SettingsViewModelTest {
     }
 
     @Test
+    fun `setPushNotificationsEnabled forwards the flag to the repository and starts the push service`() = runTest {
+        val settingsRepo = FakeSettingsRepository()
+        val pushController = FakePushServiceController()
+        val viewModel = SettingsViewModel(settingsRepo, FakeAuthRepository(), FakeDiagnosticsRepository(), pushController)
+
+        viewModel.setPushNotificationsEnabled(true)
+        advanceUntilIdle()
+
+        assertEquals(true, settingsRepo.pushNotificationsEnabled.value)
+        assertEquals(1, pushController.startCalls)
+        assertEquals(0, pushController.stopCalls)
+    }
+
+    @Test
+    fun `setPushNotificationsEnabled(false) persists the flag and stops the push service`() = runTest {
+        val settingsRepo = FakeSettingsRepository()
+        val pushController = FakePushServiceController()
+        val viewModel = SettingsViewModel(settingsRepo, FakeAuthRepository(), FakeDiagnosticsRepository(), pushController)
+
+        viewModel.setPushNotificationsEnabled(false)
+        advanceUntilIdle()
+
+        assertEquals(false, settingsRepo.pushNotificationsEnabled.value)
+        assertEquals(0, pushController.startCalls)
+        assertEquals(1, pushController.stopCalls)
+    }
+
+    @Test
     fun `setThemeMode forwards the mode to the repository`() = runTest {
         val settingsRepo = FakeSettingsRepository()
-        val viewModel = SettingsViewModel(settingsRepo, FakeAuthRepository(), FakeDiagnosticsRepository())
+        val viewModel = SettingsViewModel(settingsRepo, FakeAuthRepository(), FakeDiagnosticsRepository(), FakePushServiceController())
 
         viewModel.setThemeMode(ThemeMode.DARK)
         advanceUntilIdle()
@@ -151,7 +194,7 @@ class SettingsViewModelTest {
     @Test
     fun `clearCache delegates to the repository`() = runTest {
         val settingsRepo = FakeSettingsRepository()
-        val viewModel = SettingsViewModel(settingsRepo, FakeAuthRepository(), FakeDiagnosticsRepository())
+        val viewModel = SettingsViewModel(settingsRepo, FakeAuthRepository(), FakeDiagnosticsRepository(), FakePushServiceController())
 
         viewModel.clearCache()
         advanceUntilIdle()
@@ -163,7 +206,7 @@ class SettingsViewModelTest {
     fun `logout notifies the server, writes an audit log entry and then invokes the callback`() = runTest {
         val authRepo = FakeAuthRepository()
         val diagnosticsRepo = FakeDiagnosticsRepository()
-        val viewModel = SettingsViewModel(FakeSettingsRepository(), authRepo, diagnosticsRepo)
+        val viewModel = SettingsViewModel(FakeSettingsRepository(), authRepo, diagnosticsRepo, FakePushServiceController())
         var onDoneCalled = false
 
         viewModel.logout { onDoneCalled = true }

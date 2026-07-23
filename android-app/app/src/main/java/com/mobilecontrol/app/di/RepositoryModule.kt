@@ -1,5 +1,6 @@
 package com.mobilecontrol.app.di
 
+import com.mobilecontrol.app.data.repository.AlarmEventRepositoryImpl
 import com.mobilecontrol.app.data.repository.AuthRepositoryImpl
 import com.mobilecontrol.app.data.repository.CameraRepositoryImpl
 import com.mobilecontrol.app.data.repository.CommandRepositoryImpl
@@ -12,6 +13,7 @@ import com.mobilecontrol.app.data.repository.PairingRepositoryImpl
 import com.mobilecontrol.app.data.repository.SettingsRepositoryImpl
 import com.mobilecontrol.app.data.repository.StateRepositoryImpl
 import com.mobilecontrol.app.data.repository.UrlEmbedRepositoryImpl
+import com.mobilecontrol.app.domain.repository.AlarmEventRepository
 import com.mobilecontrol.app.domain.repository.AuthRepository
 import com.mobilecontrol.app.domain.repository.CameraRepository
 import com.mobilecontrol.app.domain.repository.CommandRepository
@@ -81,4 +83,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindUrlEmbedRepository(impl: UrlEmbedRepositoryImpl): UrlEmbedRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAlarmEventRepository(impl: AlarmEventRepositoryImpl): AlarmEventRepository
 }

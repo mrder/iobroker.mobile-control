@@ -7,6 +7,7 @@ import com.mobilecontrol.app.domain.repository.AuthRepository
 import com.mobilecontrol.app.domain.repository.DashboardRepository
 import com.mobilecontrol.app.domain.repository.SettingsRepository
 import com.mobilecontrol.app.domain.repository.StateRepository
+import com.mobilecontrol.app.push.PushServiceController
 import com.mobilecontrol.app.ui.lock.AppLockManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -24,6 +25,7 @@ class AppRootViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val stateRepository: StateRepository,
     private val dashboardRepository: DashboardRepository,
+    private val pushServiceController: PushServiceController,
     val appLockManager: AppLockManager,
     val revocationNotifier: RevocationNotifier,
 ) : ViewModel() {
@@ -46,6 +48,14 @@ class AppRootViewModel @Inject constructor(
 
     fun connectRealtime() {
         stateRepository.connect()
+    }
+
+    /** Restarts the push foreground service on app launch if the user previously opted in - the
+     *  service does not otherwise survive an app process restart on its own. */
+    suspend fun ensurePushServiceMatchesSetting() {
+        if (settingsRepository.observePushNotificationsEnabled().first()) {
+            pushServiceController.start()
+        }
     }
 
     fun handleRevocation() {

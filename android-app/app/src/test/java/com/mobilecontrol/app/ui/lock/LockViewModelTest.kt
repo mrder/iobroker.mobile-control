@@ -23,6 +23,7 @@ private class FakeSettingsRepository : SettingsRepository {
     private val _biometricEnabled = MutableStateFlow(false)
     private val _lastConnectionAt = MutableStateFlow<Long?>(null)
     private val _themeMode = MutableStateFlow(ThemeMode.SYSTEM)
+    private val _pushNotificationsEnabled = MutableStateFlow(false)
 
     var pinHash: String? = null
     var clearCacheCalled = false
@@ -64,6 +65,14 @@ private class FakeSettingsRepository : SettingsRepository {
     override suspend fun setThemeMode(mode: ThemeMode) {
         _themeMode.value = mode
     }
+
+    override fun observePushNotificationsEnabled(): Flow<Boolean> = _pushNotificationsEnabled
+    override suspend fun setPushNotificationsEnabled(enabled: Boolean) {
+        _pushNotificationsEnabled.value = enabled
+    }
+
+    override suspend fun getLastAlarmCatchUpAt(): Long = 0L
+    override suspend fun setLastAlarmCatchUpAt(epochMillis: Long) {}
 }
 
 class LockViewModelTest {

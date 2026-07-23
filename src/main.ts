@@ -6,6 +6,7 @@ import express from 'express';
 
 import { CollectionStore } from './lib/store';
 import type {
+    AlarmEvent,
     AuditEvent,
     CommandRecord,
     Dashboard,
@@ -37,6 +38,7 @@ import { AuditService } from './audit';
 import { HistoryService } from './history';
 import { CameraService } from './camera';
 import { UrlEmbedsService } from './urlEmbeds';
+import { AlarmEventsService } from './alarms';
 import { RateLimiter } from './security/rateLimiter';
 import { AbuseGuard } from './security/abuseGuard';
 import { ReplayGuard } from './security/replayGuard';
@@ -107,6 +109,7 @@ class MobileControlAdapter extends utils.Adapter {
     private historyService!: HistoryService;
     private cameraService!: CameraService;
     private urlEmbedsService!: UrlEmbedsService;
+    private alarmEventsService!: AlarmEventsService;
     private abuseGuard!: AbuseGuard;
 
     public constructor(options: Partial<utils.AdapterOptions> = {}) {
@@ -166,6 +169,7 @@ class MobileControlAdapter extends utils.Adapter {
         const commandsStore = new CollectionStore<CommandRecord>(this, 'commands');
         const auditStore = new CollectionStore<AuditEvent>(this, 'auditEvents');
         const urlEmbedsStore = new CollectionStore<UrlEmbed>(this, 'urlEmbeds');
+        const alarmEventsStore = new CollectionStore<AlarmEvent>(this, 'alarmEvents');
 
         await Promise.all([
             usersStore.init(),
@@ -181,6 +185,7 @@ class MobileControlAdapter extends utils.Adapter {
             commandsStore.init(),
             auditStore.init(),
             urlEmbedsStore.init(),
+            alarmEventsStore.init(),
         ]);
 
         this.rolesService = new RolesService(rolesStore);
@@ -210,6 +215,10 @@ class MobileControlAdapter extends utils.Adapter {
         this.historyService = new HistoryService(this, config.historyInstance ?? '');
         this.cameraService = new CameraService(this);
         this.urlEmbedsService = new UrlEmbedsService(this, urlEmbedsStore);
+        this.alarmEventsService = new AlarmEventsService(this, alarmEventsStore);
+        this.alarmEventsService
+            .subscribeToAlarmObjects()
+            .catch((err: unknown) => this.log.error(`mobile-control: subscribeToAlarmObjects failed: ${(err as Error).message}`));
 
         await this.startHttpServer(config);
 
@@ -255,6 +264,7 @@ class MobileControlAdapter extends utils.Adapter {
                 history: this.historyService,
                 camera: this.cameraService,
                 urlEmbeds: this.urlEmbedsService,
+                alarms: this.alarmEventsService,
                 refreshTokenTtlDays: config.refreshTokenTtlDays,
                 authRateLimiter: new RateLimiter(config.authRateLimitPerMinute),
                 abuseGuard: this.abuseGuard,
@@ -382,6 +392,9 @@ class MobileControlAdapter extends utils.Adapter {
             ?.handleForeignStateChange(id, state)
             .catch((err: unknown) => this.log.error(`mobile-control: handleForeignStateChange failed: ${(err as Error).message}`));
         this.realtimeGateway?.publishStateChange(id, state);
+        this.alarmEventsService
+            ?.recordIfAlarm(id, state)
+            .catch((err: unknown) => this.log.error(`mobile-control: recordIfAlarm failed: ${(err as Error).message}`));
     }
 
     private async handleRevokeAllSessions(): Promise<void> {

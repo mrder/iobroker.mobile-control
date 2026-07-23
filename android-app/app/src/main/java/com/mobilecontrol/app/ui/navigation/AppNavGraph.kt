@@ -57,6 +57,7 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
             StartDestination.LOCK_SETUP -> Routes.PIN_SETUP
             StartDestination.START -> {
                 rootViewModel.connectRealtime()
+                rootViewModel.ensurePushServiceMatchesSetting()
                 Routes.START
             }
         }

@@ -74,6 +74,14 @@
     <string name="settings_theme_system">System</string>
     <string name="settings_theme_light">Hell</string>
     <string name="settings_theme_dark">Dunkel</string>
+    <string name="settings_push_notifications">Live-Benachrichtigungen</string>
+    <string name="settings_push_notifications_description">Hält die Verbindung zum Server auch im Hintergrund aufrecht, damit Alarme sofort ankommen - verbraucht mehr Akku. Ohne diese Option holt sich die App verpasste Alarme beim nächsten Öffnen nach.</string>
+    <string name="push_alarm_channel_name">Alarme</string>
+    <string name="push_alarm_channel_description">Benachrichtigungen, wenn ein Alarm-Objekt aktiv wird</string>
+    <string name="push_ongoing_channel_name">Live-Verbindung</string>
+    <string name="push_ongoing_channel_description">Zeigt an, dass die Live-Verbindung zum Server im Hintergrund aktiv ist</string>
+    <string name="push_ongoing_notification_title">Mobile Control ist verbunden</string>
+    <string name="push_ongoing_notification_body">Live-Benachrichtigungen sind aktiv</string>
     <string name="settings_clear_cache">Cache leeren</string>
     <string name="settings_app_version">App-Version</string>
     <string name="settings_api_version">API-Version</string>

@@ -8,6 +8,30 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.30] - master, Testbuild
+
+Neues Feature, live angefragt: Alarm-Push-Benachrichtigungen ("man sollte im ioBroker eine
+Pushnachricht an die App schicken können, sodass wir dann sozusagen Alarme schicken oder
+ähnliches"). Bewusst **nicht** auf Firebase/FCM aufgebaut, nachdem in der Diskussion klar wurde:
+(a) das eigene Testgerät (Fire HD 8) hat gar keine Google Play Services, FCM würde dort also gar
+nicht funktionieren, und (b) der Adapter soll später in die Community-Base und soll niemandem
+einen Google-Account aufzwingen. UnifiedPush wäre die self-hosted-Alternative gewesen, wurde aber
+wegen der zusätzlichen Distributor-App-Einrichtung (Reibung für Durchschnittsnutzer) vorerst
+zurückgestellt zugunsten eines dritten Wegs ganz ohne neue Infrastruktur.
+
+1. **Backend**: Neuer `AlarmEventsService` (`src/alarms/index.ts`) abonniert bei Adapterstart
+   alle Objekte mit Alarm-Rolle (`role.includes('alarm')`, dieselbe Konvention wie
+   `suggestWidgets`) - unabhängig davon, ob gerade ein Client zusieht, anders als
+   `RealtimeGateway`s dynamische Pro-Verbindung-Subscriptions. Jeder "Alarm wurde aktiv"-Übergang
+   wird persistiert. Neuer Endpunkt `GET /alarm-events?since=` lässt ein Gerät nachholen, was seit
+   dem letzten Mal passiert ist (Autorisierung wird pro Ereignis geprüft, nicht beim Sammeln).
+2. **Android**: Neuer Opt-in-Schalter "Live-Benachrichtigungen" in den Einstellungen (Standard:
+   aus, da Mehrverbrauch). Aktiviert einen Foreground-Service (`PushConnectionService`), der die
+   ohnehin vorhandene, App-weite WebSocket-Verbindung (`RealtimeWebSocketClient`/
+   `StateRepository`) auch ohne offenen Bildschirm am Leben hält, plus `AlarmMonitor`, der bei
+   einem live eintreffenden Alarm eine echte System-Benachrichtigung zeigt und beim Start verpasste
+   Alarme über den Nachhol-Endpunkt abruft.
+
 ## [0.0.29] - master, Testbuild
 
 Echtes UX-Problem behoben, live in der Instanzübersicht entdeckt: "Verbunden mit Gerät oder

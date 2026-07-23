@@ -71,6 +71,13 @@ export class CatalogService {
         return mapping;
     }
 
+    /** Authorization check by the real ioBroker id rather than a public UUID - used where the
+     *  caller already has the internal stateId (e.g. AlarmEventsService's persisted events),
+     *  unlike resolveAuthorized() which starts from a client-facing public mapping id. */
+    canRead(stateId: string, ctx: AuthContext): boolean {
+        return this.authorization.canRead(stateId, ctx);
+    }
+
     /** Central authorization checkpoint reused by the states/commands/realtime endpoints. */
     resolveAuthorized(publicId: string, ctx: AuthContext, need: 'read' | 'write'): { stateId: string; permission: EffectivePermission } {
         const mapping = this.mappings.get(publicId);

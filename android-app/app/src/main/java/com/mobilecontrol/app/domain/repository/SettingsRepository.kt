@@ -18,6 +18,14 @@ interface SettingsRepository {
     fun observeThemeMode(): Flow<ThemeMode>
     suspend fun setThemeMode(mode: ThemeMode)
 
+    fun observePushNotificationsEnabled(): Flow<Boolean>
+    suspend fun setPushNotificationsEnabled(enabled: Boolean)
+
+    /** Watermark for AlarmMonitor's catch-up fetch (GET /alarm-events?since=) - 0 means "never
+     *  caught up before", so the very first run asks for everything the server still retains. */
+    suspend fun getLastAlarmCatchUpAt(): Long
+    suspend fun setLastAlarmCatchUpAt(epochMillis: Long)
+
     suspend fun setPinHash(hash: String)
     suspend fun getPinHash(): String?
     suspend fun hasPin(): Boolean

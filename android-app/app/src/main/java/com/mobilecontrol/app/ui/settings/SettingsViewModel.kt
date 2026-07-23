@@ -9,6 +9,7 @@ import com.mobilecontrol.app.domain.repository.AuthRepository
 import com.mobilecontrol.app.domain.repository.DiagnosticsRepository
 import com.mobilecontrol.app.domain.repository.LogEntry
 import com.mobilecontrol.app.domain.repository.SettingsRepository
+import com.mobilecontrol.app.push.PushServiceController
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -23,6 +24,7 @@ data class SettingsUiState(
     val appLockEnabled: Boolean = true,
     val biometricEnabled: Boolean = false,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    val pushNotificationsEnabled: Boolean = false,
     val logs: List<LogEntry> = emptyList(),
     val loggedOut: Boolean = false,
 )
@@ -40,6 +42,7 @@ class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val authRepository: AuthRepository,
     private val diagnosticsRepository: DiagnosticsRepository,
+    private val pushServiceController: PushServiceController,
 ) : ViewModel() {
 
     val appVersion: String = BuildConfig.VERSION_NAME
@@ -56,8 +59,17 @@ class SettingsViewModel @Inject constructor(
             BaseSettings(profile, lastConnection, appLock, biometric, logs)
         },
         settingsRepository.observeThemeMode(),
-    ) { base, themeMode ->
-        SettingsUiState(base.deviceProfile, base.lastConnectionAt, base.appLockEnabled, base.biometricEnabled, themeMode, base.logs)
+        settingsRepository.observePushNotificationsEnabled(),
+    ) { base, themeMode, pushEnabled ->
+        SettingsUiState(
+            base.deviceProfile,
+            base.lastConnectionAt,
+            base.appLockEnabled,
+            base.biometricEnabled,
+            themeMode,
+            pushEnabled,
+            base.logs,
+        )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
 
     fun setAppLockEnabled(enabled: Boolean) {
@@ -70,6 +82,11 @@ class SettingsViewModel @Inject constructor(
 
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch { settingsRepository.setThemeMode(mode) }
+    }
+
+    fun setPushNotificationsEnabled(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setPushNotificationsEnabled(enabled) }
+        if (enabled) pushServiceController.start() else pushServiceController.stop()
     }
 
     fun clearCache() {

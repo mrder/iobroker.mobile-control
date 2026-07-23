@@ -35,6 +35,14 @@ class SettingsRepositoryImpl @Inject constructor(
 
     override suspend fun setThemeMode(mode: ThemeMode) = settingsDataStore.setThemeMode(mode)
 
+    override fun observePushNotificationsEnabled(): Flow<Boolean> = settingsDataStore.observePushNotificationsEnabled()
+
+    override suspend fun setPushNotificationsEnabled(enabled: Boolean) = settingsDataStore.setPushNotificationsEnabled(enabled)
+
+    override suspend fun getLastAlarmCatchUpAt(): Long = settingsDataStore.getLastAlarmCatchUpAt()
+
+    override suspend fun setLastAlarmCatchUpAt(epochMillis: Long) = settingsDataStore.setLastAlarmCatchUpAt(epochMillis)
+
     override suspend fun setPinHash(hash: String) = tokenStore.savePinHash(hash)
 
     override suspend fun getPinHash(): String? = tokenStore.getPinHash()

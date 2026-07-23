@@ -17,6 +17,7 @@ tags:
   - name: auth
   - name: catalog
   - name: url-embeds
+  - name: alarm-events
   - name: commands
   - name: dashboards
 
@@ -403,6 +404,42 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorBody'
+        '401':
+          $ref: '#/components/responses/Error'
+
+  /alarm-events:
+    get:
+      tags: [alarm-events]
+      summary: Alarm transitions the caller missed while disconnected
+      description: |
+        Lets a client catch up on "alarm went active" events recorded while it was closed or
+        backgrounded (see src/alarms/index.ts) - RealtimeGateway only pushes live updates to a
+        connection for objects that connection explicitly subscribed to, so a client that wasn't
+        connected at the time never sees them otherwise. Only events for objects the caller is
+        authorized to read are returned (checked per event, not at collection time).
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: since
+          in: query
+          required: false
+          description: Epoch milliseconds - only events strictly after this are returned. Omitted/invalid defaults to 0 (everything retained).
+          schema: { type: number }
+      responses:
+        '200':
+          description: Alarm events since the given timestamp, oldest first
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  events:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        objectId: { type: string }
+                        value: { type: boolean }
+                        timestamp: { type: string, format: date-time }
         '401':
           $ref: '#/components/responses/Error'
 

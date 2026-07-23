@@ -123,6 +123,21 @@ export interface UrlEmbed {
     createdAt: number;
 }
 
+/**
+ * A persisted "alarm went active" transition for an ioBroker state whose role marks it as an
+ * alarm (same role.includes('alarm') convention CatalogService uses for suggestedWidgets).
+ * Collected regardless of whether any client currently has that object open (unlike
+ * RealtimeGateway's per-connection dynamic subscriptions), so a device that reconnects after
+ * being offline/backgrounded can catch up on what it missed via GET /alarm-events?since=. See
+ * src/alarms/index.ts. stateId is the real ioBroker id - authorization is checked at read time.
+ */
+export interface AlarmEvent {
+    id: string;
+    stateId: string;
+    value: boolean;
+    timestamp: number;
+}
+
 export interface PublicObjectMapping {
     /** the public UUID, used as CollectionStore id */
     id: string;

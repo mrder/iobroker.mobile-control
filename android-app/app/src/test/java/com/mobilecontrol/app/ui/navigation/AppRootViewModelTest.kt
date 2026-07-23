@@ -13,6 +13,7 @@ import com.mobilecontrol.app.domain.repository.DashboardRepository
 import com.mobilecontrol.app.domain.repository.SettingsRepository
 import com.mobilecontrol.app.domain.repository.StateRepository
 import com.mobilecontrol.app.domain.model.LiveValue
+import com.mobilecontrol.app.push.PushServiceController
 import com.mobilecontrol.app.ui.lock.AppLockManager
 import com.mobilecontrol.app.util.MainDispatcherRule
 import kotlinx.coroutines.flow.Flow
@@ -37,6 +38,7 @@ private fun testDashboard(id: String): Dashboard = Dashboard(
 private class FakeSettingsRepository : SettingsRepository {
     val deviceProfile = MutableStateFlow<DeviceProfile?>(null)
     val appLockEnabled = MutableStateFlow(true)
+    val pushNotificationsEnabled = MutableStateFlow(false)
     var pinHash: String? = null
 
     override fun observeDeviceProfile(): Flow<DeviceProfile?> = deviceProfile
@@ -60,6 +62,19 @@ private class FakeSettingsRepository : SettingsRepository {
 
     override fun observeThemeMode(): Flow<ThemeMode> = MutableStateFlow(ThemeMode.SYSTEM)
     override suspend fun setThemeMode(mode: ThemeMode) {}
+
+    override fun observePushNotificationsEnabled(): Flow<Boolean> = pushNotificationsEnabled
+    override suspend fun setPushNotificationsEnabled(enabled: Boolean) { pushNotificationsEnabled.value = enabled }
+
+    override suspend fun getLastAlarmCatchUpAt(): Long = 0L
+    override suspend fun setLastAlarmCatchUpAt(epochMillis: Long) {}
+}
+
+private class FakePushServiceController : PushServiceController {
+    var startCalls = 0
+    var stopCalls = 0
+    override fun start() { startCalls++ }
+    override fun stop() { stopCalls++ }
 }
 
 private class FakeAuthRepository : AuthRepository {
@@ -115,7 +130,8 @@ class AppRootViewModelTest {
         authRepo: FakeAuthRepository = FakeAuthRepository(),
         stateRepo: FakeStateRepository = FakeStateRepository(),
         dashboardRepo: FakeDashboardRepository = FakeDashboardRepository(),
-    ) = AppRootViewModel(settingsRepo, authRepo, stateRepo, dashboardRepo, AppLockManager(), RevocationNotifier())
+        pushServiceController: FakePushServiceController = FakePushServiceController(),
+    ) = AppRootViewModel(settingsRepo, authRepo, stateRepo, dashboardRepo, pushServiceController, AppLockManager(), RevocationNotifier())
 
     @Test
     fun `resolveStartDestination is ONBOARDING when no device is paired yet`() = runTest {
@@ -196,6 +212,29 @@ class AppRootViewModelTest {
 
         assertTrue(authRepo.revocationHandled)
         assertTrue(vm.appLockManager.isLocked.value)
+    }
+
+    @Test
+    fun `ensurePushServiceMatchesSetting starts the service when push notifications were previously enabled`() = runTest {
+        val settingsRepo = FakeSettingsRepository().apply { pushNotificationsEnabled.value = true }
+        val pushController = FakePushServiceController()
+        val vm = viewModel(settingsRepo = settingsRepo, pushServiceController = pushController)
+
+        vm.ensurePushServiceMatchesSetting()
+
+        assertEquals(1, pushController.startCalls)
+        assertEquals(0, pushController.stopCalls)
+    }
+
+    @Test
+    fun `ensurePushServiceMatchesSetting does nothing when push notifications are disabled`() = runTest {
+        val pushController = FakePushServiceController()
+        val vm = viewModel(pushServiceController = pushController) // default: disabled
+
+        vm.ensurePushServiceMatchesSetting()
+
+        assertEquals(0, pushController.startCalls)
+        assertEquals(0, pushController.stopCalls)
     }
 
     @Test

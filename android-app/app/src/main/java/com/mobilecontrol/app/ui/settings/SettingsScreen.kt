@@ -1,5 +1,10 @@
 package com.mobilecontrol.app.ui.settings
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -25,8 +30,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mobilecontrol.app.R
 import com.mobilecontrol.app.domain.model.ThemeMode
@@ -44,6 +51,21 @@ fun SettingsScreen(
     val state by viewModel.uiState.collectAsState()
     var showLogoutConfirm by remember { mutableStateOf(false) }
     var showLogs by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) viewModel.setPushNotificationsEnabled(true)
+    }
+    fun onTogglePushNotifications(requested: Boolean) {
+        val needsPermission = requested &&
+            Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        if (needsPermission) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            viewModel.setPushNotificationsEnabled(requested)
+        }
+    }
 
     Scaffold(topBar = { TopAppBar(title = { Text(stringResource(R.string.settings_title)) }) }) { padding ->
         LazyColumn(modifier = Modifier.padding(padding)) {
@@ -100,6 +122,16 @@ fun SettingsScreen(
                     selected = state.themeMode,
                     onSelect = viewModel::setThemeMode,
                     modifier = Modifier.padding(horizontal = 16.dp),
+                )
+            }
+            item { HorizontalDivider() }
+            item {
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.settings_push_notifications)) },
+                    supportingContent = { Text(stringResource(R.string.settings_push_notifications_description)) },
+                    trailingContent = {
+                        Switch(checked = state.pushNotificationsEnabled, onCheckedChange = ::onTogglePushNotifications)
+                    },
                 )
             }
             item { HorizontalDivider() }
