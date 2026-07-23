@@ -5,13 +5,20 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ExpandMore
@@ -213,7 +220,10 @@ private fun ObjectFolderRow(name: String, depth: Int, expanded: Boolean, onClick
 
 @Composable
 private fun ObjectListRow(item: ObjectCatalogItem, liveValue: Any?) {
+    var showDetail by remember { mutableStateOf(false) }
+
     ListItem(
+        modifier = Modifier.clickable { showDetail = true },
         headlineContent = { Text(item.name) },
         supportingContent = {
             Column {
@@ -231,8 +241,37 @@ private fun ObjectListRow(item: ObjectCatalogItem, liveValue: Any?) {
                 style = MaterialTheme.typography.bodyLarge,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+                // Second line of defense on top of the short preview length: hard-caps the
+                // width Compose is even allowed to consider, regardless of how dense/unbroken
+                // the (already-truncated) text is - this is what actually failed at 120 chars.
+                modifier = Modifier.widthIn(max = 90.dp),
             )
         },
+    )
+
+    if (showDetail) {
+        ValueDetailDialog(item = item, liveValue = liveValue, onDismiss = { showDetail = false })
+    }
+}
+
+/** Shows the full, untruncated value - safe here because a Dialog's content is measured against
+ *  the dialog's own already-bounded width from the start, unlike ListItem's trailing slot, which
+ *  needs an unconstrained *intrinsic* measurement to decide how much space to reserve for it. */
+@Composable
+private fun ValueDetailDialog(item: ObjectCatalogItem, liveValue: Any?, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(item.name) },
+        text = {
+            Column(modifier = Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState())) {
+                Text(item.path.joinToString(" / "), style = MaterialTheme.typography.bodySmall)
+                Spacer(modifier = Modifier.height(8.dp))
+                SelectionContainer {
+                    Text(formatLiveValueForDisplay(liveValue, item.unit, maxLength = Int.MAX_VALUE))
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_ok)) } },
     )
 }
 

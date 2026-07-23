@@ -8,6 +8,26 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.23] - master, Testbuild
+
+Die 120-Zeichen-Kürzung aus [0.0.22] hat den Absturz **reduziert, aber nicht behoben** - live
+bestätigt: Das Breiten-Defizit schrumpfte von -250 auf -90, nicht auf >= 0. Dichter Text wie JSON
+hat kaum Umbruchstellen, wodurch selbst ein "kurzer" 120-Zeichen-String noch eine große
+zusammenhängende intrinsische Breite haben kann - es gibt keine Zeichenanzahl, die für jeden
+denkbaren Wert sicher ist.
+
+Diesmal mit zwei unabhängigen Ebenen behoben (Vorschlag aus dem Livetest: kurze Vorschau + Tap
+für volle Länge im Popup):
+
+- Vorschau in der Liste jetzt deutlich kürzer (24 Zeichen, `MAX_VALUE_PREVIEW_LENGTH`)
+- **Zusätzlich** eine harte Breitenbegrenzung via `Modifier.widthIn(max = 90.dp)` direkt am
+  Vorschau-Text - begrenzt Composes intrinsische Messung strukturell, unabhängig davon wie dicht
+  der (bereits gekürzte) Text ist
+- Ein Tap auf einen Datenpunkt öffnet jetzt einen Dialog mit dem vollständigen, ungekürzten,
+  markierbaren Wert - dort unproblematisch, weil ein Dialog gegen eine bereits begrenzte Breite
+  misst statt eine unbeschränkte intrinsische Messung zu brauchen (das war die eigentliche
+  Ursache in `ListItem`s dreispaltigem Layout)
+
 ## [0.0.22] - master, Testbuild
 
 **Echter Absturz, live direkt nach [0.0.21] gefunden - die Einrückungs-Obergrenze war nicht die

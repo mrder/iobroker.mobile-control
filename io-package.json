@@ -1,8 +1,12 @@
 {
   "common": {
     "name": "mobile-control",
-    "version": "0.0.22",
+    "version": "0.0.23",
     "news": {
+      "0.0.23": {
+        "en": "The 120-char truncation from 0.0.22 reduced but did not fix the crash (confirmed live: width deficit shrank from -250 to -90, not to >= 0) - dense text like JSON has few word-break points, so even a 'short' string can have a large unbroken intrinsic width. Fixed properly this time with two layers: the list-row preview is now much shorter (24 chars) AND has an explicit hard width cap via Modifier.widthIn (bounds Compose's intrinsic measurement regardless of content density, not just character count). Tapping a datapoint now opens a dialog with the full, untruncated, selectable value - safe there since dialogs measure against an already-bounded width instead of needing unconstrained intrinsic measurement.",
+        "de": "Die 120-Zeichen-Kürzung aus 0.0.22 hat den Absturz reduziert, aber nicht behoben (live bestätigt: Breiten-Defizit schrumpfte von -250 auf -90, nicht auf >= 0) - dichter Text wie JSON hat kaum Umbruchstellen, wodurch selbst ein „kurzer” String eine große zusammenhängende intrinsische Breite haben kann. Diesmal richtig behoben, mit zwei Ebenen: Die Vorschau in der Liste ist jetzt deutlich kürzer (24 Zeichen) UND hat eine explizite harte Breitenbegrenzung via Modifier.widthIn (begrenzt Composes intrinsische Messung unabhängig von der Textdichte, nicht nur der Zeichenanzahl). Ein Tap auf einen Datenpunkt öffnet jetzt einen Dialog mit dem vollständigen, ungekürzten, markierbaren Wert - dort sicher, weil Dialoge gegen eine bereits begrenzte Breite messen statt eine unbeschränkte intrinsische Messung zu benötigen."
+      },
       "0.0.22": {
         "en": "Fixed a real crash found live right after 0.0.21 (indentation cap wasn't the actual cause): opening a JSON-type datapoint (e.g. an event log) crashed with the exact same \"maxWidth must be >= minWidth\" error. Root cause: the object list row rendered the live value directly and unbounded in ListItem's trailing text - for a multi-KB value, Compose's intrinsic (unconstrained) width measurement of that single unbroken string produced a negative remaining width for the rest of the row. The displayed value is now hard-truncated to 120 characters before it ever reaches Compose, not just visually ellipsized (which would still require measuring the full string first).",
         "de": "Echten, direkt nach 0.0.21 live gefundenen Absturz behoben (die Einrückungs-Obergrenze war nicht die eigentliche Ursache): Das Öffnen eines JSON-Datenpunkts (z.B. eines Ereignisprotokolls) stürzte mit demselben \"maxWidth must be >= minWidth\"-Fehler ab. Ursache: Die Objektlistenzeile hat den Live-Wert direkt und unbegrenzt im ListItem-Trailing-Text dargestellt - bei einem mehrere KB großen Wert erzeugte Composes intrinsische (unbeschränkte) Breitenmessung dieses einen zusammenhängenden Strings eine negative verbleibende Breite für den Rest der Zeile. Der angezeigte Wert wird jetzt vor der Anzeige hart auf 120 Zeichen gekürzt, nicht nur visuell mit Auslassungspunkten (das würde weiterhin erfordern, zuerst den vollständigen String zu vermessen)."
@@ -78,10 +82,6 @@
       "0.0.4": {
         "en": "Temporary diagnostic logging to track down why the EADDRINUSE handling isn't taking effect on a real install; also fixes a real bug this surfaced: the onReady() event handler no longer awaited its own promise correctly",
         "de": "Temporäres Diagnose-Logging, um herauszufinden warum die EADDRINUSE-Behandlung bei einer echten Installation nicht greift; deckte dabei einen echten Bug auf: der onReady()-Event-Handler wartete nicht mehr korrekt auf sein eigenes Promise"
-      },
-      "0.0.3": {
-        "en": "Fixed a real bug: package.json's \"files\" list excluded src/ and the tsconfigs, so any rebuild inside an already-installed package directory failed with a missing tsconfig.build.json",
-        "de": "Echten Bug behoben: \"files\"-Liste in package.json schloss src/ und die tsconfigs aus, wodurch ein Neu-Build innerhalb eines bereits installierten Adapter-Verzeichnisses mit fehlender tsconfig.build.json fehlschlug"
       }
     },
     "title": "Mobile Control",
