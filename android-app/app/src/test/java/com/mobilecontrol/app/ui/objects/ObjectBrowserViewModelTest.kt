@@ -1,8 +1,10 @@
 package com.mobilecontrol.app.ui.objects
 
+import com.mobilecontrol.app.domain.model.CommandStatus
 import com.mobilecontrol.app.domain.model.LiveValue
 import com.mobilecontrol.app.domain.model.ObjectCatalogItem
 import com.mobilecontrol.app.domain.model.ValueType
+import com.mobilecontrol.app.domain.repository.CommandRepository
 import com.mobilecontrol.app.domain.repository.ConnectionState
 import com.mobilecontrol.app.domain.repository.ObjectCatalogRepository
 import com.mobilecontrol.app.domain.repository.StateRepository
@@ -67,6 +69,17 @@ private class FakeStateRepository : StateRepository {
     override fun disconnect() {}
 }
 
+private class FakeCommandRepository : CommandRepository {
+    override val commandStates: StateFlow<Map<String, CommandStatus>> = MutableStateFlow(emptyMap())
+    data class SentCommand(val objectId: String, val value: Any?, val confirmed: Boolean)
+    val sentCommands = mutableListOf<SentCommand>()
+
+    override suspend fun sendCommand(objectId: String, value: Any?, confirmed: Boolean): Result<String> {
+        sentCommands.add(SentCommand(objectId, value, confirmed))
+        return Result.success("cmd-1")
+    }
+}
+
 class ObjectBrowserViewModelTest {
 
     @get:Rule
@@ -78,7 +91,7 @@ class ObjectBrowserViewModelTest {
     @Test
     fun `init triggers a catalog refresh and toggles isRefreshing back off`() = runTest {
         val catalogRepo = FakeObjectCatalogRepository(listOf(livingRoomLamp))
-        val viewModel = ObjectBrowserViewModel(catalogRepo, FakeStateRepository())
+        val viewModel = ObjectBrowserViewModel(catalogRepo, FakeStateRepository(), FakeCommandRepository())
         advanceUntilIdle()
 
         assertEquals(1, catalogRepo.refreshCalls)
@@ -91,7 +104,7 @@ class ObjectBrowserViewModelTest {
     @Test
     fun `filteredObjects narrows by search query across name and path`() = runTest {
         val catalogRepo = FakeObjectCatalogRepository(listOf(livingRoomLamp, kitchenSensor))
-        val viewModel = ObjectBrowserViewModel(catalogRepo, FakeStateRepository())
+        val viewModel = ObjectBrowserViewModel(catalogRepo, FakeStateRepository(), FakeCommandRepository())
         val collector = launch { viewModel.uiState.collect {} }
         advanceUntilIdle()
 
@@ -104,7 +117,7 @@ class ObjectBrowserViewModelTest {
     @Test
     fun `filteredObjects narrows by room and role filters combined`() = runTest {
         val catalogRepo = FakeObjectCatalogRepository(listOf(livingRoomLamp, kitchenSensor))
-        val viewModel = ObjectBrowserViewModel(catalogRepo, FakeStateRepository())
+        val viewModel = ObjectBrowserViewModel(catalogRepo, FakeStateRepository(), FakeCommandRepository())
         val collector = launch { viewModel.uiState.collect {} }
         advanceUntilIdle()
 
@@ -118,7 +131,7 @@ class ObjectBrowserViewModelTest {
     @Test
     fun `writableOnly filter excludes read-only objects`() = runTest {
         val catalogRepo = FakeObjectCatalogRepository(listOf(livingRoomLamp, kitchenSensor))
-        val viewModel = ObjectBrowserViewModel(catalogRepo, FakeStateRepository())
+        val viewModel = ObjectBrowserViewModel(catalogRepo, FakeStateRepository(), FakeCommandRepository())
         val collector = launch { viewModel.uiState.collect {} }
         advanceUntilIdle()
 
@@ -131,7 +144,7 @@ class ObjectBrowserViewModelTest {
     @Test
     fun `rooms and roles are derived, distinct and sorted from the full catalog regardless of active filters`() = runTest {
         val catalogRepo = FakeObjectCatalogRepository(listOf(livingRoomLamp, kitchenSensor))
-        val viewModel = ObjectBrowserViewModel(catalogRepo, FakeStateRepository())
+        val viewModel = ObjectBrowserViewModel(catalogRepo, FakeStateRepository(), FakeCommandRepository())
         val collector = launch { viewModel.uiState.collect {} }
         advanceUntilIdle()
 
@@ -145,7 +158,7 @@ class ObjectBrowserViewModelTest {
     @Test
     fun `hasActiveFilter is false unfiltered and true as soon as any single filter is set`() = runTest {
         val catalogRepo = FakeObjectCatalogRepository(listOf(livingRoomLamp, kitchenSensor))
-        val viewModel = ObjectBrowserViewModel(catalogRepo, FakeStateRepository())
+        val viewModel = ObjectBrowserViewModel(catalogRepo, FakeStateRepository(), FakeCommandRepository())
         val collector = launch { viewModel.uiState.collect {} }
         advanceUntilIdle()
 
@@ -162,7 +175,7 @@ class ObjectBrowserViewModelTest {
     @Test
     fun `tree groups the unfiltered catalog by room regardless of active filters`() = runTest {
         val catalogRepo = FakeObjectCatalogRepository(listOf(livingRoomLamp, kitchenSensor))
-        val viewModel = ObjectBrowserViewModel(catalogRepo, FakeStateRepository())
+        val viewModel = ObjectBrowserViewModel(catalogRepo, FakeStateRepository(), FakeCommandRepository())
         val collector = launch { viewModel.uiState.collect {} }
         advanceUntilIdle()
 
@@ -176,7 +189,7 @@ class ObjectBrowserViewModelTest {
     @Test
     fun `subscribeVisible subscribes and fetches initial states for exactly the given ids`() = runTest {
         val stateRepo = FakeStateRepository()
-        val viewModel = ObjectBrowserViewModel(FakeObjectCatalogRepository(emptyList()), stateRepo)
+        val viewModel = ObjectBrowserViewModel(FakeObjectCatalogRepository(emptyList()), stateRepo, FakeCommandRepository())
 
         viewModel.subscribeVisible(setOf("lamp", "sensor"))
         advanceUntilIdle()
@@ -187,10 +200,21 @@ class ObjectBrowserViewModelTest {
     @Test
     fun `unsubscribeVisible forwards the id set to the repository`() {
         val stateRepo = FakeStateRepository()
-        val viewModel = ObjectBrowserViewModel(FakeObjectCatalogRepository(emptyList()), stateRepo)
+        val viewModel = ObjectBrowserViewModel(FakeObjectCatalogRepository(emptyList()), stateRepo, FakeCommandRepository())
 
         viewModel.unsubscribeVisible(setOf("lamp"))
 
         assertEquals(listOf(setOf("lamp")), stateRepo.unsubscribedBatches)
+    }
+
+    @Test
+    fun `sendCommand forwards the object id, value and confirmed flag to the command repository`() = runTest {
+        val commandRepo = FakeCommandRepository()
+        val viewModel = ObjectBrowserViewModel(FakeObjectCatalogRepository(emptyList()), FakeStateRepository(), commandRepo)
+
+        viewModel.sendCommand("lamp", true, confirmed = false)
+        advanceUntilIdle()
+
+        assertEquals(listOf(FakeCommandRepository.SentCommand("lamp", true, false)), commandRepo.sentCommands)
     }
 }

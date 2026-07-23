@@ -6,6 +6,7 @@ import com.mobilecontrol.app.domain.model.LiveValue
 import com.mobilecontrol.app.domain.model.ObjectCatalogItem
 import com.mobilecontrol.app.domain.model.ObjectTreeNode
 import com.mobilecontrol.app.domain.model.buildObjectTree
+import com.mobilecontrol.app.domain.repository.CommandRepository
 import com.mobilecontrol.app.domain.repository.ConnectionState
 import com.mobilecontrol.app.domain.repository.ObjectCatalogRepository
 import com.mobilecontrol.app.domain.repository.StateRepository
@@ -53,6 +54,7 @@ data class ObjectBrowserUiState(
 class ObjectBrowserViewModel @Inject constructor(
     private val catalogRepository: ObjectCatalogRepository,
     private val stateRepository: StateRepository,
+    private val commandRepository: CommandRepository,
 ) : ViewModel() {
 
     private val filters = MutableStateFlow(ObjectBrowserUiState())
@@ -90,5 +92,13 @@ class ObjectBrowserViewModel @Inject constructor(
 
     fun unsubscribeVisible(objectIds: Set<String>) {
         stateRepository.unsubscribe(objectIds)
+    }
+
+    /** Fire-and-forget from the UI's perspective - the live value flowing back through the
+     *  existing subscription (already active for every visible row) is what actually confirms
+     *  the change, same as a dashboard widget. `confirmed` should be false only for policy NONE,
+     *  matching WidgetHost's convention (see ConfirmationGate.kt). */
+    fun sendCommand(objectId: String, value: Any?, confirmed: Boolean) {
+        viewModelScope.launch { commandRepository.sendCommand(objectId, value, confirmed) }
     }
 }

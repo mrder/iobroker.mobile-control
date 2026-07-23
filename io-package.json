@@ -1,8 +1,12 @@
 {
   "common": {
     "name": "mobile-control",
-    "version": "0.0.23",
+    "version": "0.0.24",
     "news": {
+      "0.0.24": {
+        "en": "Two feature requests from live testing: (1) the object catalog now lets you control writable objects directly - a boolean with write access gets an inline switch, and tapping any writable object opens a dialog to send a new value (numbers/text) or toggle it (booleans), going through the same confirmation-policy gate as dashboard widgets. (2) Added a real 'json' value type end to end (backend catalog mapping + Android), instead of collapsing it into the generic 'mixed' bucket - a first step toward filtering the dashboard widget picker by value type. (3) Camera snapshots are now cached for a few seconds and, if a live fetch fails, the last known-good snapshot is served instead of an error - the app should no longer flash a broken image for a momentary camera hiccup.",
+        "de": "Zwei Feature-Wünsche aus dem Livetest: (1) Der Objektkatalog erlaubt jetzt direkte Steuerung schreibbarer Objekte - ein Bool mit Schreibrecht bekommt einen Schalter direkt in der Zeile, ein Tap auf ein beliebiges schreibbares Objekt öffnet einen Dialog zum Senden eines neuen Werts (Zahlen/Text) oder Umschalten (Bool), über dieselbe Bestätigungs-Policy wie Dashboard-Widgets. (2) Echter 'json'-Werttyp durchgängig ergänzt (Backend-Katalog-Mapping + Android), statt in den generischen 'mixed'-Topf zu fallen - ein erster Schritt Richtung Filterung des Dashboard-Widget-Pickers nach Werttyp. (3) Kamera-Schnappschüsse werden jetzt einige Sekunden gecacht, und wenn ein frischer Abruf fehlschlägt, wird der letzte bekannt gute Schnappschuss ausgeliefert statt eines Fehlers - die App sollte bei einem kurzen Kamera-Aussetzer kein kaputtes Bild mehr zeigen."
+      },
       "0.0.23": {
         "en": "The 120-char truncation from 0.0.22 reduced but did not fix the crash (confirmed live: width deficit shrank from -250 to -90, not to >= 0) - dense text like JSON has few word-break points, so even a 'short' string can have a large unbroken intrinsic width. Fixed properly this time with two layers: the list-row preview is now much shorter (24 chars) AND has an explicit hard width cap via Modifier.widthIn (bounds Compose's intrinsic measurement regardless of content density, not just character count). Tapping a datapoint now opens a dialog with the full, untruncated, selectable value - safe there since dialogs measure against an already-bounded width instead of needing unconstrained intrinsic measurement.",
         "de": "Die 120-Zeichen-Kürzung aus 0.0.22 hat den Absturz reduziert, aber nicht behoben (live bestätigt: Breiten-Defizit schrumpfte von -250 auf -90, nicht auf >= 0) - dichter Text wie JSON hat kaum Umbruchstellen, wodurch selbst ein „kurzer” String eine große zusammenhängende intrinsische Breite haben kann. Diesmal richtig behoben, mit zwei Ebenen: Die Vorschau in der Liste ist jetzt deutlich kürzer (24 Zeichen) UND hat eine explizite harte Breitenbegrenzung via Modifier.widthIn (begrenzt Composes intrinsische Messung unabhängig von der Textdichte, nicht nur der Zeichenanzahl). Ein Tap auf einen Datenpunkt öffnet jetzt einen Dialog mit dem vollständigen, ungekürzten, markierbaren Wert - dort sicher, weil Dialoge gegen eine bereits begrenzte Breite messen statt eine unbeschränkte intrinsische Messung zu benötigen."
@@ -78,10 +82,6 @@
       "0.0.5": {
         "en": "More granular temporary diagnostic checkpoints throughout onReady()/startHttpServer() to pin down exactly where the EADDRINUSE handling is bypassed",
         "de": "Feingranularere temporäre Diagnose-Kontrollpunkte in onReady()/startHttpServer(), um genau einzugrenzen wo die EADDRINUSE-Behandlung umgangen wird"
-      },
-      "0.0.4": {
-        "en": "Temporary diagnostic logging to track down why the EADDRINUSE handling isn't taking effect on a real install; also fixes a real bug this surfaced: the onReady() event handler no longer awaited its own promise correctly",
-        "de": "Temporäres Diagnose-Logging, um herauszufinden warum die EADDRINUSE-Behandlung bei einer echten Installation nicht greift; deckte dabei einen echten Bug auf: der onReady()-Event-Handler wartete nicht mehr korrekt auf sein eigenes Promise"
       }
     },
     "title": "Mobile Control",

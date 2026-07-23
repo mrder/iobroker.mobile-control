@@ -15,7 +15,7 @@ function hashString(input: string): number {
 }
 
 function mapValueType(type: string): CatalogObject['valueType'] {
-    return type === 'number' || type === 'string' || type === 'boolean' ? type : 'mixed';
+    return type === 'number' || type === 'string' || type === 'boolean' || type === 'json' ? type : 'mixed';
 }
 
 function suggestWidgets(role: string, valueType: CatalogObject['valueType']): string[] {

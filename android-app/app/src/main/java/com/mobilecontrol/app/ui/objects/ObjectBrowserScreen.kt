@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
@@ -38,6 +39,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -59,8 +61,10 @@ import com.mobilecontrol.app.R
 import com.mobilecontrol.app.domain.model.LiveValue
 import com.mobilecontrol.app.domain.model.ObjectCatalogItem
 import com.mobilecontrol.app.domain.model.ObjectTreeNode
+import com.mobilecontrol.app.domain.model.ValueType
 import com.mobilecontrol.app.domain.model.formatLiveValueForDisplay
 import com.mobilecontrol.app.domain.model.visibleLeafIds
+import com.mobilecontrol.app.ui.widgets.rememberConfirmationGate
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -143,7 +147,7 @@ fun ObjectBrowserScreen(viewModel: ObjectBrowserViewModel = hiltViewModel()) {
                 } else {
                     LazyColumn {
                         items(state.filteredObjects, key = { it.id }) { item ->
-                            ObjectListRow(item = item, liveValue = state.liveValues[item.id]?.value)
+                            ObjectListRow(item = item, liveValue = state.liveValues[item.id]?.value, onSendCommand = viewModel::sendCommand)
                         }
                     }
                 }
@@ -157,6 +161,7 @@ fun ObjectBrowserScreen(viewModel: ObjectBrowserViewModel = hiltViewModel()) {
                             expandedFolders = if (id in expandedFolders) expandedFolders - id else expandedFolders + id
                         },
                         liveValues = state.liveValues,
+                        onSendCommand = viewModel::sendCommand,
                     )
                 }
             }
@@ -182,6 +187,7 @@ private fun LazyListScope.objectTreeItems(
     expanded: Set<String>,
     onToggle: (String) -> Unit,
     liveValues: Map<String, LiveValue>,
+    onSendCommand: (objectId: String, value: Any?, confirmed: Boolean) -> Unit,
 ) {
     for (folder in node.children) {
         val isOpen = folder.id in expanded
@@ -189,12 +195,12 @@ private fun LazyListScope.objectTreeItems(
             ObjectFolderRow(name = folder.name, depth = depth, expanded = isOpen, onClick = { onToggle(folder.id) })
         }
         if (isOpen) {
-            objectTreeItems(folder, depth + 1, expanded, onToggle, liveValues)
+            objectTreeItems(folder, depth + 1, expanded, onToggle, liveValues, onSendCommand)
         }
     }
     items(node.items, key = { "item:${it.id}" }) { catalogItem ->
         Box(modifier = Modifier.padding(start = indentFor(depth))) {
-            ObjectListRow(item = catalogItem, liveValue = liveValues[catalogItem.id]?.value)
+            ObjectListRow(item = catalogItem, liveValue = liveValues[catalogItem.id]?.value, onSendCommand = onSendCommand)
         }
     }
 }
@@ -219,8 +225,17 @@ private fun ObjectFolderRow(name: String, depth: Int, expanded: Boolean, onClick
 }
 
 @Composable
-private fun ObjectListRow(item: ObjectCatalogItem, liveValue: Any?) {
+private fun ObjectListRow(item: ObjectCatalogItem, liveValue: Any?, onSendCommand: (objectId: String, value: Any?, confirmed: Boolean) -> Unit) {
     var showDetail by remember { mutableStateOf(false) }
+
+    // Same policy handling as WidgetHost/dashboard widgets (see ConfirmationGate.kt):
+    // BLOCKED_ON_MOBILE disables the control entirely rather than going through the gate.
+    val blockedOnMobile = item.confirmPolicy == "BLOCKED_ON_MOBILE"
+    val writable = item.canWrite && !blockedOnMobile
+    val gate = rememberConfirmationGate()
+    fun sendGated(value: Any?) {
+        gate.request(item.confirmPolicy) { onSendCommand(item.id, value, item.confirmPolicy != "NONE") }
+    }
 
     ListItem(
         modifier = Modifier.clickable { showDetail = true },
@@ -236,29 +251,53 @@ private fun ObjectListRow(item: ObjectCatalogItem, liveValue: Any?) {
             }
         },
         trailingContent = {
-            Text(
-                text = formatLiveValueForDisplay(liveValue, item.unit),
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                // Second line of defense on top of the short preview length: hard-caps the
-                // width Compose is even allowed to consider, regardless of how dense/unbroken
-                // the (already-truncated) text is - this is what actually failed at 120 chars.
-                modifier = Modifier.widthIn(max = 90.dp),
-            )
+            // Booleans with write access get a direct inline switch - "können wir da im Zweifel
+            // auch direkt schalten" - everything else keeps the compact value preview and relies
+            // on the tap-to-open detail dialog below for editing.
+            if (writable && item.valueType == ValueType.BOOLEAN) {
+                Switch(checked = (liveValue as? Boolean) ?: false, onCheckedChange = { sendGated(it) })
+            } else {
+                Text(
+                    text = formatLiveValueForDisplay(liveValue, item.unit),
+                    style = MaterialTheme.typography.bodyLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    // Second line of defense on top of the short preview length: hard-caps the
+                    // width Compose is even allowed to consider, regardless of how dense/unbroken
+                    // the (already-truncated) text is - this is what actually failed at 120 chars.
+                    modifier = Modifier.widthIn(max = 90.dp),
+                )
+            }
         },
     )
 
     if (showDetail) {
-        ValueDetailDialog(item = item, liveValue = liveValue, onDismiss = { showDetail = false })
+        ValueDetailDialog(
+            item = item,
+            liveValue = liveValue,
+            writable = writable,
+            onSend = { value -> sendGated(value) },
+            onDismiss = { showDetail = false },
+        )
     }
 }
 
 /** Shows the full, untruncated value - safe here because a Dialog's content is measured against
  *  the dialog's own already-bounded width from the start, unlike ListItem's trailing slot, which
- *  needs an unconstrained *intrinsic* measurement to decide how much space to reserve for it. */
+ *  needs an unconstrained *intrinsic* measurement to decide how much space to reserve for it.
+ *  Doubles as the write UI for non-boolean writable objects (a Switch already covers boolean
+ *  inline in the row itself, but is repeated here too for a consistent detail view). */
 @Composable
-private fun ValueDetailDialog(item: ObjectCatalogItem, liveValue: Any?, onDismiss: () -> Unit) {
+private fun ValueDetailDialog(
+    item: ObjectCatalogItem,
+    liveValue: Any?,
+    writable: Boolean,
+    onSend: (Any?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var editValue by remember(item.id) { mutableStateOf(liveValue?.toString().orEmpty()) }
+    val editable = writable && (item.valueType == ValueType.NUMBER || item.valueType == ValueType.STRING)
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(item.name) },
@@ -266,12 +305,49 @@ private fun ValueDetailDialog(item: ObjectCatalogItem, liveValue: Any?, onDismis
             Column(modifier = Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState())) {
                 Text(item.path.joinToString(" / "), style = MaterialTheme.typography.bodySmall)
                 Spacer(modifier = Modifier.height(8.dp))
-                SelectionContainer {
-                    Text(formatLiveValueForDisplay(liveValue, item.unit, maxLength = Int.MAX_VALUE))
+                when {
+                    writable && item.valueType == ValueType.BOOLEAN -> {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(stringResource(R.string.objects_value_label))
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Switch(checked = (liveValue as? Boolean) ?: false, onCheckedChange = onSend)
+                        }
+                    }
+                    editable -> {
+                        OutlinedTextField(
+                            value = editValue,
+                            onValueChange = { editValue = it },
+                            label = { Text(stringResource(R.string.objects_value_label)) },
+                            singleLine = item.valueType == ValueType.NUMBER,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                    else -> {
+                        SelectionContainer {
+                            Text(formatLiveValueForDisplay(liveValue, item.unit, maxLength = Int.MAX_VALUE))
+                        }
+                    }
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_ok)) } },
+        confirmButton = {
+            if (editable) {
+                TextButton(onClick = {
+                    val parsed: Any? = if (item.valueType == ValueType.NUMBER) editValue.toDoubleOrNull() else editValue
+                    if (parsed != null) {
+                        onSend(parsed)
+                        onDismiss()
+                    }
+                }) { Text(stringResource(R.string.objects_send_value)) }
+            } else {
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_ok)) }
+            }
+        },
+        dismissButton = if (editable) {
+            { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) } }
+        } else {
+            null
+        },
     )
 }
 

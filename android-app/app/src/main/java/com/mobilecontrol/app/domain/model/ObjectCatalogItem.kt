@@ -33,5 +33,6 @@ enum class ValueType {
     BOOLEAN,
     NUMBER,
     STRING,
+    JSON,
     UNKNOWN,
 }

@@ -132,7 +132,7 @@ export interface CatalogObject {
     name: string;
     path: string[];
     role: string;
-    valueType: 'number' | 'string' | 'boolean' | 'mixed';
+    valueType: 'number' | 'string' | 'boolean' | 'json' | 'mixed';
     unit: string | null;
     read: boolean;
     write: boolean;

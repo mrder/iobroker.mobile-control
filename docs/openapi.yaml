@@ -555,7 +555,7 @@ components:
           type: array
           items: { type: string }
         role: { type: string }
-        valueType: { type: string, enum: [number, string, boolean, mixed] }
+        valueType: { type: string, enum: [number, string, boolean, json, mixed] }
         unit: { type: string, nullable: true }
         read: { type: boolean }
         write: { type: boolean }

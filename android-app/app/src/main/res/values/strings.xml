@@ -57,6 +57,8 @@
     <string name="objects_filter_title">Filter</string>
     <string name="objects_filter_reset">Zurücksetzen</string>
     <string name="objects_empty">Keine Objekte gefunden.</string>
+    <string name="objects_value_label">Wert</string>
+    <string name="objects_send_value">Senden</string>
 
     <!-- Settings -->
     <string name="settings_title">Einstellungen</string>

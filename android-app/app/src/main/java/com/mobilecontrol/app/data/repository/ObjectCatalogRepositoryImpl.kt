@@ -57,6 +57,7 @@ private fun CatalogObjectEntity.toDomain() = ObjectCatalogItem(
         "boolean", "bool" -> ValueType.BOOLEAN
         "number" -> ValueType.NUMBER
         "string" -> ValueType.STRING
+        "json" -> ValueType.JSON
         else -> ValueType.UNKNOWN
     },
     unit = unit,

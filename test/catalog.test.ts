@@ -10,6 +10,7 @@ import { createFakeAdapter } from './helpers/fakeAdapter';
 const STATE_ID = 'zigbee.0.living_room.temperature';
 const SMOKE_ALARM_STATE_ID = 'zigbee.0.kitchen.smoke_alarm';
 const CAMERA_STATE_ID = 'camera.0.front_door.data';
+const EVENTS_JSON_STATE_ID = 'growmanager.0.alarms.events_json';
 const CTX = { userId: 'u1', deviceId: 'd1', roleId: 'viewer' };
 
 async function setup() {
@@ -33,6 +34,11 @@ async function setup() {
             [CAMERA_STATE_ID]: {
                 type: 'state',
                 common: { name: 'Haustür Kamera', role: 'camera', type: 'string' },
+                native: {},
+            },
+            [EVENTS_JSON_STATE_ID]: {
+                type: 'state',
+                common: { name: 'Events JSON', role: 'json', type: 'json' },
                 native: {},
             },
         }),
@@ -130,6 +136,16 @@ describe('CatalogService', () => {
         const smokeAlarm = objects.find((o) => o.name === 'Rauchmelder Küche');
         assert.ok(smokeAlarm);
         assert.deepEqual(smokeAlarm!.suggestedWidgets, ['alarm', 'status']);
+    });
+
+    it('maps a "json" typed state to its own valueType, not the generic "mixed" bucket', async () => {
+        const { exposureStore, catalog } = await setup();
+        await exposureStore.put(baseRule({ target: EVENTS_JSON_STATE_ID, roleId: 'viewer', read: true }));
+
+        const { objects } = await catalog.effectiveCatalog(CTX);
+        const eventsJson = objects.find((o) => o.name === 'Events JSON');
+        assert.ok(eventsJson);
+        assert.equal(eventsJson!.valueType, 'json');
     });
 
     it('suggests the camera widget for a camera role', async () => {

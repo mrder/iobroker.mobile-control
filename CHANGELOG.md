@@ -8,6 +8,27 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.24] - master, Testbuild
+
+Drei Punkte aus Live-Feedback:
+
+1. **Direkte Steuerung im Objektkatalog**: Ein Bool mit Schreibrecht bekommt jetzt einen Schalter
+   direkt in der Listenzeile ("können wir da im Zweifel auch direkt schalten"). Ein Tap auf ein
+   beliebiges schreibbares Objekt öffnet einen Dialog zum Senden eines neuen Werts (Zahlen/Text)
+   oder Umschalten (Bool) - über dieselbe `ConfirmationGate`-Logik wie Dashboard-Widgets
+   (`BLOCKED_ON_MOBILE` deaktiviert die Steuerung komplett, andere Policies zeigen wie gewohnt
+   einen Bestätigungsdialog/Biometrie).
+2. **Echter `json`-Werttyp**: Bisher fiel ein ioBroker-State mit `common.type: "json"` in den
+   generischen `mixed`-Topf. Jetzt ein eigener Wert end-to-end (Backend-`mapValueType` +
+   Android-`ValueType`) - Grundlage für eine spätere Filterung des Dashboard-Widget-Pickers nach
+   Werttyp.
+3. **Kamera-Snapshot-Caching + Fallback**: `CameraService` cacht jetzt den letzten erfolgreich
+   abgerufenen Schnappschuss für ein paar Sekunden (weniger Last auf der Kamera-Quelle bei
+   häufigem Dashboard-Refresh) und liefert bei einem fehlgeschlagenen frischen Abruf den letzten
+   bekannt guten Schnappschuss statt eines Fehlers - kein kaputtes Bild mehr bei einem kurzen
+   Aussetzer. Echte Bildinhaltsanalyse ("ist das Bild schwarz/weiß") ist weiterhin nicht enthalten,
+   das würde eine echte Bildverarbeitung brauchen.
+
 ## [0.0.23] - master, Testbuild
 
 Die 120-Zeichen-Kürzung aus [0.0.22] hat den Absturz **reduziert, aber nicht behoben** - live
