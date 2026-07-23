@@ -23,7 +23,7 @@ data class DashboardLayout(
 )
 
 enum class SizeClass(val wireName: String, val defaultColumns: Int) {
-    COMPACT("compact", 4),
+    COMPACT("compact", 8),
     MEDIUM("medium", 8),
     EXPANDED("expanded", 12),
     ;

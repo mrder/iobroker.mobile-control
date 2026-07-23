@@ -51,6 +51,13 @@
     <string name="dashboard_editor_pick_different_embed">Andere Einbettung wählen</string>
     <string name="dashboard_editor_url_embed_label">URL-Einbettung</string>
     <string name="dashboard_editor_no_url_embeds">Keine URL-Einbettungen konfiguriert. In der Admin-Oberfläche unter „URL-Einbettungen" anlegen.</string>
+    <string name="dashboard_editor_edit_widget">Widget bearbeiten</string>
+    <string name="dashboard_editor_unit_label">Einheit</string>
+    <string name="dashboard_editor_width_label">Breite</string>
+    <string name="dashboard_editor_height_label">Höhe</string>
+    <string name="dashboard_editor_add_label">Überschrift</string>
+    <string name="dashboard_editor_label_title_hint">Beschriftung</string>
+    <string name="dashboard_editor_pick_different_source">Andere Quelle wählen</string>
 
     <!-- Object browser -->
     <string name="objects_title">Objektkatalog</string>

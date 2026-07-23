@@ -168,7 +168,7 @@ class DashboardEditorViewModelTest {
         assertEquals(2, layout.widgets.size)
         val added = layout.widgets.first { it.id != "existing" }
         assertEquals("obj-new", added.objectId)
-        assertEquals(2 to 0, added.x to added.y) // first free slot to the right of "existing" in a 4-column layout
+        assertEquals(2 to 0, added.x to added.y) // first free slot to the right of "existing"
         assertFalse(viewModel.uiState.value.showAddWidgetDialog)
         assertTrue(stateRepo.subscribedBatches.any { it == setOf("obj-new") })
     }
@@ -214,6 +214,62 @@ class DashboardEditorViewModelTest {
         viewModel.moveWidgetTo("a", newX = 1, newY = 1) // free cell -> accepted
         val moved = viewModel.uiState.value.currentLayout!!.widgets.first { it.id == "a" }
         assertEquals(1 to 1, moved.x to moved.y)
+    }
+
+    @Test
+    fun `init widens a dashboard still stuck on the old 4-column layout to the new minimum`() = runTest {
+        val narrowLayout = DashboardLayout(SizeClass.COMPACT, columns = 4, widgets = listOf(widget("w1")))
+        val dashboard = Dashboard(id = "dash-1", name = "Alt", revision = 0, layouts = listOf(narrowLayout))
+        val viewModel = buildViewModel(dashboard)
+        collectUiState(viewModel)
+        advanceUntilIdle()
+
+        assertEquals(8, viewModel.uiState.value.currentLayout!!.columns)
+    }
+
+    @Test
+    fun `updateWidget sets title, unit and size together`() = runTest {
+        val dashboard = testDashboard(widgets = listOf(widget("w1", w = 2, h = 1)))
+        val viewModel = buildViewModel(dashboard)
+        collectUiState(viewModel)
+        advanceUntilIdle()
+
+        viewModel.updateWidget("w1", title = "Wohnzimmer", unit = "°C", w = 5, h = 3)
+
+        val updated = viewModel.uiState.value.currentLayout!!.widgets.single()
+        assertEquals("Wohnzimmer", updated.title)
+        assertEquals("°C", updated.config["unit"])
+        assertEquals(5, updated.w)
+        assertEquals(3, updated.h)
+    }
+
+    @Test
+    fun `updateWidget with a blank unit clears a previously set one, and a blank title keeps the old one`() = runTest {
+        val existing = widget("w1").copy(title = "Original", config = mapOf("unit" to "%"))
+        val dashboard = testDashboard(widgets = listOf(existing))
+        val viewModel = buildViewModel(dashboard)
+        collectUiState(viewModel)
+        advanceUntilIdle()
+
+        viewModel.updateWidget("w1", title = "  ", unit = null, w = 2, h = 1)
+
+        val updated = viewModel.uiState.value.currentLayout!!.widgets.single()
+        assertEquals("Original", updated.title)
+        assertFalse(updated.config.containsKey("unit"))
+    }
+
+    @Test
+    fun `updateWidget clamps size to the layout's column count and the shared row cap`() = runTest {
+        val dashboard = testDashboard(widgets = listOf(widget("w1")))
+        val viewModel = buildViewModel(dashboard)
+        collectUiState(viewModel)
+        advanceUntilIdle()
+
+        viewModel.updateWidget("w1", title = "w1", unit = null, w = 99, h = 99)
+
+        val updated = viewModel.uiState.value.currentLayout!!.widgets.single()
+        assertEquals(viewModel.uiState.value.currentLayout!!.columns, updated.w)
+        assertEquals(DashboardEditorViewModel.MAX_WIDGET_ROWS, updated.h)
     }
 
     @Test

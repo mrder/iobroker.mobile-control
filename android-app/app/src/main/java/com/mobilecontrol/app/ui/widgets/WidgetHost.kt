@@ -47,8 +47,8 @@ fun WidgetHost(
 
     when (widget.type) {
         WidgetType.TEXT_VALUE -> TextValueWidget(title, widget.config["unit"], state, modifier)
-        WidgetType.TEMPERATURE -> TemperatureWidget(title, state, modifier)
-        WidgetType.HUMIDITY -> HumidityWidget(title, state, modifier)
+        WidgetType.TEMPERATURE -> TemperatureWidget(title, state, widget.config["unit"], modifier)
+        WidgetType.HUMIDITY -> HumidityWidget(title, state, widget.config["unit"], modifier)
         WidgetType.BOOLEAN_STATUS -> BooleanStatusWidget(title, state, modifier)
         WidgetType.SWITCH -> SwitchWidget(
             title = title,
@@ -62,6 +62,7 @@ fun WidgetHost(
         WidgetType.CAMERA -> CameraWidget(title = title, objectId = widget.objectId, modifier = modifier)
         WidgetType.URL_IMAGE -> UrlImageWidget(title = title, urlEmbedId = widget.config["urlEmbedId"], modifier = modifier)
         WidgetType.WEB_VIEW -> WebPageWidget(title = title, urlEmbedId = widget.config["urlEmbedId"], modifier = modifier)
+        WidgetType.LABEL -> LabelWidget(title = title, modifier = modifier)
         WidgetType.MOMENTARY_BUTTON -> MomentaryButtonWidget(
             title = title,
             state = state,

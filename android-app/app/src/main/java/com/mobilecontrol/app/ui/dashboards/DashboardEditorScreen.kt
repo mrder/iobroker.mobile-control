@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -128,10 +129,10 @@ fun DashboardEditorScreen(
                     Text("Noch keine Widgets in diesem Layout.")
                 }
             } else {
-                // The grid always renders at most 4 physical columns regardless of the layout's
-                // configured column count (which can go up to 12 for "expanded") - widget spans are
-                // clamped to the same number so a wide widget can never exceed the visible grid.
-                val displayColumns = layout.columns.coerceIn(1, 4)
+                // Sanity clamp only - the real column count comes from the layout (see
+                // DashboardEditorViewModel.withWidenedColumns, which bumps every dashboard to at
+                // least 8 on load); this just guards against a corrupt/unexpectedly huge value.
+                val displayColumns = layout.columns.coerceIn(1, 16)
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -149,13 +150,13 @@ fun DashboardEditorScreen(
                             widget = widget,
                             state = state,
                             editMode = state.editMode,
+                            maxColumns = displayColumns,
                             modifier = Modifier.fillMaxSize(),
                             onCommand = { value, confirmed ->
                                 widget.objectId?.let { id -> viewModel.sendCommand(id, value, confirmed) }
                             },
                             onRemove = { viewModel.removeWidget(widget.id) },
-                            onGrow = { viewModel.resizeWidget(widget.id, 1, 1) },
-                            onShrink = { viewModel.resizeWidget(widget.id, -1, -1) },
+                            onSaveEdit = { title, unit, w, h -> viewModel.updateWidget(widget.id, title, unit, w, h) },
                         )
                     }
                 }
@@ -308,19 +309,31 @@ private fun DashboardGrid(
     }
 }
 
+/** Widget types where a unit suffix ("°C", "kWh", ...) is meaningful and worth exposing in the
+ *  edit dialog. Switches, buttons, cameras, embeds and labels have no numeric value to suffix. */
+private val UNIT_CAPABLE_TYPES = setOf(
+    WidgetType.TEXT_VALUE,
+    WidgetType.TEMPERATURE,
+    WidgetType.HUMIDITY,
+    WidgetType.HISTORY,
+    WidgetType.SLIDER,
+    WidgetType.THERMOSTAT,
+)
+
 @Composable
 private fun WidgetCell(
     widget: Widget,
     state: DashboardEditorUiState,
     editMode: Boolean,
+    maxColumns: Int,
     modifier: Modifier = Modifier,
     onCommand: (value: Any?, confirmed: Boolean) -> Unit,
     onRemove: () -> Unit,
-    onGrow: () -> Unit,
-    onShrink: () -> Unit,
+    onSaveEdit: (title: String, unit: String?, w: Int, h: Int) -> Unit,
 ) {
     val widgetState = deriveWidgetState(widget, state)
     val catalogItem = state.catalog.firstOrNull { it.id == widget.objectId }
+    var showEditDialog by remember(widget.id) { mutableStateOf(false) }
 
     Column(modifier = modifier.padding(4.dp)) {
         WidgetHost(
@@ -333,13 +346,102 @@ private fun WidgetCell(
             onCommand = onCommand,
         )
         if (editMode) {
-            // Reordering now happens by dragging the widget itself (see DashboardGrid) - only
-            // size (+/−, since drag doesn't cover resizing) and delete remain as button actions.
+            // Reordering happens by dragging the widget itself (see DashboardGrid); title, unit
+            // and size are all edited together in one dialog (see WidgetEditDialog) rather than
+            // cramming multiple +/- stepper pairs into this footer row.
             Row(horizontalArrangement = Arrangement.SpaceEvenly, modifier = Modifier.fillMaxWidth()) {
-                TextButton(onClick = onShrink) { Text("−") }
-                TextButton(onClick = onGrow) { Text("+") }
+                IconButton(onClick = { showEditDialog = true }) {
+                    Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.dashboard_editor_edit_widget))
+                }
                 IconButton(onClick = onRemove) { Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.dashboard_editor_remove_widget)) }
             }
+        }
+    }
+
+    if (showEditDialog) {
+        WidgetEditDialog(
+            widget = widget,
+            maxColumns = maxColumns,
+            showUnitField = widget.type in UNIT_CAPABLE_TYPES,
+            onDismiss = { showEditDialog = false },
+            onSave = { title, unit, w, h ->
+                onSaveEdit(title, unit, w, h)
+                showEditDialog = false
+            },
+        )
+    }
+}
+
+@Composable
+private fun WidgetEditDialog(
+    widget: Widget,
+    maxColumns: Int,
+    showUnitField: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (title: String, unit: String?, w: Int, h: Int) -> Unit,
+) {
+    var title by remember { mutableStateOf(widget.title) }
+    var unit by remember { mutableStateOf(widget.config["unit"].orEmpty()) }
+    var width by remember { mutableStateOf(widget.w.coerceIn(1, maxColumns)) }
+    var height by remember { mutableStateOf(widget.h.coerceIn(1, DashboardEditorViewModel.MAX_WIDGET_ROWS)) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.dashboard_editor_edit_widget)) },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = { Text("Titel") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (showUnitField) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = unit,
+                        onValueChange = { unit = it },
+                        label = { Text(stringResource(R.string.dashboard_editor_unit_label)) },
+                        placeholder = { Text("°C, kWh, %…") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                SizeStepper(
+                    label = stringResource(R.string.dashboard_editor_width_label),
+                    value = width,
+                    range = 1..maxColumns,
+                    onChange = { width = it },
+                )
+                SizeStepper(
+                    label = stringResource(R.string.dashboard_editor_height_label),
+                    value = height,
+                    range = 1..DashboardEditorViewModel.MAX_WIDGET_ROWS,
+                    onChange = { height = it },
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(title, unit.ifBlank { null }, width, height) }) { Text(stringResource(R.string.common_ok)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
+        },
+    )
+}
+
+@Composable
+private fun SizeStepper(label: String, value: Int, range: IntRange, onChange: (Int) -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+        Text(label, modifier = Modifier.weight(1f))
+        IconButton(onClick = { if (value > range.first) onChange(value - 1) }, enabled = value > range.first) {
+            Text("−")
+        }
+        Text(value.toString(), modifier = Modifier.padding(horizontal = 8.dp))
+        IconButton(onClick = { if (value < range.last) onChange(value + 1) }, enabled = value < range.last) {
+            Text("+")
         }
     }
 }
@@ -380,6 +482,7 @@ private val WIDGET_TYPE_LABELS: Map<WidgetType, String> = mapOf(
     WidgetType.CAMERA to "Kamera",
     WidgetType.URL_IMAGE to "URL-Bild",
     WidgetType.WEB_VIEW to "Web-Seite",
+    WidgetType.LABEL to "Überschrift",
 )
 
 private fun suggestedWidgetType(item: ObjectCatalogItem): WidgetType =
@@ -414,6 +517,7 @@ private fun AddWidgetDialog(
     var expandedFolders by remember { mutableStateOf(setOf<String>()) }
     var selected by remember { mutableStateOf<ObjectCatalogItem?>(null) }
     var selectedUrlEmbed by remember { mutableStateOf<UrlEmbed?>(null) }
+    var creatingLabel by remember { mutableStateOf(false) }
     var title by remember { mutableStateOf("") }
     var widgetType by remember { mutableStateOf(WidgetType.TEXT_VALUE) }
 
@@ -430,6 +534,7 @@ private fun AddWidgetDialog(
 
     fun selectItem(item: ObjectCatalogItem) {
         selectedUrlEmbed = null
+        creatingLabel = false
         selected = item
         title = item.name
         widgetType = suggestedWidgetType(item)
@@ -437,9 +542,18 @@ private fun AddWidgetDialog(
 
     fun selectUrlEmbed(embed: UrlEmbed) {
         selected = null
+        creatingLabel = false
         selectedUrlEmbed = embed
         title = embed.name
         widgetType = WidgetType.URL_IMAGE
+    }
+
+    fun startLabel() {
+        selected = null
+        selectedUrlEmbed = null
+        creatingLabel = true
+        title = ""
+        widgetType = WidgetType.LABEL
     }
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
@@ -451,10 +565,11 @@ private fun AddWidgetDialog(
                 Text(stringResource(R.string.dashboard_editor_add_widget), style = MaterialTheme.typography.titleLarge)
                 Spacer(modifier = Modifier.height(12.dp))
 
-                if (selected == null && selectedUrlEmbed == null) {
+                if (selected == null && selectedUrlEmbed == null && !creatingLabel) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                         PickerSourceChip(PickerSource.OBJECT, "Objekte", pickerSource) { pickerSource = it }
                         PickerSourceChip(PickerSource.URL_EMBED, "URL-Einbettungen", pickerSource) { pickerSource = it }
+                        FilterChip(selected = false, onClick = { startLabel() }, label = { Text(stringResource(R.string.dashboard_editor_add_label)) })
                     }
                     Spacer(modifier = Modifier.height(8.dp))
 
@@ -530,7 +645,7 @@ private fun AddWidgetDialog(
                     )
                     Spacer(modifier = Modifier.weight(1f))
                     TextButton(onClick = { selected = null }) { Text(stringResource(R.string.dashboard_editor_pick_different_object)) }
-                } else {
+                } else if (selectedUrlEmbed != null) {
                     val embed = selectedUrlEmbed!!
                     Text(embed.name, style = MaterialTheme.typography.titleMedium)
                     Text(stringResource(R.string.dashboard_editor_url_embed_label), style = MaterialTheme.typography.bodySmall)
@@ -545,11 +660,22 @@ private fun AddWidgetDialog(
                     )
                     Spacer(modifier = Modifier.weight(1f))
                     TextButton(onClick = { selectedUrlEmbed = null }) { Text(stringResource(R.string.dashboard_editor_pick_different_embed)) }
+                } else {
+                    // creatingLabel: a heading has no backing object/embed and only one possible
+                    // widget type, so this step just asks for the display text.
+                    OutlinedTextField(
+                        value = title,
+                        onValueChange = { title = it },
+                        label = { Text(stringResource(R.string.dashboard_editor_label_title_hint)) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    TextButton(onClick = { creatingLabel = false }) { Text(stringResource(R.string.dashboard_editor_pick_different_source)) }
                 }
 
                 Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
                     TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
-                    if (selected != null || selectedUrlEmbed != null) {
+                    if (selected != null || selectedUrlEmbed != null || creatingLabel) {
                         TextButton(
                             onClick = { onAdd(selected, widgetType, title.ifBlank { "Widget" }, selectedUrlEmbed?.id) },
                         ) { Text(stringResource(R.string.common_ok)) }

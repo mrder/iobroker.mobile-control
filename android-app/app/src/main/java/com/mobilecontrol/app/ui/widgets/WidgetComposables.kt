@@ -5,6 +5,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BrokenImage
 import androidx.compose.material.icons.filled.CheckCircle
@@ -42,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
@@ -82,24 +85,37 @@ fun TextValueWidget(title: String, unit: String?, state: WidgetState, modifier: 
 }
 
 @Composable
-fun TemperatureWidget(title: String, state: WidgetState, modifier: Modifier = Modifier) {
+fun TemperatureWidget(title: String, state: WidgetState, unit: String? = null, modifier: Modifier = Modifier) {
     WidgetCard(title = title, state = state, modifier = modifier) {
         val value = (state.currentValue() as? Number)?.toDouble()
         Text(
-            text = if (value != null) String.format(Locale.getDefault(), "%.1f °C", value) else "—",
+            text = if (value != null) String.format(Locale.getDefault(), "%.1f %s", value, unit ?: "°C") else "—",
             style = MaterialTheme.typography.headlineSmall,
         )
     }
 }
 
 @Composable
-fun HumidityWidget(title: String, state: WidgetState, modifier: Modifier = Modifier) {
+fun HumidityWidget(title: String, state: WidgetState, unit: String? = null, modifier: Modifier = Modifier) {
     WidgetCard(title = title, state = state, modifier = modifier) {
         val value = (state.currentValue() as? Number)?.toDouble()
         Text(
-            text = if (value != null) String.format(Locale.getDefault(), "%.0f %%", value) else "—",
+            text = if (value != null) String.format(Locale.getDefault(), "%.0f %s", value, unit ?: "%") else "—",
             style = MaterialTheme.typography.headlineSmall,
         )
+    }
+}
+
+/**
+ * A purely visual heading/divider (WidgetType.LABEL) - no objectId, no live state, so it skips
+ * WidgetCard entirely (that chrome exists to convey live/stale/offline status, which doesn't
+ * apply here) and just renders the title as a section header with a thin rule underneath.
+ */
+@Composable
+fun LabelWidget(title: String, modifier: Modifier = Modifier) {
+    Column(modifier = modifier.fillMaxSize(), verticalArrangement = Arrangement.Center) {
+        Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        HorizontalDivider(modifier = Modifier.padding(top = 4.dp))
     }
 }
 

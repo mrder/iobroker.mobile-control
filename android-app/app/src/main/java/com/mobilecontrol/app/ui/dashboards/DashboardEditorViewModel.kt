@@ -73,7 +73,7 @@ class DashboardEditorViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            val dashboard = dashboardRepository.getDashboard(dashboardId)
+            val dashboard = dashboardRepository.getDashboard(dashboardId)?.let(::withWidenedColumns)
             local.update { it.copy(dashboard = dashboard) }
             subscribeCurrentLayoutObjects()
         }
@@ -147,11 +147,25 @@ class DashboardEditorViewModel @Inject constructor(
         }
     }
 
-    fun resizeWidget(widgetId: String, dw: Int, dh: Int) {
+    /**
+     * Replaces the previous +/- (always both dimensions, always ±1) resize buttons with a single
+     * atomic update from the per-widget edit dialog: title, unit and size are edited together, and
+     * width/height are set to absolute values instead of deltas so the dialog's own steppers can
+     * move them independently (live-test feedback: coupling both dimensions per press made it
+     * impossible to reach non-square shapes without over/undershooting one axis).
+     */
+    fun updateWidget(widgetId: String, title: String, unit: String?, w: Int, h: Int) {
         updateLayout(local.value.sizeClass) { layout ->
             layout.copy(
-                widgets = layout.widgets.map { w ->
-                    if (w.id == widgetId) w.copy(w = (w.w + dw).coerceIn(1, layout.columns), h = (w.h + dh).coerceIn(1, 4)) else w
+                widgets = layout.widgets.map { widget ->
+                    if (widget.id != widgetId) return@map widget
+                    val config = if (unit.isNullOrBlank()) widget.config - "unit" else widget.config + ("unit" to unit)
+                    widget.copy(
+                        title = title.ifBlank { widget.title },
+                        w = w.coerceIn(1, layout.columns),
+                        h = h.coerceIn(1, MAX_WIDGET_ROWS),
+                        config = config,
+                    )
                 },
             )
         }
@@ -207,8 +221,30 @@ class DashboardEditorViewModel @Inject constructor(
     fun resolveConflictDiscard() {
         viewModelScope.launch {
             val dashboard = local.value.dashboard ?: return@launch
-            val fresh = dashboardRepository.getDashboard(dashboard.id)
+            val fresh = dashboardRepository.getDashboard(dashboard.id)?.let(::withWidenedColumns)
             local.update { it.copy(revisionConflict = false, dashboard = fresh, editMode = false) }
         }
+    }
+
+    companion object {
+        /** Maximum height of a single widget, in grid rows - see [MIN_GRID_COLUMNS]. */
+        const val MAX_WIDGET_ROWS = 8
+
+        /**
+         * Dashboards created before the grid was widened from 4 to 8 columns (live-test feedback:
+         * 4 made every resize step too coarse) still carry `columns: 4` from the server. Rather
+         * than a one-off server-side migration, every dashboard is bumped up to this width the
+         * moment it's loaded into the editor - existing widgets keep their x/y/w/h (they just now
+         * occupy less of the row than before, and can be resized wider), and the wider value is
+         * persisted back on the next save.
+         */
+        private const val MIN_GRID_COLUMNS = 8
+
+        private fun withWidenedColumns(dashboard: Dashboard): Dashboard =
+            dashboard.copy(
+                layouts = dashboard.layouts.map { layout ->
+                    if (layout.columns >= MIN_GRID_COLUMNS) layout else layout.copy(columns = MIN_GRID_COLUMNS)
+                },
+            )
     }
 }

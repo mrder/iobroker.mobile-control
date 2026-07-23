@@ -43,6 +43,17 @@
     <string name="dashboard_editor_revision_conflict_body">This dashboard was changed elsewhere in the meantime. Save your changes anyway (overwrite) or discard them?</string>
     <string name="dashboard_editor_overwrite">Overwrite</string>
     <string name="dashboard_editor_discard">Discard</string>
+    <string name="dashboard_editor_pick_different_object">Pick a different object</string>
+    <string name="dashboard_editor_pick_different_embed">Pick a different embed</string>
+    <string name="dashboard_editor_url_embed_label">URL embed</string>
+    <string name="dashboard_editor_no_url_embeds">No URL embeds configured. Add one in the admin UI under "URL embeds".</string>
+    <string name="dashboard_editor_edit_widget">Edit widget</string>
+    <string name="dashboard_editor_unit_label">Unit</string>
+    <string name="dashboard_editor_width_label">Width</string>
+    <string name="dashboard_editor_height_label">Height</string>
+    <string name="dashboard_editor_add_label">Heading</string>
+    <string name="dashboard_editor_label_title_hint">Label text</string>
+    <string name="dashboard_editor_pick_different_source">Pick a different source</string>
 
     <string name="objects_title">Object catalog</string>
     <string name="objects_search_hint">Search name or path</string>

@@ -8,6 +8,26 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.33] - master, Testbuild
+
+Drei Widget-Wünsche aus dem Livetest ("wenn man ein Widget einrichtet, sollte man auch den
+Namen drüber ändern können... und vor allem Einheiten... und am Widget größer und kleiner
+machen mit dem -/+ müssen wir noch etwas arbeiten").
+
+- **Widget bearbeiten**: Neues Zahnrad-Symbol an jedem Widget im Bearbeiten-Modus öffnet einen
+  Dialog zum Umbenennen und (bei Wert-Widgets: Textwert, Temperatur, Feuchte, Verlauf,
+  Schieberegler, Thermostat) zum Setzen einer eigenen Einheit - bisher nur einmalig beim
+  Anlegen aus der Katalog-Einheit übernehmbar, jetzt jederzeit änderbar.
+- **Neuer Widget-Typ "Überschrift"**: reine Textbeschriftung ohne Datenpunkt, zum optischen
+  Gruppieren/Abgrenzen von Widget-Gruppen auf einem Dashboard. Über einen dritten Reiter im
+  Widget-Picker anlegbar.
+- **Feinere Größenänderung**: Die alten +/- Buttons haben Breite und Höhe immer gemeinsam in
+  festen 1er-Schritten verändert, wodurch z.B. ein breites, flaches Widget kaum zu erreichen
+  war. Breite und Höhe sind jetzt getrennte Stepper im neuen Bearbeiten-Dialog, und das Raster
+  wurde von 4 auf 8 Spalten/Zeilen verbreitert, damit ein einzelner Schritt weniger stark ins
+  Gewicht fällt. Bestehende Dashboards werden beim nächsten Öffnen automatisch verbreitert
+  (Widgets behalten ihre bisherige Position/Größe, können aber jetzt weiter wachsen).
+
 ## [0.0.32] - master, Testbuild
 
 Echtes Logo, ersetzt das seit Projektbeginn als "nicht im MVP-Umfang" markierte

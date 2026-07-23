@@ -18,6 +18,14 @@ class WidgetTypeTest {
     }
 
     @Test
+    fun `label widget type round-trips through its wireName and has no suggestion mapping`() {
+        assertEquals(WidgetType.LABEL, WidgetType.fromWireName("label"))
+        // Not a server-suggested type - it's created manually in the dashboard editor - so an
+        // unrelated hint must not accidentally resolve to it.
+        assertEquals(WidgetType.TEXT_VALUE, WidgetType.fromSuggestion("label"))
+    }
+
+    @Test
     fun `fromWireName falls back to TEXT_VALUE for an unknown wire name`() {
         assertEquals(WidgetType.TEXT_VALUE, WidgetType.fromWireName("does-not-exist"))
     }

@@ -35,6 +35,10 @@ enum class WidgetType(val wireName: String) {
     // ioBroker state); WEB_VIEW resolves the real URL and loads it directly in a WebView.
     URL_IMAGE("url_image"),
     WEB_VIEW("web_view"),
+    // Not backed by an ioBroker objectId and not offered as a server suggestion - a purely visual
+    // heading/divider the user places manually to label a group of widgets (see DashboardEditorScreen
+    // "Überschrift" picker tab). Renders as plain text, no WidgetCard chrome (no live state to show).
+    LABEL("label"),
     ;
 
     companion object {
