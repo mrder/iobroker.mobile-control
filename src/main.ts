@@ -66,6 +66,10 @@ interface AdapterNativeConfig {
 }
 
 const STATUS_INTERVAL_MS = 15_000;
+/** How recently a device must have made an authenticated request to still count as "connected"
+ *  for info.connection - see DevicesService.hasRecentlyActiveDevice's own docs for why this isn't
+ *  just "does a WebSocket happen to be open right now". */
+const RECENT_ACTIVITY_WINDOW_MS = 5 * 60_000;
 
 /** Non-internal IPv4 addresses of this host - shown in the admin tab so the user knows exactly
  * what to point a reverse proxy or VPN config at (see docs/DEPLOYMENT.md). */
@@ -392,7 +396,8 @@ class MobileControlAdapter extends utils.Adapter {
     private async updateStatusStates(): Promise<void> {
         const activeSessions = this.sessionsService?.listActive().length ?? 0;
         const connectedDevices = this.realtimeGateway?.connectedDeviceCount ?? 0;
-        await this.setStateAsync('info.connection', { val: connectedDevices > 0, ack: true });
+        const recentlyActive = this.devicesService?.hasRecentlyActiveDevice(RECENT_ACTIVITY_WINDOW_MS) ?? false;
+        await this.setStateAsync('info.connection', { val: connectedDevices > 0 || recentlyActive, ack: true });
         await this.setStateAsync('info.activeDevices', { val: connectedDevices, ack: true });
         await this.setStateAsync('info.activeSessions', { val: activeSessions, ack: true });
 

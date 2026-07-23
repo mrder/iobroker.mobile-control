@@ -76,4 +76,17 @@ export class DevicesService {
         }
         await this.store.put({ ...device, lastSeenAt: Date.now(), lastIp: ip });
     }
+
+    /** Whether any approved device has made an authenticated request within the last [windowMs] -
+     *  used for the adapter's info.connection indicator (see main.ts#updateStatusStates). A live
+     *  WebSocket connection alone is too strict a definition for a mobile app: Android has no
+     *  always-on background connection here, so the socket is only open while the app is actually
+     *  in the foreground on a live-data screen, which made the indicator flip red the moment the
+     *  screen turned off even though the device is paired and was just used. */
+    hasRecentlyActiveDevice(windowMs: number): boolean {
+        const now = Date.now();
+        return this.list().some(
+            (device) => device.status === 'approved' && device.lastSeenAt !== null && now - device.lastSeenAt < windowMs,
+        );
+    }
 }

@@ -8,6 +8,25 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.29] - master, Testbuild
+
+Echtes UX-Problem behoben, live in der Instanzübersicht entdeckt: "Verbunden mit Gerät oder
+Dienst" stand rot, obwohl die App gerade gekoppelt und benutzt war.
+
+**Ursache**: `info.connection` hing bisher rein daran, ob `RealtimeGateway.connectedDeviceCount`
+gerade > 0 ist - also ob aktuell ein offener WebSocket existiert. Android hält aber keine
+dauerhafte Hintergrundverbindung offen; das Socket lebt nur, während die App aktiv im Vordergrund
+auf einem Live-Daten-Bildschirm ist. Sobald der Bildschirm ausgeht oder man auf einen anderen
+Tab wechselt, kippt die Anzeige sofort auf Rot, obwohl das Gerät ganz normal gekoppelt und
+Sekunden zuvor noch aktiv war.
+
+**Fix**: Neue `DevicesService.hasRecentlyActiveDevice(windowMs)` prüft, ob ein freigegebenes
+Gerät innerhalb der letzten 5 Minuten eine authentifizierte HTTP-Anfrage gestellt hat (jeder
+`requireAuth`-Request aktualisiert bereits `device.lastSeenAt` über `DevicesService.touch()`,
+das war schon vorhanden, wurde nur noch nicht für diese Anzeige genutzt). `info.connection` ist
+jetzt `true`, wenn entweder ein Live-WebSocket offen ist ODER ein Gerät kürzlich aktiv war -
+weiterhin korrekt Rot, wenn wirklich seit Längerem nichts mehr von der App kam.
+
 ## [0.0.28] - master, Testbuild
 
 Folgepunkt zu den URL-Einbettungen aus 0.0.27, live angefragt: "manches wäre ja im Vollbild
