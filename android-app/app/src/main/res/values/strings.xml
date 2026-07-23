@@ -47,6 +47,7 @@
     <string name="dashboard_editor_revision_conflict_body">Das Dashboard wurde inzwischen an anderer Stelle geändert. Möchtest du deine Änderungen trotzdem speichern (überschreiben) oder deine Änderungen verwerfen?</string>
     <string name="dashboard_editor_overwrite">Überschreiben</string>
     <string name="dashboard_editor_discard">Verwerfen</string>
+    <string name="dashboard_editor_pick_different_object">Anderes Objekt wählen</string>
 
     <!-- Object browser -->
     <string name="objects_title">Objektkatalog</string>

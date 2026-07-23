@@ -1,8 +1,12 @@
 {
   "common": {
     "name": "mobile-control",
-    "version": "0.0.24",
+    "version": "0.0.25",
     "news": {
+      "0.0.25": {
+        "en": "Feature request from live testing: the dashboard's 'add widget' picker was a flat, unfiltered list that didn't show categories/folders, making it hard to find anything. It now reuses the same expandable folder tree as the object catalog (falls back to a flat filtered list once you search), adds filter chips for value type (All/Bool/Number/Text/JSON), and lets you manually override the auto-suggested widget type instead of always taking the guess.",
+        "de": "Feature-Wunsch aus dem Livetest: Der 'Widget hinzufügen'-Dialog im Dashboard war eine flache, ungefilterte Liste ohne Kategorien/Ordner, was das Auffinden erschwerte. Er nutzt jetzt denselben aufklappbaren Ordnerbaum wie der Objektkatalog (bei aktiver Suche weiterhin eine flache gefilterte Liste), bietet Filter-Chips nach Werttyp (Alle/Bool/Zahl/Text/JSON) und erlaubt es, den automatisch vorgeschlagenen Widget-Typ manuell zu überschreiben statt immer die Vermutung zu übernehmen."
+      },
       "0.0.24": {
         "en": "Two feature requests from live testing: (1) the object catalog now lets you control writable objects directly - a boolean with write access gets an inline switch, and tapping any writable object opens a dialog to send a new value (numbers/text) or toggle it (booleans), going through the same confirmation-policy gate as dashboard widgets. (2) Added a real 'json' value type end to end (backend catalog mapping + Android), instead of collapsing it into the generic 'mixed' bucket - a first step toward filtering the dashboard widget picker by value type. (3) Camera snapshots are now cached for a few seconds and, if a live fetch fails, the last known-good snapshot is served instead of an error - the app should no longer flash a broken image for a momentary camera hiccup.",
         "de": "Zwei Feature-Wünsche aus dem Livetest: (1) Der Objektkatalog erlaubt jetzt direkte Steuerung schreibbarer Objekte - ein Bool mit Schreibrecht bekommt einen Schalter direkt in der Zeile, ein Tap auf ein beliebiges schreibbares Objekt öffnet einen Dialog zum Senden eines neuen Werts (Zahlen/Text) oder Umschalten (Bool), über dieselbe Bestätigungs-Policy wie Dashboard-Widgets. (2) Echter 'json'-Werttyp durchgängig ergänzt (Backend-Katalog-Mapping + Android), statt in den generischen 'mixed'-Topf zu fallen - ein erster Schritt Richtung Filterung des Dashboard-Widget-Pickers nach Werttyp. (3) Kamera-Schnappschüsse werden jetzt einige Sekunden gecacht, und wenn ein frischer Abruf fehlschlägt, wird der letzte bekannt gute Schnappschuss ausgeliefert statt eines Fehlers - die App sollte bei einem kurzen Kamera-Aussetzer kein kaputtes Bild mehr zeigen."
@@ -78,10 +82,6 @@
       "0.0.6": {
         "en": "Found and fixed the real root cause of the live-test EADDRINUSE crash: ws's WebSocketServer forwards the underlying http.Server's error event onto itself, and Node throws synchronously if nothing listens for it - this bypassed all of main.ts's retry/port-scan/clear-error handling from the very first 'error' event, every time, since the project's beginning. RealtimeGateway now listens for it. Diagnostic-only logging removed again.",
         "de": "Echte Ursache des EADDRINUSE-Absturzes beim Livetest gefunden und behoben: ws' WebSocketServer reicht das 'error'-Event des zugrunde liegenden http.Server an sich selbst weiter, und Node wirft synchron, wenn niemand darauf hört - das umging die komplette Retry-/Port-Scan-/Fehlerbehandlung in main.ts von Anfang an, bei jedem einzelnen 'error'-Event, seit Projektbeginn. RealtimeGateway hört jetzt darauf. Reines Diagnose-Logging wieder entfernt."
-      },
-      "0.0.5": {
-        "en": "More granular temporary diagnostic checkpoints throughout onReady()/startHttpServer() to pin down exactly where the EADDRINUSE handling is bypassed",
-        "de": "Feingranularere temporäre Diagnose-Kontrollpunkte in onReady()/startHttpServer(), um genau einzugrenzen wo die EADDRINUSE-Behandlung umgangen wird"
       }
     },
     "title": "Mobile Control",

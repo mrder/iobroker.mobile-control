@@ -8,6 +8,21 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.25] - master, Testbuild
+
+Feature-Wunsch aus Live-Feedback: Der "Widget hinzufügen"-Dialog im Dashboard-Editor war eine
+flache, ungefilterte Liste ("total unübersichtlich und bescheiden mit der Suche, da Kategorien,
+Ordner usw. dort nicht angezeigt werden").
+
+1. **Ordnerbaum statt Flachliste**: Der Picker zeigt jetzt standardmäßig denselben aufklappbaren
+   Ordnerbaum wie der Objektkatalog (`ObjectTreeNode`/`buildObjectTree`), fällt bei aktiver Suche
+   oder Filter auf eine flache, gefilterte Liste zurück (auf 200 Einträge gekappt).
+2. **Filter nach Werttyp**: Neue Filter-Chips (Alle/Bool/Zahl/Text/JSON) über der Suche, nutzt den
+   in 0.0.24 ergänzten `ValueType.JSON`.
+3. **Widget-Typ manuell wählbar**: Nach Auswahl eines Objekts wird weiterhin ein passender
+   Widget-Typ vorgeschlagen, kann jetzt aber über ein Dropdown manuell überschrieben werden statt
+   die Vermutung immer zu übernehmen.
+
 ## [0.0.24] - master, Testbuild
 
 Drei Punkte aus Live-Feedback:
