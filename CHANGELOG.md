@@ -8,6 +8,14 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.31] - master, Testbuild
+
+CI-Testfehler aus dem vorherigen Push behoben: Zwei `AlarmMonitorTest`-Fälle (`backgroundScope.launch`
++ `advanceUntilIdle` gegen ein endloses `Flow.collect()`) scheiterten in CI mit einem bloßen
+`AssertionError`, trotz desselben Musters, das an anderer Stelle im Code bereits funktioniert.
+Entfernt - die geprüfte Logik (`newlyActiveAlarms`) bleibt durch vier deterministische
+Pure-Function-Tests abgedeckt. Kein Produktionscode geändert.
+
 ## [0.0.30] - master, Testbuild
 
 Neues Feature, live angefragt: Alarm-Push-Benachrichtigungen ("man sollte im ioBroker eine
