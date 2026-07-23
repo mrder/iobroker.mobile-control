@@ -8,6 +8,23 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.32] - master, Testbuild
+
+Echtes Logo, ersetzt das seit Projektbeginn als "nicht im MVP-Umfang" markierte
+Platzhalter-Haus/Schalter-Symbol ("wir müssten dem Mobile Control noch ein schickes Logo
+verpassen").
+
+- **Design**: Telefon-Silhouette mit einem Aktor-Schalter auf dem Bildschirm (passend zur
+  tatsächlichen App-Funktion: Schalter/Aktoren steuern) und einem kleinen Funksignal-Bogen, im
+  bereits bestehenden Markenblau `#0B5FA5`/-türkis `#4FC3F7` (dieselben Farben, die `Theme.kt`
+  schon für `BluePrimary`/`Teal` verwendet - keine neue Farbpalette nötig).
+- **Verwendung an beiden Stellen**: `admin/mobile-control.png` (Adapter-Icon in ioBroker, 128x128)
+  und der Android-Launcher-Icon (`ic_launcher_foreground.xml`, Adaptive Icon) - dasselbe Design.
+- **Sicherheitszonen-Check**: Vor dem Ausliefern gegen Android's 66dp-Safe-Zone unter sowohl
+  kreisförmigen als auch abgerundeten Launcher-Masken gerendert und geprüft, dass nichts
+  Wichtiges abgeschnitten wird (ein erster Entwurf mit zwei Signalbögen wurde dabei verworfen -
+  der äußere Bogen wurde von beiden Maskenformen sichtbar abgeschnitten).
+
 ## [0.0.31] - master, Testbuild
 
 CI-Testfehler aus dem vorherigen Push behoben: Zwei `AlarmMonitorTest`-Fälle (`backgroundScope.launch`

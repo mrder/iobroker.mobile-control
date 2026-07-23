@@ -1,14 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Simple house/switch glyph standing in for a proper launcher icon (out of scope for MVP). -->
+<!-- Mobile Control logo: a phone silhouette with an actuator toggle switch on its screen and a
+     small wireless-signal arc, in the app's brand blue/teal (see ui/theme/Color.kt). Content
+     stays within the 66dp adaptive-icon safe zone centered on this 108x108 canvas so it isn't
+     clipped by circular/squircle launcher icon masks - verified by rendering this same design
+     under both mask shapes before finalizing. Same design as admin/mobile-control.png. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <!-- phone body -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M54,24 L84,50 L76,50 L76,84 L60,84 L60,64 L48,64 L48,84 L32,84 L32,50 L24,50 Z" />
+        android:pathData="M46,28 L62,28 A5,5 0 0,1 67,33 L67,75 A5,5 0 0,1 62,80 L46,80 A5,5 0 0,1 41,75 L41,33 A5,5 0 0,1 46,28 Z" />
+    <!-- screen -->
+    <path
+        android:fillColor="#0B5FA5"
+        android:pathData="M46,31 L62,31 A2,2 0 0,1 64,33 L64,67 A2,2 0 0,1 62,69 L46,69 A2,2 0 0,1 44,67 L44,33 A2,2 0 0,1 46,31 Z" />
+    <!-- toggle switch track -->
     <path
         android:fillColor="#4FC3F7"
-        android:pathData="M46,70 m-6,0 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0" />
+        android:pathData="M51.5,44 L56.5,44 A3.5,3.5 0 0,1 56.5,51 L51.5,51 A3.5,3.5 0 0,1 51.5,44 Z" />
+    <!-- toggle knob -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M51.7,47.5 A4.3,4.3 0 1,0 60.3,47.5 A4.3,4.3 0 1,0 51.7,47.5 Z" />
+    <!-- home/control dial -->
+    <path
+        android:fillColor="#4FC3F7"
+        android:pathData="M51,75 A3,3 0 1,0 57,75 A3,3 0 1,0 51,75 Z" />
+    <!-- wireless signal arc -->
+    <path
+        android:strokeColor="#4FC3F7"
+        android:strokeWidth="3.6"
+        android:strokeLineCap="round"
+        android:pathData="M65,35 A7,7 0 0,1 65,21" />
 </vector>
