@@ -12,10 +12,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BrokenImage
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Circle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
@@ -24,6 +26,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -44,6 +47,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mobilecontrol.app.domain.model.HistoryEntry
 import com.mobilecontrol.app.ui.theme.StatusError
@@ -655,6 +659,7 @@ fun WebPageWidget(
 ) {
     var loadState by remember(urlEmbedId) { mutableStateOf<WebPageLoadState>(WebPageLoadState.Loading) }
     var refreshTrigger by remember(urlEmbedId) { mutableIntStateOf(0) }
+    var fullscreen by remember { mutableStateOf(false) }
 
     LaunchedEffect(urlEmbedId, refreshTrigger) {
         if (urlEmbedId == null) {
@@ -672,17 +677,60 @@ fun WebPageWidget(
         when (val current = loadState) {
             WebPageLoadState.Loading -> Text("Lädt…", style = MaterialTheme.typography.bodyMedium)
             WebPageLoadState.Unavailable -> EmbedUnavailable(message = "Seite nicht verfügbar", onRetry = { refreshTrigger++ })
-            is WebPageLoadState.Resolved -> AndroidView(
-                modifier = Modifier.fillMaxSize(),
-                factory = { context ->
-                    WebView(context).apply {
-                        settings.javaScriptEnabled = true
-                        settings.domStorageEnabled = true
-                        webViewClient = WebViewClient()
+            is WebPageLoadState.Resolved -> Box(modifier = Modifier.fillMaxSize()) {
+                EmbeddedWebView(url = current.url, modifier = Modifier.fillMaxSize())
+                // A semi-transparent circular backing keeps the icon legible over arbitrary page
+                // content - the WebView itself can't double as the tap target here (it needs to
+                // keep receiving touches for the page's own scrolling/interaction).
+                Surface(
+                    modifier = Modifier.align(Alignment.TopEnd).padding(4.dp),
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+                ) {
+                    IconButton(onClick = { fullscreen = true }) {
+                        Icon(Icons.Filled.Fullscreen, contentDescription = "Vollbild")
                     }
-                },
-                update = { webView -> webView.loadUrl(current.url) },
-            )
+                }
+            }
         }
     }
+
+    if (fullscreen) {
+        val current = loadState
+        if (current is WebPageLoadState.Resolved) {
+            Dialog(onDismissRequest = { fullscreen = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                            Text(text = title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(start = 12.dp).weight(1f))
+                            IconButton(onClick = { fullscreen = false }) {
+                                Icon(Icons.Filled.Close, contentDescription = "Schließen")
+                            }
+                        }
+                        EmbeddedWebView(url = current.url, modifier = Modifier.weight(1f).fillMaxWidth())
+                    }
+                }
+            }
+        } else {
+            fullscreen = false
+        }
+    }
+}
+
+/** Fresh WebView per composition (inline widget and fullscreen dialog each get their own) - a
+ *  live page's scroll/input state isn't worth the complexity of sharing a single View instance
+ *  across two different parts of the composition, opening fullscreen just reloads the same URL. */
+@Composable
+private fun EmbeddedWebView(url: String, modifier: Modifier = Modifier) {
+    AndroidView(
+        modifier = modifier,
+        factory = { context ->
+            WebView(context).apply {
+                settings.javaScriptEnabled = true
+                settings.domStorageEnabled = true
+                webViewClient = WebViewClient()
+            }
+        },
+        update = { webView -> webView.loadUrl(url) },
+    )
 }

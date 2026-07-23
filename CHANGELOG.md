@@ -8,6 +8,16 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.28] - master, Testbuild
+
+Folgepunkt zu den URL-Einbettungen aus 0.0.27, live angefragt: "manches wäre ja im Vollbild
+sinnvoller sich anzuschauen". Das "Web-Seite"-Widget wurde bisher nur innerhalb seiner
+Dashboard-Zelle gerendert. Hat jetzt einen kleinen, halbtransparent hinterlegten Vollbild-Button
+oben rechts über dem WebView (das WebView selbst bleibt für Scroll/Interaktion der Seite
+klickbar, kann also nicht selbst der Tap-Ziel sein) - Öffnen zeigt dieselbe freigegebene URL in
+einem eigenen, bildschirmfüllenden Dialog mit Titelzeile + Schließen-Button, exakt das Muster,
+das Kamera- und URL-Bild-Widgets für ihr Tap-für-Vollbild bereits verwenden.
+
 ## [0.0.27] - master, Testbuild
 
 Neues Feature, live angefragt: URL-Einbettungen ("wie schaut das aus mit URL-Einbindungen? kriegen
