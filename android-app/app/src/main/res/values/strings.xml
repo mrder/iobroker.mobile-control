@@ -67,6 +67,10 @@
     <string name="settings_last_connection">Letzte Verbindung</string>
     <string name="settings_logout">Gerät abmelden</string>
     <string name="settings_logout_confirm">Dieses Gerät wird abgemeldet und alle lokalen Zugangsdaten gelöscht. Fortfahren?</string>
+    <string name="settings_theme">Erscheinungsbild</string>
+    <string name="settings_theme_system">System</string>
+    <string name="settings_theme_light">Hell</string>
+    <string name="settings_theme_dark">Dunkel</string>
     <string name="settings_clear_cache">Cache leeren</string>
     <string name="settings_app_version">App-Version</string>
     <string name="settings_api_version">API-Version</string>

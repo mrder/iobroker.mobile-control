@@ -3,6 +3,7 @@ package com.mobilecontrol.app.ui.settings
 import com.mobilecontrol.app.BuildConfig
 import com.mobilecontrol.app.domain.model.DeviceProfile
 import com.mobilecontrol.app.domain.model.Session
+import com.mobilecontrol.app.domain.model.ThemeMode
 import com.mobilecontrol.app.domain.repository.AuthRepository
 import com.mobilecontrol.app.domain.repository.DiagnosticsRepository
 import com.mobilecontrol.app.domain.repository.LogEntry
@@ -24,6 +25,7 @@ private class FakeSettingsRepository : SettingsRepository {
     val appLockEnabled = MutableStateFlow(true)
     val biometricEnabled = MutableStateFlow(false)
     val lastConnectionAt = MutableStateFlow<Long?>(null)
+    val themeMode = MutableStateFlow(ThemeMode.SYSTEM)
     var clearCacheCalled = false
 
     override fun observeDeviceProfile(): Flow<DeviceProfile?> = deviceProfile
@@ -44,6 +46,9 @@ private class FakeSettingsRepository : SettingsRepository {
 
     override fun observeLastConnectionAt(): Flow<Long?> = lastConnectionAt
     override suspend fun setLastConnectionAt(epochMillis: Long) { lastConnectionAt.value = epochMillis }
+
+    override fun observeThemeMode(): Flow<ThemeMode> = themeMode
+    override suspend fun setThemeMode(mode: ThemeMode) { themeMode.value = mode }
 }
 
 private class FakeAuthRepository : AuthRepository {
@@ -130,6 +135,17 @@ class SettingsViewModelTest {
         advanceUntilIdle()
 
         assertEquals(true, settingsRepo.biometricEnabled.value)
+    }
+
+    @Test
+    fun `setThemeMode forwards the mode to the repository`() = runTest {
+        val settingsRepo = FakeSettingsRepository()
+        val viewModel = SettingsViewModel(settingsRepo, FakeAuthRepository(), FakeDiagnosticsRepository())
+
+        viewModel.setThemeMode(ThemeMode.DARK)
+        advanceUntilIdle()
+
+        assertEquals(ThemeMode.DARK, settingsRepo.themeMode.value)
     }
 
     @Test

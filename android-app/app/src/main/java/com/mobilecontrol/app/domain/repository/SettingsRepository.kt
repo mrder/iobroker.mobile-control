@@ -1,6 +1,7 @@
 package com.mobilecontrol.app.domain.repository
 
 import com.mobilecontrol.app.domain.model.DeviceProfile
+import com.mobilecontrol.app.domain.model.ThemeMode
 import kotlinx.coroutines.flow.Flow
 
 interface SettingsRepository {
@@ -13,6 +14,9 @@ interface SettingsRepository {
 
     fun observeBiometricEnabled(): Flow<Boolean>
     suspend fun setBiometricEnabled(enabled: Boolean)
+
+    fun observeThemeMode(): Flow<ThemeMode>
+    suspend fun setThemeMode(mode: ThemeMode)
 
     suspend fun setPinHash(hash: String)
     suspend fun getPinHash(): String?

@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.mobilecontrol.app.domain.model.DeviceProfile
+import com.mobilecontrol.app.domain.model.ThemeMode
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -32,6 +33,7 @@ class SettingsDataStore @Inject constructor(
         val BIOMETRIC_ENABLED = booleanPreferencesKey("biometric_enabled")
         val START_DASHBOARD_ID = stringPreferencesKey("start_dashboard_id")
         val LAST_CONNECTION_AT = longPreferencesKey("last_connection_at")
+        val THEME_MODE = stringPreferencesKey("theme_mode")
     }
 
     fun observeDeviceProfile(): Flow<DeviceProfile?> = context.dataStore.data.map { prefs ->
@@ -94,4 +96,10 @@ class SettingsDataStore @Inject constructor(
     }
 
     fun observeLastConnectionAt(): Flow<Long?> = context.dataStore.data.map { it[Keys.LAST_CONNECTION_AT] }
+
+    fun observeThemeMode(): Flow<ThemeMode> = context.dataStore.data.map { ThemeMode.fromWireName(it[Keys.THEME_MODE]) }
+
+    suspend fun setThemeMode(mode: ThemeMode) {
+        context.dataStore.edit { it[Keys.THEME_MODE] = mode.wireName }
+    }
 }

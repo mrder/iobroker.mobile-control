@@ -11,6 +11,9 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -26,6 +29,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mobilecontrol.app.R
+import com.mobilecontrol.app.domain.model.ThemeMode
 import com.mobilecontrol.app.ui.theme.SecureScreen
 import java.text.DateFormat
 import java.util.Date
@@ -81,6 +85,21 @@ fun SettingsScreen(
                     trailingContent = {
                         Switch(checked = state.biometricEnabled, onCheckedChange = viewModel::setBiometricEnabled)
                     },
+                )
+            }
+            item { HorizontalDivider() }
+            item {
+                Text(
+                    stringResource(R.string.settings_theme),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(16.dp),
+                )
+            }
+            item {
+                ThemeModeSelector(
+                    selected = state.themeMode,
+                    onSelect = viewModel::setThemeMode,
+                    modifier = Modifier.padding(horizontal = 16.dp),
                 )
             }
             item { HorizontalDivider() }
@@ -148,5 +167,27 @@ fun SettingsScreen(
             },
             confirmButton = { TextButton(onClick = { showLogs = false }) { Text(stringResource(R.string.common_ok)) } },
         )
+    }
+}
+
+private val THEME_MODE_LABELS: Map<ThemeMode, Int> = mapOf(
+    ThemeMode.SYSTEM to R.string.settings_theme_system,
+    ThemeMode.LIGHT to R.string.settings_theme_light,
+    ThemeMode.DARK to R.string.settings_theme_dark,
+)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ThemeModeSelector(selected: ThemeMode, onSelect: (ThemeMode) -> Unit, modifier: Modifier = Modifier) {
+    SingleChoiceSegmentedButtonRow(modifier = modifier.fillMaxWidth()) {
+        ThemeMode.entries.forEachIndexed { index, mode ->
+            SegmentedButton(
+                selected = selected == mode,
+                onClick = { onSelect(mode) },
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = ThemeMode.entries.size),
+            ) {
+                Text(stringResource(THEME_MODE_LABELS.getValue(mode)))
+            }
+        }
     }
 }

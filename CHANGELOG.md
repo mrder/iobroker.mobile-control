@@ -8,6 +8,22 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.26] - master, Testbuild
+
+Drei Folgepunkte aus dem Livetest auf dem Tablet:
+
+1. **Größenklassen-Wähler entfernt**: Der Dashboard-Editor hatte einen
+   Kompakt/Medium/Erweitert-Segmented-Button oben im Bildschirm, der Platz für das eigentliche
+   Dashboard weggenommen hat - und da die App durchgehend nur die Größenklasse "kompakt" nutzt
+   (jedes Widget landete dort), waren die anderen beiden Layouts immer leer. Wähler entfernt, die
+   App bleibt intern fest auf "kompakt" (keine Datenmigration nötig, war schon immer der Default).
+2. **+/- Buttons ändern jetzt Breite UND Höhe**: Die Größenänderung eines Widgets im Editier-Modus
+   hat bisher `resizeWidget(id, dw, 0)` aufgerufen - die Höhe war fest verdrahtet auf "keine
+   Änderung". Beide Buttons wachsen/schrumpfen jetzt Breite und Höhe gemeinsam.
+3. **Theme-Umschalter in den Einstellungen**: Neue Hell/Dunkel/System-Auswahl (persistiert über
+   DataStore, `ThemeMode`-Enum) - bisher folgte die App nur `isSystemInDarkTheme()` ohne
+   In-App-Override.
+
 ## [0.0.25] - master, Testbuild
 
 Feature-Wunsch aus Live-Feedback: Der "Widget hinzufügen"-Dialog im Dashboard-Editor war eine

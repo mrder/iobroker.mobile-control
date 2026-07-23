@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mobilecontrol.app.BuildConfig
 import com.mobilecontrol.app.domain.model.DeviceProfile
+import com.mobilecontrol.app.domain.model.ThemeMode
 import com.mobilecontrol.app.domain.repository.AuthRepository
 import com.mobilecontrol.app.domain.repository.DiagnosticsRepository
 import com.mobilecontrol.app.domain.repository.LogEntry
@@ -21,8 +22,17 @@ data class SettingsUiState(
     val lastConnectionAt: Long? = null,
     val appLockEnabled: Boolean = true,
     val biometricEnabled: Boolean = false,
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val logs: List<LogEntry> = emptyList(),
     val loggedOut: Boolean = false,
+)
+
+private data class BaseSettings(
+    val deviceProfile: DeviceProfile?,
+    val lastConnectionAt: Long?,
+    val appLockEnabled: Boolean,
+    val biometricEnabled: Boolean,
+    val logs: List<LogEntry>,
 )
 
 @HiltViewModel
@@ -36,13 +46,18 @@ class SettingsViewModel @Inject constructor(
     val apiVersion: String = BuildConfig.API_VERSION
 
     val uiState: StateFlow<SettingsUiState> = combine(
-        settingsRepository.observeDeviceProfile(),
-        settingsRepository.observeLastConnectionAt(),
-        settingsRepository.observeAppLockEnabled(),
-        settingsRepository.observeBiometricEnabled(),
-        diagnosticsRepository.recentLogs,
-    ) { profile, lastConnection, appLock, biometric, logs ->
-        SettingsUiState(profile, lastConnection, appLock, biometric, logs)
+        combine(
+            settingsRepository.observeDeviceProfile(),
+            settingsRepository.observeLastConnectionAt(),
+            settingsRepository.observeAppLockEnabled(),
+            settingsRepository.observeBiometricEnabled(),
+            diagnosticsRepository.recentLogs,
+        ) { profile, lastConnection, appLock, biometric, logs ->
+            BaseSettings(profile, lastConnection, appLock, biometric, logs)
+        },
+        settingsRepository.observeThemeMode(),
+    ) { base, themeMode ->
+        SettingsUiState(base.deviceProfile, base.lastConnectionAt, base.appLockEnabled, base.biometricEnabled, themeMode, base.logs)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
 
     fun setAppLockEnabled(enabled: Boolean) {
@@ -51,6 +66,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setBiometricEnabled(enabled: Boolean) {
         viewModelScope.launch { settingsRepository.setBiometricEnabled(enabled) }
+    }
+
+    fun setThemeMode(mode: ThemeMode) {
+        viewModelScope.launch { settingsRepository.setThemeMode(mode) }
     }
 
     fun clearCache() {

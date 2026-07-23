@@ -42,9 +42,6 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -72,7 +69,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.mobilecontrol.app.R
 import com.mobilecontrol.app.domain.model.ObjectCatalogItem
 import com.mobilecontrol.app.domain.model.ObjectTreeNode
-import com.mobilecontrol.app.domain.model.SizeClass
 import com.mobilecontrol.app.domain.model.ValueType
 import com.mobilecontrol.app.domain.model.Widget
 import com.mobilecontrol.app.domain.model.WidgetType
@@ -125,8 +121,6 @@ fun DashboardEditorScreen(
                 OfflineBanner()
             }
 
-            SizeClassSelector(selected = state.sizeClass, onSelect = viewModel::selectSizeClass)
-
             val layout = state.currentLayout
             if (layout == null || layout.widgets.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -159,8 +153,8 @@ fun DashboardEditorScreen(
                                 widget.objectId?.let { id -> viewModel.sendCommand(id, value, confirmed) }
                             },
                             onRemove = { viewModel.removeWidget(widget.id) },
-                            onGrow = { viewModel.resizeWidget(widget.id, 1, 0) },
-                            onShrink = { viewModel.resizeWidget(widget.id, -1, 0) },
+                            onGrow = { viewModel.resizeWidget(widget.id, 1, 1) },
+                            onShrink = { viewModel.resizeWidget(widget.id, -1, -1) },
                         )
                     }
                 }
@@ -199,22 +193,6 @@ private fun OfflineBanner() {
             modifier = Modifier.padding(8.dp),
             color = MaterialTheme.colorScheme.onErrorContainer,
         )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SizeClassSelector(selected: SizeClass, onSelect: (SizeClass) -> Unit) {
-    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
-        SizeClass.entries.forEachIndexed { index, sizeClass ->
-            SegmentedButton(
-                selected = selected == sizeClass,
-                onClick = { onSelect(sizeClass) },
-                shape = SegmentedButtonDefaults.itemShape(index = index, count = SizeClass.entries.size),
-            ) {
-                Text(sizeClass.wireName)
-            }
-        }
     }
 }
 

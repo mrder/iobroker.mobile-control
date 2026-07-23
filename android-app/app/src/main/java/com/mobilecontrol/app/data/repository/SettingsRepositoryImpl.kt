@@ -4,6 +4,7 @@ import com.mobilecontrol.app.data.local.AppDatabase
 import com.mobilecontrol.app.data.local.SettingsDataStore
 import com.mobilecontrol.app.data.local.TokenStore
 import com.mobilecontrol.app.domain.model.DeviceProfile
+import com.mobilecontrol.app.domain.model.ThemeMode
 import com.mobilecontrol.app.domain.repository.SettingsRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -29,6 +30,10 @@ class SettingsRepositoryImpl @Inject constructor(
     override fun observeBiometricEnabled(): Flow<Boolean> = settingsDataStore.observeBiometricEnabled()
 
     override suspend fun setBiometricEnabled(enabled: Boolean) = settingsDataStore.setBiometricEnabled(enabled)
+
+    override fun observeThemeMode(): Flow<ThemeMode> = settingsDataStore.observeThemeMode()
+
+    override suspend fun setThemeMode(mode: ThemeMode) = settingsDataStore.setThemeMode(mode)
 
     override suspend fun setPinHash(hash: String) = tokenStore.savePinHash(hash)
 

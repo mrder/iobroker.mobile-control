@@ -4,14 +4,19 @@ import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.fragment.app.FragmentActivity
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.mobilecontrol.app.domain.model.ThemeMode
 import com.mobilecontrol.app.ui.navigation.AppNavGraph
 import com.mobilecontrol.app.ui.navigation.Routes
 import com.mobilecontrol.app.ui.theme.MobileControlTheme
+import com.mobilecontrol.app.ui.theme.ThemeViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
 // Settings is intentionally not listed here: it lives inside Start's nested bottom-nav NavHost,
@@ -31,7 +36,14 @@ class MainActivity : FragmentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            MobileControlTheme {
+            val themeViewModel: ThemeViewModel = hiltViewModel()
+            val themeMode by themeViewModel.themeMode.collectAsState()
+            val darkTheme = when (themeMode) {
+                ThemeMode.DARK -> true
+                ThemeMode.LIGHT -> false
+                ThemeMode.SYSTEM -> isSystemInDarkTheme()
+            }
+            MobileControlTheme(darkTheme = darkTheme) {
                 val navController = rememberNavController()
                 val backStackEntry by navController.currentBackStackEntryAsState()
 

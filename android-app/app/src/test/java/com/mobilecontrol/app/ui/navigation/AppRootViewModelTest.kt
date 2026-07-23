@@ -6,6 +6,7 @@ import com.mobilecontrol.app.domain.model.DashboardLayout
 import com.mobilecontrol.app.domain.model.DeviceProfile
 import com.mobilecontrol.app.domain.model.Session
 import com.mobilecontrol.app.domain.model.SizeClass
+import com.mobilecontrol.app.domain.model.ThemeMode
 import com.mobilecontrol.app.domain.repository.AuthRepository
 import com.mobilecontrol.app.domain.repository.ConnectionState
 import com.mobilecontrol.app.domain.repository.DashboardRepository
@@ -56,6 +57,9 @@ private class FakeSettingsRepository : SettingsRepository {
 
     override fun observeLastConnectionAt(): Flow<Long?> = MutableStateFlow(null)
     override suspend fun setLastConnectionAt(epochMillis: Long) {}
+
+    override fun observeThemeMode(): Flow<ThemeMode> = MutableStateFlow(ThemeMode.SYSTEM)
+    override suspend fun setThemeMode(mode: ThemeMode) {}
 }
 
 private class FakeAuthRepository : AuthRepository {

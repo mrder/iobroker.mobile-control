@@ -1,6 +1,7 @@
 package com.mobilecontrol.app.ui.lock
 
 import com.mobilecontrol.app.domain.model.DeviceProfile
+import com.mobilecontrol.app.domain.model.ThemeMode
 import com.mobilecontrol.app.domain.repository.SettingsRepository
 import com.mobilecontrol.app.util.MainDispatcherRule
 import kotlinx.coroutines.flow.Flow
@@ -21,6 +22,7 @@ private class FakeSettingsRepository : SettingsRepository {
     private val _appLockEnabled = MutableStateFlow(true)
     private val _biometricEnabled = MutableStateFlow(false)
     private val _lastConnectionAt = MutableStateFlow<Long?>(null)
+    private val _themeMode = MutableStateFlow(ThemeMode.SYSTEM)
 
     var pinHash: String? = null
     var clearCacheCalled = false
@@ -56,6 +58,11 @@ private class FakeSettingsRepository : SettingsRepository {
     override fun observeLastConnectionAt(): Flow<Long?> = _lastConnectionAt
     override suspend fun setLastConnectionAt(epochMillis: Long) {
         _lastConnectionAt.value = epochMillis
+    }
+
+    override fun observeThemeMode(): Flow<ThemeMode> = _themeMode
+    override suspend fun setThemeMode(mode: ThemeMode) {
+        _themeMode.value = mode
     }
 }
 

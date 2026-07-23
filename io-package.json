@@ -1,8 +1,12 @@
 {
   "common": {
     "name": "mobile-control",
-    "version": "0.0.25",
+    "version": "0.0.26",
     "news": {
+      "0.0.26": {
+        "en": "Three follow-ups from live testing on the tablet: (1) the dashboard editor's compact/medium/expanded layout selector is gone - it only ever mattered for widgets added under 'compact' (the only size class the app actually used), so it was three buttons wasted on a single-device app. Also fixed the +/- resize buttons, which only ever changed a widget's width - they now grow/shrink both width and height together. (2) Added an explicit Hell/Dunkel/System theme switch in Settings (previously the app only ever followed the OS dark-mode setting with no way to override it in-app).",
+        "de": "Drei Folgepunkte aus dem Livetest auf dem Tablet: (1) Der Kompakt/Medium/Erweitert-Layoutwähler im Dashboard-Editor ist weg - er wirkte sich ohnehin nur auf Widgets aus, die unter 'kompakt' angelegt wurden (der einzigen tatsächlich genutzten Größenklasse), also drei Buttons verschwendeter Platz auf einer Ein-Geräte-App. Außerdem die +/- Größenbuttons repariert, die bisher nur die Breite eines Widgets verändert haben - sie ändern jetzt Breite und Höhe gemeinsam. (2) Expliziten Hell/Dunkel/System-Umschalter in den Einstellungen ergänzt (bisher folgte die App nur dem OS-Dunkelmodus, ohne In-App-Override)."
+      },
       "0.0.25": {
         "en": "Feature request from live testing: the dashboard's 'add widget' picker was a flat, unfiltered list that didn't show categories/folders, making it hard to find anything. It now reuses the same expandable folder tree as the object catalog (falls back to a flat filtered list once you search), adds filter chips for value type (All/Bool/Number/Text/JSON), and lets you manually override the auto-suggested widget type instead of always taking the guess.",
         "de": "Feature-Wunsch aus dem Livetest: Der 'Widget hinzufügen'-Dialog im Dashboard war eine flache, ungefilterte Liste ohne Kategorien/Ordner, was das Auffinden erschwerte. Er nutzt jetzt denselben aufklappbaren Ordnerbaum wie der Objektkatalog (bei aktiver Suche weiterhin eine flache gefilterte Liste), bietet Filter-Chips nach Werttyp (Alle/Bool/Zahl/Text/JSON) und erlaubt es, den automatisch vorgeschlagenen Widget-Typ manuell zu überschreiben statt immer die Vermutung zu übernehmen."
@@ -78,10 +82,6 @@
       "0.0.7": {
         "en": "Hardened every fire-and-forget async call in the backend with proper error handling, so a single transient storage/network failure can never again crash the whole adapter process - found while auditing the codebase for the same class of bug as the ws EADDRINUSE crash",
         "de": "Alle Fire-and-Forget-Async-Aufrufe im Backend mit richtiger Fehlerbehandlung abgesichert, damit ein einzelner vorübergehender Storage-/Netzwerkfehler nie wieder den ganzen Adapter-Prozess mitreißen kann - gefunden bei der Suche nach derselben Fehlerklasse wie beim ws-EADDRINUSE-Absturz"
-      },
-      "0.0.6": {
-        "en": "Found and fixed the real root cause of the live-test EADDRINUSE crash: ws's WebSocketServer forwards the underlying http.Server's error event onto itself, and Node throws synchronously if nothing listens for it - this bypassed all of main.ts's retry/port-scan/clear-error handling from the very first 'error' event, every time, since the project's beginning. RealtimeGateway now listens for it. Diagnostic-only logging removed again.",
-        "de": "Echte Ursache des EADDRINUSE-Absturzes beim Livetest gefunden und behoben: ws' WebSocketServer reicht das 'error'-Event des zugrunde liegenden http.Server an sich selbst weiter, und Node wirft synchron, wenn niemand darauf hört - das umging die komplette Retry-/Port-Scan-/Fehlerbehandlung in main.ts von Anfang an, bei jedem einzelnen 'error'-Event, seit Projektbeginn. RealtimeGateway hört jetzt darauf. Reines Diagnose-Logging wieder entfernt."
       }
     },
     "title": "Mobile Control",

@@ -92,11 +92,6 @@ class DashboardEditorViewModel @Inject constructor(
 
     fun toggleEditMode() = local.update { it.copy(editMode = !it.editMode) }
 
-    fun selectSizeClass(sizeClass: SizeClass) {
-        local.update { it.copy(sizeClass = sizeClass) }
-        subscribeCurrentLayoutObjects()
-    }
-
     fun showAddWidgetDialog(show: Boolean) = local.update { it.copy(showAddWidgetDialog = show) }
 
     fun addWidget(catalogItem: ObjectCatalogItem?, type: WidgetType, title: String) {
