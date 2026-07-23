@@ -120,6 +120,13 @@ export interface ConnectionInfo {
     localAddresses: string[];
 }
 
+export interface UrlEmbed {
+    id: string;
+    name: string;
+    url: string;
+    createdAt: number;
+}
+
 export interface AbuseSnapshotEntry {
     key: string;
     failures: number;

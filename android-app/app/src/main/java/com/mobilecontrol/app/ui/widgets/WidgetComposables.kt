@@ -1,6 +1,8 @@
 package com.mobilecontrol.app.ui.widgets
 
 import android.graphics.BitmapFactory
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -40,6 +42,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mobilecontrol.app.domain.model.HistoryEntry
@@ -481,7 +484,7 @@ fun CameraWidget(
     WidgetCard(title = title, state = WidgetState.Stale(null, 0L), modifier = modifier) {
         when (val current = loadState) {
             CameraLoadState.Loading -> Text("Lädt…", style = MaterialTheme.typography.bodyMedium)
-            CameraLoadState.Unavailable -> CameraUnavailable(onRetry = { refreshTrigger++ })
+            CameraLoadState.Unavailable -> EmbedUnavailable(message = "Kein Snapshot verfügbar", onRetry = { refreshTrigger++ })
             is CameraLoadState.Success -> CameraSnapshotView(
                 bitmap = current.bitmap,
                 loadedAtMillis = current.loadedAtMillis,
@@ -539,13 +542,147 @@ private fun CameraSnapshotView(
     }
 }
 
+/** Shared "couldn't load" row for every embed-style widget (camera, url image, web page) - each
+ *  passes its own message since the underlying reason differs (no snapshot vs. no image vs. the
+ *  target URL couldn't be resolved), but the layout and retry affordance are identical. */
 @Composable
-private fun CameraUnavailable(onRetry: () -> Unit) {
+private fun EmbedUnavailable(message: String, onRetry: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(Icons.Filled.BrokenImage, contentDescription = null, tint = StatusError)
-        Text(text = "Kein Snapshot verfügbar", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 4.dp))
+        Text(text = message, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 4.dp))
         IconButton(onClick = onRetry) {
             Icon(Icons.Filled.Refresh, contentDescription = "Erneut versuchen")
+        }
+    }
+}
+
+/** Internal load state for [UrlImageWidget], same reasoning as [CameraLoadState]. */
+private sealed interface UrlImageLoadState {
+    data object Loading : UrlImageLoadState
+    data object Unavailable : UrlImageLoadState
+    data class Success(val bitmap: ImageBitmap, val loadedAtMillis: Long) : UrlImageLoadState
+}
+
+/**
+ * Renders the proxied content of an admin-approved URL embed (GET /api/v1/url-embeds/{id}/content)
+ * as an image - the "screenshot URL"/camera-link use case for a source that isn't backed by any
+ * ioBroker state. Structurally identical to [CameraWidget], just sourced by a urlEmbedId
+ * (widget.config["urlEmbedId"]) instead of an objectId.
+ */
+@Composable
+fun UrlImageWidget(
+    title: String,
+    urlEmbedId: String?,
+    modifier: Modifier = Modifier,
+    viewModel: UrlEmbedWidgetViewModel = hiltViewModel(),
+) {
+    var loadState by remember(urlEmbedId) { mutableStateOf<UrlImageLoadState>(UrlImageLoadState.Loading) }
+    var refreshTrigger by remember(urlEmbedId) { mutableIntStateOf(0) }
+    var fullscreen by remember { mutableStateOf(false) }
+
+    LaunchedEffect(urlEmbedId, refreshTrigger) {
+        if (urlEmbedId == null) {
+            loadState = UrlImageLoadState.Unavailable
+            return@LaunchedEffect
+        }
+        loadState = UrlImageLoadState.Loading
+        val result = viewModel.loadContent(urlEmbedId)
+        loadState = result.fold(
+            onSuccess = { bytes ->
+                val bitmap = runCatching { BitmapFactory.decodeByteArray(bytes, 0, bytes.size) }.getOrNull()
+                if (bitmap != null) {
+                    UrlImageLoadState.Success(bitmap.asImageBitmap(), System.currentTimeMillis())
+                } else {
+                    UrlImageLoadState.Unavailable
+                }
+            },
+            onFailure = { UrlImageLoadState.Unavailable },
+        )
+    }
+
+    WidgetCard(title = title, state = WidgetState.Stale(null, 0L), modifier = modifier) {
+        when (val current = loadState) {
+            UrlImageLoadState.Loading -> Text("Lädt…", style = MaterialTheme.typography.bodyMedium)
+            UrlImageLoadState.Unavailable -> EmbedUnavailable(message = "Kein Bild verfügbar", onRetry = { refreshTrigger++ })
+            is UrlImageLoadState.Success -> CameraSnapshotView(
+                bitmap = current.bitmap,
+                loadedAtMillis = current.loadedAtMillis,
+                onRefresh = { refreshTrigger++ },
+                onOpenFullscreen = { fullscreen = true },
+            )
+        }
+    }
+
+    if (fullscreen) {
+        val current = loadState
+        if (current is UrlImageLoadState.Success) {
+            Dialog(onDismissRequest = { fullscreen = false }) {
+                Image(
+                    bitmap = current.bitmap,
+                    contentDescription = title,
+                    modifier = Modifier.fillMaxWidth().clickable { fullscreen = false },
+                    contentScale = ContentScale.Fit,
+                )
+            }
+        } else {
+            fullscreen = false
+        }
+    }
+}
+
+/** Internal load state for [WebPageWidget]. */
+private sealed interface WebPageLoadState {
+    data object Loading : WebPageLoadState
+    data object Unavailable : WebPageLoadState
+    data class Resolved(val url: String) : WebPageLoadState
+}
+
+/**
+ * Embeds an admin-approved local web UI (GET /api/v1/url-embeds/{id}/resolve, then a plain
+ * Android WebView navigation) - the "HTML frame" use case from the allowlist feature. The client
+ * never picks the URL itself, only an id from the allowlist; once resolved, the WebView navigates
+ * the LAN directly (a full page's own relative sub-resource requests can't realistically be
+ * rewritten through a single-resource proxy - see UrlEmbedsService's own docs for why). JavaScript
+ * is enabled since most small device web UIs need it to function - same trust level as opening
+ * that same admin-approved URL in any other LAN browser tab, no bridge to app code is exposed.
+ */
+@Composable
+fun WebPageWidget(
+    title: String,
+    urlEmbedId: String?,
+    modifier: Modifier = Modifier,
+    viewModel: UrlEmbedWidgetViewModel = hiltViewModel(),
+) {
+    var loadState by remember(urlEmbedId) { mutableStateOf<WebPageLoadState>(WebPageLoadState.Loading) }
+    var refreshTrigger by remember(urlEmbedId) { mutableIntStateOf(0) }
+
+    LaunchedEffect(urlEmbedId, refreshTrigger) {
+        if (urlEmbedId == null) {
+            loadState = WebPageLoadState.Unavailable
+            return@LaunchedEffect
+        }
+        loadState = WebPageLoadState.Loading
+        loadState = viewModel.resolveUrl(urlEmbedId).fold(
+            onSuccess = { url -> WebPageLoadState.Resolved(url) },
+            onFailure = { WebPageLoadState.Unavailable },
+        )
+    }
+
+    WidgetCard(title = title, state = WidgetState.Stale(null, 0L), modifier = modifier) {
+        when (val current = loadState) {
+            WebPageLoadState.Loading -> Text("Lädt…", style = MaterialTheme.typography.bodyMedium)
+            WebPageLoadState.Unavailable -> EmbedUnavailable(message = "Seite nicht verfügbar", onRetry = { refreshTrigger++ })
+            is WebPageLoadState.Resolved -> AndroidView(
+                modifier = Modifier.fillMaxSize(),
+                factory = { context ->
+                    WebView(context).apply {
+                        settings.javaScriptEnabled = true
+                        settings.domStorageEnabled = true
+                        webViewClient = WebViewClient()
+                    }
+                },
+                update = { webView -> webView.loadUrl(current.url) },
+            )
         }
     }
 }

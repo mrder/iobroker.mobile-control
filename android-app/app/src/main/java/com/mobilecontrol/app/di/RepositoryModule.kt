@@ -11,6 +11,7 @@ import com.mobilecontrol.app.data.repository.ObjectCatalogRepositoryImpl
 import com.mobilecontrol.app.data.repository.PairingRepositoryImpl
 import com.mobilecontrol.app.data.repository.SettingsRepositoryImpl
 import com.mobilecontrol.app.data.repository.StateRepositoryImpl
+import com.mobilecontrol.app.data.repository.UrlEmbedRepositoryImpl
 import com.mobilecontrol.app.domain.repository.AuthRepository
 import com.mobilecontrol.app.domain.repository.CameraRepository
 import com.mobilecontrol.app.domain.repository.CommandRepository
@@ -22,6 +23,7 @@ import com.mobilecontrol.app.domain.repository.ObjectCatalogRepository
 import com.mobilecontrol.app.domain.repository.PairingRepository
 import com.mobilecontrol.app.domain.repository.SettingsRepository
 import com.mobilecontrol.app.domain.repository.StateRepository
+import com.mobilecontrol.app.domain.repository.UrlEmbedRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -75,4 +77,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindCameraRepository(impl: CameraRepositoryImpl): CameraRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindUrlEmbedRepository(impl: UrlEmbedRepositoryImpl): UrlEmbedRepository
 }

@@ -48,6 +48,9 @@
     <string name="dashboard_editor_overwrite">Überschreiben</string>
     <string name="dashboard_editor_discard">Verwerfen</string>
     <string name="dashboard_editor_pick_different_object">Anderes Objekt wählen</string>
+    <string name="dashboard_editor_pick_different_embed">Andere Einbettung wählen</string>
+    <string name="dashboard_editor_url_embed_label">URL-Einbettung</string>
+    <string name="dashboard_editor_no_url_embeds">Keine URL-Einbettungen konfiguriert. In der Admin-Oberfläche unter „URL-Einbettungen" anlegen.</string>
 
     <!-- Object browser -->
     <string name="objects_title">Objektkatalog</string>

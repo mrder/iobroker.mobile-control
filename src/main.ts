@@ -17,6 +17,7 @@ import type {
     PublicObjectMapping,
     Role,
     Session,
+    UrlEmbed,
     User,
 } from './lib/types';
 
@@ -35,6 +36,7 @@ import { CommandsService } from './commands';
 import { AuditService } from './audit';
 import { HistoryService } from './history';
 import { CameraService } from './camera';
+import { UrlEmbedsService } from './urlEmbeds';
 import { RateLimiter } from './security/rateLimiter';
 import { AbuseGuard } from './security/abuseGuard';
 import { ReplayGuard } from './security/replayGuard';
@@ -100,6 +102,7 @@ class MobileControlAdapter extends utils.Adapter {
     private auditService!: AuditService;
     private historyService!: HistoryService;
     private cameraService!: CameraService;
+    private urlEmbedsService!: UrlEmbedsService;
     private abuseGuard!: AbuseGuard;
 
     public constructor(options: Partial<utils.AdapterOptions> = {}) {
@@ -158,6 +161,7 @@ class MobileControlAdapter extends utils.Adapter {
         const dashboardsStore = new CollectionStore<Dashboard>(this, 'dashboards');
         const commandsStore = new CollectionStore<CommandRecord>(this, 'commands');
         const auditStore = new CollectionStore<AuditEvent>(this, 'auditEvents');
+        const urlEmbedsStore = new CollectionStore<UrlEmbed>(this, 'urlEmbeds');
 
         await Promise.all([
             usersStore.init(),
@@ -172,6 +176,7 @@ class MobileControlAdapter extends utils.Adapter {
             dashboardsStore.init(),
             commandsStore.init(),
             auditStore.init(),
+            urlEmbedsStore.init(),
         ]);
 
         this.rolesService = new RolesService(rolesStore);
@@ -200,6 +205,7 @@ class MobileControlAdapter extends utils.Adapter {
         this.commandsService = new CommandsService(this, commandsStore, this.catalogService, this.auditService, rateLimiter, replayGuard);
         this.historyService = new HistoryService(this, config.historyInstance ?? '');
         this.cameraService = new CameraService(this);
+        this.urlEmbedsService = new UrlEmbedsService(this, urlEmbedsStore);
 
         await this.startHttpServer(config);
 
@@ -244,6 +250,7 @@ class MobileControlAdapter extends utils.Adapter {
                 audit: this.auditService,
                 history: this.historyService,
                 camera: this.cameraService,
+                urlEmbeds: this.urlEmbedsService,
                 refreshTokenTtlDays: config.refreshTokenTtlDays,
                 authRateLimiter: new RateLimiter(config.authRateLimitPerMinute),
                 abuseGuard: this.abuseGuard,
@@ -638,6 +645,36 @@ class MobileControlAdapter extends utils.Adapter {
                 case 'listAbuseState':
                     respond(this.abuseGuard?.snapshot() ?? []);
                     break;
+
+                case 'listUrlEmbeds':
+                    respond(this.urlEmbedsService.list());
+                    break;
+                // Same trust boundary note as the exposure rule messages above: this comes from
+                // an already-authenticated ioBroker admin session, so the url is trusted here
+                // (beyond the basic http(s)-absolute-URL sanity check UrlEmbedsService itself
+                // does) rather than re-validated against e.g. an SSRF target blocklist.
+                case 'createUrlEmbed': {
+                    const created = await this.urlEmbedsService.create({ name: String(body.name), url: String(body.url) });
+                    await this.auditService.log({ action: 'urlEmbed.created', result: 'success', detail: `embed=${created.id}` });
+                    respond(created);
+                    break;
+                }
+                case 'updateUrlEmbed': {
+                    const updated = await this.urlEmbedsService.update(String(body.id), {
+                        name: body.name !== undefined ? String(body.name) : undefined,
+                        url: body.url !== undefined ? String(body.url) : undefined,
+                    });
+                    await this.auditService.log({ action: 'urlEmbed.updated', result: 'success', detail: `embed=${updated.id}` });
+                    respond(updated);
+                    break;
+                }
+                case 'deleteUrlEmbed': {
+                    const embedId = String(body.id);
+                    await this.urlEmbedsService.delete(embedId);
+                    await this.auditService.log({ action: 'urlEmbed.deleted', result: 'success', detail: `embed=${embedId}` });
+                    respond({ ok: true });
+                    break;
+                }
 
                 default:
                     if (obj.callback) {

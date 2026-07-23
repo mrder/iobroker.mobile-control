@@ -94,12 +94,16 @@ class DashboardEditorViewModel @Inject constructor(
 
     fun showAddWidgetDialog(show: Boolean) = local.update { it.copy(showAddWidgetDialog = show) }
 
-    fun addWidget(catalogItem: ObjectCatalogItem?, type: WidgetType, title: String) {
+    fun addWidget(catalogItem: ObjectCatalogItem?, type: WidgetType, title: String, urlEmbedId: String? = null) {
         val current = local.value.dashboard ?: return
         val layout = current.layoutFor(local.value.sizeClass)
         val defaultW = 2
         val defaultH = 1
         val (freeX, freeY) = GridPlacement.findFreeSlot(layout, defaultW, defaultH)
+        val config = buildMap {
+            catalogItem?.unit?.let { put("unit", it) }
+            urlEmbedId?.let { put("urlEmbedId", it) }
+        }
         val newWidget = Widget(
             id = UUID.randomUUID().toString(),
             objectId = catalogItem?.id,
@@ -109,7 +113,7 @@ class DashboardEditorViewModel @Inject constructor(
             y = freeY,
             w = defaultW,
             h = defaultH,
-            config = catalogItem?.unit?.let { mapOf("unit" to it) } ?: emptyMap(),
+            config = config,
         )
         updateLayout(local.value.sizeClass) { it.copy(widgets = it.widgets + newWidget) }
         local.update { it.copy(showAddWidgetDialog = false) }

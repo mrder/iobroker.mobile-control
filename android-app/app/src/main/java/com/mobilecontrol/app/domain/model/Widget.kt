@@ -29,6 +29,12 @@ enum class WidgetType(val wireName: String) {
     THERMOSTAT("thermostat"),
     ALARM("alarm"),
     CAMERA("camera"),
+    // Not backed by an ioBroker objectId - widget.config["urlEmbedId"] points at an admin-approved
+    // UrlEmbed instead (see domain/model/UrlEmbed.kt). URL_IMAGE fetches proxied bytes and renders
+    // them as an image (like CAMERA, but sourced from an arbitrary allowlisted URL rather than an
+    // ioBroker state); WEB_VIEW resolves the real URL and loads it directly in a WebView.
+    URL_IMAGE("url_image"),
+    WEB_VIEW("web_view"),
     ;
 
     companion object {

@@ -60,6 +60,8 @@ fun WidgetHost(
         WidgetType.HISTORY -> HistoryWidget(title = title, objectId = widget.objectId, unit = widget.config["unit"], modifier = modifier)
         WidgetType.ALARM -> AlarmWidget(title = title, objectId = widget.objectId, state = state, modifier = modifier)
         WidgetType.CAMERA -> CameraWidget(title = title, objectId = widget.objectId, modifier = modifier)
+        WidgetType.URL_IMAGE -> UrlImageWidget(title = title, urlEmbedId = widget.config["urlEmbedId"], modifier = modifier)
+        WidgetType.WEB_VIEW -> WebPageWidget(title = title, urlEmbedId = widget.config["urlEmbedId"], modifier = modifier)
         WidgetType.MOMENTARY_BUTTON -> MomentaryButtonWidget(
             title = title,
             state = state,

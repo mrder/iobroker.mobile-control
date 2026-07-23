@@ -15,6 +15,8 @@ import com.mobilecontrol.app.data.remote.dto.PairingStatusResponseDto
 import com.mobilecontrol.app.data.remote.dto.RefreshRequestDto
 import com.mobilecontrol.app.data.remote.dto.StatesResponseDto
 import com.mobilecontrol.app.data.remote.dto.TokenResponseDto
+import com.mobilecontrol.app.data.remote.dto.UrlEmbedListResponseDto
+import com.mobilecontrol.app.data.remote.dto.UrlEmbedResolveResponseDto
 import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
@@ -63,6 +65,16 @@ interface ApiService {
     @Streaming
     @GET("api/v1/objects/{id}/snapshot")
     suspend fun getSnapshot(@Path("id") id: String): Response<ResponseBody>
+
+    @GET("api/v1/url-embeds")
+    suspend fun getUrlEmbeds(): Response<UrlEmbedListResponseDto>
+
+    @Streaming
+    @GET("api/v1/url-embeds/{id}/content")
+    suspend fun getUrlEmbedContent(@Path("id") id: String): Response<ResponseBody>
+
+    @GET("api/v1/url-embeds/{id}/resolve")
+    suspend fun resolveUrlEmbed(@Path("id") id: String): Response<UrlEmbedResolveResponseDto>
 
     @GET("api/v1/dashboards")
     suspend fun getDashboards(): Response<DashboardListResponseDto>

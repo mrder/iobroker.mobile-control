@@ -109,6 +109,20 @@ export interface ExposureRule {
     createdAt: number;
 }
 
+/**
+ * Admin-managed allowlist entry for embedding an external URL (a device's local web UI, a
+ * screenshot/snapshot endpoint that isn't backed by any ioBroker state) into a dashboard widget.
+ * Deliberately NOT a generic proxy: a paired device only ever learns {id, name} via the list
+ * endpoint and can only ever fetch/resolve a URL by an id it already knows from that list - never
+ * by supplying a URL itself. See src/urlEmbeds/index.ts.
+ */
+export interface UrlEmbed {
+    id: string;
+    name: string;
+    url: string;
+    createdAt: number;
+}
+
 export interface PublicObjectMapping {
     /** the public UUID, used as CollectionStore id */
     id: string;

@@ -174,6 +174,21 @@ class DashboardEditorViewModelTest {
     }
 
     @Test
+    fun `addWidget with a urlEmbedId stores it in widget config and leaves objectId null`() = runTest {
+        val dashboard = testDashboard()
+        val viewModel = buildViewModel(dashboard)
+        collectUiState(viewModel)
+        advanceUntilIdle()
+        viewModel.showAddWidgetDialog(true)
+
+        viewModel.addWidget(null, WidgetType.URL_IMAGE, "Kamera-Link", urlEmbedId = "embed-1")
+
+        val added = viewModel.uiState.value.currentLayout!!.widgets.single()
+        assertNull(added.objectId)
+        assertEquals("embed-1", added.config["urlEmbedId"])
+    }
+
+    @Test
     fun `removeWidget deletes only the targeted widget`() = runTest {
         val dashboard = testDashboard(widgets = listOf(widget("keep"), widget("drop", x = 2)))
         val viewModel = buildViewModel(dashboard)

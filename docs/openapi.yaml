@@ -16,6 +16,7 @@ tags:
   - name: pairing
   - name: auth
   - name: catalog
+  - name: url-embeds
   - name: commands
   - name: dashboards
 
@@ -302,6 +303,102 @@ paths:
                 $ref: '#/components/schemas/ErrorBody'
         '503':
           description: SERVER_UNAVAILABLE - no snapshot value, unsupported value shape, or the source URL did not respond
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '401':
+          $ref: '#/components/responses/Error'
+
+  /url-embeds:
+    get:
+      tags: [url-embeds]
+      summary: List admin-approved URL embeds available to this device
+      description: |
+        Admin-managed allowlist (see src/urlEmbeds/index.ts) - deliberately returns only {id, name}
+        for every entry, never the underlying URL. A client cannot fetch or navigate to a URL of
+        its own choosing; it can only reference an id from this list via the two endpoints below.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The list of allowlisted embeds
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  embeds:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string }
+                        name: { type: string }
+        '401':
+          $ref: '#/components/responses/Error'
+
+  /url-embeds/{id}/content:
+    get:
+      tags: [url-embeds]
+      summary: Proxied content of one URL embed, for image-style widgets
+      description: |
+        Fetches the entry's URL server-side and streams the bytes back with the source's own
+        Content-Type - the app never contacts the target host directly. Cached briefly and falls
+        back to the last known-good content on a transient fetch failure, same as
+        /objects/{id}/snapshot.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: The content bytes, Content-Type set from the source; X-Content-Timestamp header carries the fetch time
+          content:
+            '*/*':
+              schema: { type: string, format: binary }
+        '404':
+          description: NOT_FOUND - no such url embed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '503':
+          description: SERVER_UNAVAILABLE - the source URL did not respond
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '401':
+          $ref: '#/components/responses/Error'
+
+  /url-embeds/{id}/resolve:
+    get:
+      tags: [url-embeds]
+      summary: Resolve one URL embed's real target URL, for WebView-style widgets
+      description: |
+        Returns the actual URL for a single admin-approved id, so a WebView can navigate directly
+        (a full page's own relative sub-resource requests can't realistically be rewritten through
+        a single-resource proxy). The client still never supplies the URL itself - only an id it
+        already knows from GET /url-embeds.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: The resolved URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url: { type: string }
+        '404':
+          description: NOT_FOUND - no such url embed
           content:
             application/json:
               schema:

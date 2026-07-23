@@ -8,6 +8,27 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.27] - master, Testbuild
+
+Neues Feature, live angefragt: URL-Einbettungen ("wie schaut das aus mit URL-Einbindungen? kriegen
+wir das indirekt vom lokal per Proxy dann auch in die App im besten Fall?"), umgesetzt als bewusst
+**allowlist-basierter** Ansatz statt eines generischen Proxys (Nutzerentscheidung aus einer
+früheren Rückfrage).
+
+1. **Backend**: Neuer `UrlEmbedsService` (`src/urlEmbeds/index.ts`) verwaltet eine
+   admin-gepflegte Liste erlaubter URLs. Drei neue Endpunkte: `GET /url-embeds` (liefert nur
+   `{id, name}`, nie die URL selbst), `GET /url-embeds/{id}/content` (serverseitig geholt +
+   gecacht + Fallback-bei-Fehler, dasselbe Muster wie `CameraService`), `GET
+   /url-embeds/{id}/resolve` (liefert die echte URL für WebView-Einbettungen, da eine ganze
+   Webseite mit eigenen relativen Unterressourcen sich nicht sinnvoll durch einen
+   Einzelressourcen-Proxy schleusen lässt). Ein Client kennt nie eine URL, die der Admin nicht
+   vorher freigegeben hat.
+2. **Admin-Tab**: Neuer Reiter "URL-Einbettungen" zum Anlegen/Löschen von Allowlist-Einträgen.
+3. **Android**: Zwei neue Widget-Typen im Dashboard - "URL-Bild" (Bild aus dem Proxy, wie das
+   Kamera-Widget) und "Web-Seite" (echtes `WebView`, JavaScript aktiviert, keine Bridge zum
+   App-Code). Auswahl über einen neuen zweiten Reiter im Widget-Picker-Dialog neben dem
+   bestehenden Objektbaum.
+
 ## [0.0.26] - master, Testbuild
 
 Drei Folgepunkte aus dem Livetest auf dem Tablet:

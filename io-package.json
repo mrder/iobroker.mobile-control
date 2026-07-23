@@ -1,8 +1,12 @@
 {
   "common": {
     "name": "mobile-control",
-    "version": "0.0.26",
+    "version": "0.0.27",
     "news": {
+      "0.0.27": {
+        "en": "New feature, requested live: URL embeds. The admin tab now has a 'URL-Einbettungen' section to allowlist specific external URLs (a camera screenshot link, a device's local web UI, ...) - deliberately not a generic proxy, the app only ever sees {id, name} and can only fetch/navigate by an id from that list, never a URL of its own choosing. Two new dashboard widget types: 'URL-Bild' proxies and caches the content server-side (same fallback-on-failure pattern as the camera widget), 'Web-Seite' resolves the real URL and loads it directly in an embedded WebView (JavaScript enabled, no bridge to app code). Pick either from the widget picker's new second tab.",
+        "de": "Neues Feature, live angefragt: URL-Einbettungen. Der Admin-Tab hat jetzt einen Bereich 'URL-Einbettungen' zum Freigeben bestimmter externer URLs (ein Kamera-Schnappschuss-Link, die lokale Web-Oberfläche eines Geräts, ...) - bewusst kein allgemeiner Proxy: Die App sieht nur {id, name} und kann ausschließlich per Id aus dieser Liste abrufen/navigieren, nie eine selbst gewählte URL. Zwei neue Dashboard-Widget-Typen: 'URL-Bild' holt den Inhalt serverseitig gecacht (dasselbe Fallback-bei-Fehler-Muster wie beim Kamera-Widget), 'Web-Seite' löst die echte URL auf und lädt sie direkt in einem eingebetteten WebView (JavaScript aktiviert, keine Bridge zum App-Code). Auswahl über den neuen zweiten Reiter im Widget-Picker."
+      },
       "0.0.26": {
         "en": "Three follow-ups from live testing on the tablet: (1) the dashboard editor's compact/medium/expanded layout selector is gone - it only ever mattered for widgets added under 'compact' (the only size class the app actually used), so it was three buttons wasted on a single-device app. Also fixed the +/- resize buttons, which only ever changed a widget's width - they now grow/shrink both width and height together. (2) Added an explicit Hell/Dunkel/System theme switch in Settings (previously the app only ever followed the OS dark-mode setting with no way to override it in-app).",
         "de": "Drei Folgepunkte aus dem Livetest auf dem Tablet: (1) Der Kompakt/Medium/Erweitert-Layoutwähler im Dashboard-Editor ist weg - er wirkte sich ohnehin nur auf Widgets aus, die unter 'kompakt' angelegt wurden (der einzigen tatsächlich genutzten Größenklasse), also drei Buttons verschwendeter Platz auf einer Ein-Geräte-App. Außerdem die +/- Größenbuttons repariert, die bisher nur die Breite eines Widgets verändert haben - sie ändern jetzt Breite und Höhe gemeinsam. (2) Expliziten Hell/Dunkel/System-Umschalter in den Einstellungen ergänzt (bisher folgte die App nur dem OS-Dunkelmodus, ohne In-App-Override)."
@@ -78,10 +82,6 @@
       "0.0.8": {
         "en": "Fixed a real bug found live: adminUI.tab was set to the invalid value \"custom\" instead of \"html\" (per the actual ioBroker schema: 'html'|'json'|'materialize'), so the custom admin tab never registered in the admin UI sidebar - it has been unreachable since the project's beginning, only ever verified by inspecting the built files directly, never by installing on a real ioBroker instance. Also wires in @iobroker/testing's official package-file validator, which was not being run at all before.",
         "de": "Echten, live gefundenen Bug behoben: adminUI.tab stand auf dem ungültigen Wert \"custom\" statt \"html\" (laut echtem ioBroker-Schema: 'html'|'json'|'materialize'), wodurch der eigene Admin-Tab nie in der Admin-Seitenleiste registriert wurde - seit Projektbeginn unerreichbar, nur je durch direkte Prüfung der gebauten Dateien verifiziert, nie durch eine echte ioBroker-Installation. Bindet außerdem den offiziellen Package-File-Validator von @iobroker/testing ein, der bisher gar nicht lief."
-      },
-      "0.0.7": {
-        "en": "Hardened every fire-and-forget async call in the backend with proper error handling, so a single transient storage/network failure can never again crash the whole adapter process - found while auditing the codebase for the same class of bug as the ws EADDRINUSE crash",
-        "de": "Alle Fire-and-Forget-Async-Aufrufe im Backend mit richtiger Fehlerbehandlung abgesichert, damit ein einzelner vorübergehender Storage-/Netzwerkfehler nie wieder den ganzen Adapter-Prozess mitreißen kann - gefunden bei der Suche nach derselben Fehlerklasse wie beim ws-EADDRINUSE-Absturz"
       }
     },
     "title": "Mobile Control",

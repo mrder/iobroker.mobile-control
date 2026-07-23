@@ -18,6 +18,7 @@ import type { CommandsService } from '../commands';
 import type { AuditService } from '../audit';
 import type { HistoryService } from '../history';
 import type { CameraService } from '../camera';
+import type { UrlEmbedsService } from '../urlEmbeds';
 import type { RateLimiter } from '../security/rateLimiter';
 import type { AbuseGuard } from '../security/abuseGuard';
 import type { DashboardLayout } from '../lib/types';
@@ -35,6 +36,7 @@ export interface ApiServices {
     audit: AuditService;
     history: HistoryService;
     camera: CameraService;
+    urlEmbeds: UrlEmbedsService;
     refreshTokenTtlDays: number;
     authRateLimiter: RateLimiter;
     abuseGuard: AbuseGuard;
@@ -351,6 +353,32 @@ export function createApiRouter(services: ApiServices): Router {
             res.set('Cache-Control', 'no-store');
             res.set('X-Snapshot-Timestamp', new Date(snapshot.timestamp).toISOString());
             res.type(snapshot.contentType).send(snapshot.buffer);
+        } catch (err) {
+            sendError(res, err);
+        }
+    });
+
+    // ---- URL embeds -----------------------------------------------------------
+    // Admin-managed allowlist (see UrlEmbedsService docs) - the app only ever learns {id, name}
+    // here, never a raw URL, and every fetch/resolve below happens by that id.
+    router.get('/url-embeds', requireAuth, (_req: AuthenticatedRequest, res: Response) => {
+        res.json({ embeds: services.urlEmbeds.list().map((e) => ({ id: e.id, name: e.name })) });
+    });
+
+    router.get('/url-embeds/:id/content', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+        try {
+            const content = await services.urlEmbeds.fetchContent(req.params.id);
+            res.set('Cache-Control', 'no-store');
+            res.set('X-Content-Timestamp', new Date(content.timestamp).toISOString());
+            res.type(content.contentType).send(content.buffer);
+        } catch (err) {
+            sendError(res, err);
+        }
+    });
+
+    router.get('/url-embeds/:id/resolve', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+        try {
+            res.json({ url: services.urlEmbeds.resolve(req.params.id) });
         } catch (err) {
             sendError(res, err);
         }

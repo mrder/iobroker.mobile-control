@@ -69,6 +69,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.mobilecontrol.app.R
 import com.mobilecontrol.app.domain.model.ObjectCatalogItem
 import com.mobilecontrol.app.domain.model.ObjectTreeNode
+import com.mobilecontrol.app.domain.model.UrlEmbed
 import com.mobilecontrol.app.domain.model.ValueType
 import com.mobilecontrol.app.domain.model.Widget
 import com.mobilecontrol.app.domain.model.WidgetType
@@ -166,7 +167,7 @@ fun DashboardEditorScreen(
         AddWidgetDialog(
             catalog = state.catalog,
             onDismiss = { viewModel.showAddWidgetDialog(false) },
-            onAdd = { item, type, title -> viewModel.addWidget(item, type, title) },
+            onAdd = { item, type, title, urlEmbedId -> viewModel.addWidget(item, type, title, urlEmbedId) },
         )
     }
 
@@ -377,11 +378,17 @@ private val WIDGET_TYPE_LABELS: Map<WidgetType, String> = mapOf(
     WidgetType.THERMOSTAT to "Thermostat",
     WidgetType.ALARM to "Alarm",
     WidgetType.CAMERA to "Kamera",
+    WidgetType.URL_IMAGE to "URL-Bild",
+    WidgetType.WEB_VIEW to "Web-Seite",
 )
 
 private fun suggestedWidgetType(item: ObjectCatalogItem): WidgetType =
     item.suggestedWidgets.firstOrNull()?.let { WidgetType.fromSuggestion(it) }
         ?: (if (item.canWrite) WidgetType.SWITCH else WidgetType.TEXT_VALUE)
+
+/** Which source the step-1 picker currently browses - objects (the ioBroker catalog, as before)
+ *  or the admin-managed URL-embed allowlist (see UrlEmbedPickerViewModel). */
+private enum class PickerSource { OBJECT, URL_EMBED }
 
 /**
  * Live-test feedback: the previous picker was a flat, unranked, 20-item-capped list with only a
@@ -389,18 +396,24 @@ private fun suggestedWidgetType(item: ObjectCatalogItem): WidgetType =
  * as ObjectBrowserScreen (ObjectTreeNode/buildObjectTree), plus a value-type filter row (Bool/
  * Number/String/JSON), in a large Dialog instead of a cramped AlertDialog - a tree genuinely
  * doesn't fit in a small dialog. Picking a leaf switches to a second, simpler step (widget type +
- * title) rather than cramming both into one screen at once.
+ * title) rather than cramming both into one screen at once. A second step-1 tab lets you pick an
+ * admin-approved URL embed instead of an ioBroker object (see [PickerSource]).
  */
 @Composable
 private fun AddWidgetDialog(
     catalog: List<ObjectCatalogItem>,
     onDismiss: () -> Unit,
-    onAdd: (ObjectCatalogItem?, WidgetType, String) -> Unit,
+    onAdd: (ObjectCatalogItem?, WidgetType, String, String?) -> Unit,
+    urlEmbedViewModel: UrlEmbedPickerViewModel = hiltViewModel(),
 ) {
+    val urlEmbeds by urlEmbedViewModel.embeds.collectAsState()
+
+    var pickerSource by remember { mutableStateOf(PickerSource.OBJECT) }
     var query by remember { mutableStateOf("") }
     var typeFilter by remember { mutableStateOf<ValueType?>(null) }
     var expandedFolders by remember { mutableStateOf(setOf<String>()) }
     var selected by remember { mutableStateOf<ObjectCatalogItem?>(null) }
+    var selectedUrlEmbed by remember { mutableStateOf<UrlEmbed?>(null) }
     var title by remember { mutableStateOf("") }
     var widgetType by remember { mutableStateOf(WidgetType.TEXT_VALUE) }
 
@@ -416,9 +429,17 @@ private fun AddWidgetDialog(
     val tree = remember(typeFiltered) { buildObjectTree(typeFiltered) }
 
     fun selectItem(item: ObjectCatalogItem) {
+        selectedUrlEmbed = null
         selected = item
         title = item.name
         widgetType = suggestedWidgetType(item)
+    }
+
+    fun selectUrlEmbed(embed: UrlEmbed) {
+        selected = null
+        selectedUrlEmbed = embed
+        title = embed.name
+        widgetType = WidgetType.URL_IMAGE
     }
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
@@ -430,48 +451,71 @@ private fun AddWidgetDialog(
                 Text(stringResource(R.string.dashboard_editor_add_widget), style = MaterialTheme.typography.titleLarge)
                 Spacer(modifier = Modifier.height(12.dp))
 
-                if (selected == null) {
-                    OutlinedTextField(
-                        value = query,
-                        onValueChange = { query = it },
-                        label = { Text(stringResource(R.string.objects_search_hint)) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                    ) {
-                        ValueTypeFilterChip(null, "Alle", typeFilter) { typeFilter = it }
-                        ValueTypeFilterChip(ValueType.BOOLEAN, "Bool", typeFilter) { typeFilter = it }
-                        ValueTypeFilterChip(ValueType.NUMBER, "Zahl", typeFilter) { typeFilter = it }
-                        ValueTypeFilterChip(ValueType.STRING, "Text", typeFilter) { typeFilter = it }
-                        ValueTypeFilterChip(ValueType.JSON, "JSON", typeFilter) { typeFilter = it }
+                if (selected == null && selectedUrlEmbed == null) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        PickerSourceChip(PickerSource.OBJECT, "Objekte", pickerSource) { pickerSource = it }
+                        PickerSourceChip(PickerSource.URL_EMBED, "URL-Einbettungen", pickerSource) { pickerSource = it }
                     }
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                        when {
-                            catalog.isEmpty() -> Text(stringResource(R.string.objects_empty))
-                            hasFilter && filtered.isEmpty() -> Text(stringResource(R.string.objects_empty))
-                            hasFilter -> LazyColumn {
-                                items(filtered, key = { it.id }) { item ->
-                                    PickerLeafRow(item = item, depth = 0, onClick = { selectItem(item) })
+                    if (pickerSource == PickerSource.OBJECT) {
+                        OutlinedTextField(
+                            value = query,
+                            onValueChange = { query = it },
+                            label = { Text(stringResource(R.string.objects_search_hint)) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        ) {
+                            ValueTypeFilterChip(null, "Alle", typeFilter) { typeFilter = it }
+                            ValueTypeFilterChip(ValueType.BOOLEAN, "Bool", typeFilter) { typeFilter = it }
+                            ValueTypeFilterChip(ValueType.NUMBER, "Zahl", typeFilter) { typeFilter = it }
+                            ValueTypeFilterChip(ValueType.STRING, "Text", typeFilter) { typeFilter = it }
+                            ValueTypeFilterChip(ValueType.JSON, "JSON", typeFilter) { typeFilter = it }
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                            when {
+                                catalog.isEmpty() -> Text(stringResource(R.string.objects_empty))
+                                hasFilter && filtered.isEmpty() -> Text(stringResource(R.string.objects_empty))
+                                hasFilter -> LazyColumn {
+                                    items(filtered, key = { it.id }) { item ->
+                                        PickerLeafRow(item = item, depth = 0, onClick = { selectItem(item) })
+                                    }
+                                }
+                                else -> LazyColumn {
+                                    pickerTreeItems(
+                                        node = tree,
+                                        depth = 0,
+                                        expanded = expandedFolders,
+                                        onToggle = { id -> expandedFolders = if (id in expandedFolders) expandedFolders - id else expandedFolders + id },
+                                        onSelect = ::selectItem,
+                                    )
                                 }
                             }
-                            else -> LazyColumn {
-                                pickerTreeItems(
-                                    node = tree,
-                                    depth = 0,
-                                    expanded = expandedFolders,
-                                    onToggle = { id -> expandedFolders = if (id in expandedFolders) expandedFolders - id else expandedFolders + id },
-                                    onSelect = ::selectItem,
-                                )
+                        }
+                    } else {
+                        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                            if (urlEmbeds.isEmpty()) {
+                                Text(stringResource(R.string.dashboard_editor_no_url_embeds))
+                            } else {
+                                LazyColumn {
+                                    items(urlEmbeds, key = { it.id }) { embed ->
+                                        ListItem(
+                                            modifier = Modifier.clickable { selectUrlEmbed(embed) },
+                                            headlineContent = { Text(embed.name) },
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
-                } else {
+                } else if (selected != null) {
                     val item = selected!!
                     Text(item.name, style = MaterialTheme.typography.titleMedium)
                     Text(item.path.joinToString(" / "), style = MaterialTheme.typography.bodySmall)
@@ -486,17 +530,44 @@ private fun AddWidgetDialog(
                     )
                     Spacer(modifier = Modifier.weight(1f))
                     TextButton(onClick = { selected = null }) { Text(stringResource(R.string.dashboard_editor_pick_different_object)) }
+                } else {
+                    val embed = selectedUrlEmbed!!
+                    Text(embed.name, style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.dashboard_editor_url_embed_label), style = MaterialTheme.typography.bodySmall)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    WidgetTypeSelector(selected = widgetType, onSelect = { widgetType = it })
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = title,
+                        onValueChange = { title = it },
+                        label = { Text("Titel") },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    TextButton(onClick = { selectedUrlEmbed = null }) { Text(stringResource(R.string.dashboard_editor_pick_different_embed)) }
                 }
 
                 Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
                     TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
-                    if (selected != null) {
-                        TextButton(onClick = { onAdd(selected, widgetType, title.ifBlank { "Widget" }) }) { Text(stringResource(R.string.common_ok)) }
+                    if (selected != null || selectedUrlEmbed != null) {
+                        TextButton(
+                            onClick = { onAdd(selected, widgetType, title.ifBlank { "Widget" }, selectedUrlEmbed?.id) },
+                        ) { Text(stringResource(R.string.common_ok)) }
                     }
                 }
             }
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PickerSourceChip(value: PickerSource, label: String, selected: PickerSource, onSelect: (PickerSource) -> Unit) {
+    FilterChip(
+        selected = selected == value,
+        onClick = { onSelect(value) },
+        label = { Text(label) },
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

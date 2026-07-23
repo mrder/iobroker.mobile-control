@@ -12,6 +12,12 @@ class WidgetTypeTest {
     }
 
     @Test
+    fun `url embed widget types round-trip through their wireName`() {
+        assertEquals(WidgetType.URL_IMAGE, WidgetType.fromWireName("url_image"))
+        assertEquals(WidgetType.WEB_VIEW, WidgetType.fromWireName("web_view"))
+    }
+
+    @Test
     fun `fromWireName falls back to TEXT_VALUE for an unknown wire name`() {
         assertEquals(WidgetType.TEXT_VALUE, WidgetType.fromWireName("does-not-exist"))
     }
