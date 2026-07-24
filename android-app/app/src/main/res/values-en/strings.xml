@@ -56,6 +56,8 @@
     <string name="dashboard_editor_pick_different_source">Pick a different source</string>
     <string name="dashboard_editor_live_preview_label">Live preview in the tile</string>
     <string name="dashboard_editor_live_preview_hint">Off: just an open button, the page only loads when tapped.</string>
+    <string name="dashboard_editor_tunnel_label">Tunnel (works without Wi-Fi/VPN)</string>
+    <string name="dashboard_editor_tunnel_hint">Routes the page through the adapter instead of directly over the network - http:// targets only, needs a supported WebView version.</string>
 
     <string name="objects_title">Object catalog</string>
     <string name="objects_search_hint">Search name or path</string>

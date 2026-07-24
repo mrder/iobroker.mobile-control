@@ -65,6 +65,7 @@ fun WidgetHost(
             title = title,
             urlEmbedId = widget.config["urlEmbedId"],
             showLivePreview = widget.config["previewMode"] != "button",
+            useTunnel = widget.config["tunnel"] == "on",
             modifier = modifier,
         )
         WidgetType.LABEL -> LabelWidget(title = title, modifier = modifier)

@@ -17,6 +17,7 @@ tags:
   - name: auth
   - name: catalog
   - name: url-embeds
+  - name: tunnel
   - name: alarm-events
   - name: commands
   - name: dashboards
@@ -421,6 +422,101 @@ paths:
                 $ref: '#/components/schemas/ErrorBody'
         '401':
           $ref: '#/components/responses/Error'
+
+  /tunnel-token/{id}:
+    post:
+      tags: [tunnel]
+      summary: Issue a short-lived tunnel credential for one URL embed
+      description: |
+        Mints a narrowly-scoped token (see src/tunnel/index.ts TunnelService) that authorizes
+        forwarding requests to exactly this UrlEmbed's origin for a limited time (~10 minutes) -
+        deliberately a SEPARATE credential from the bearer token used everywhere else, so it
+        grants nothing beyond replaying already-allowlisted traffic to this one target even if it
+        leaked somewhere downstream. Requires the same access UrlEmbedsService.canAccess() checks
+        for GET /url-embeds itself. Used by the Android app's Tunnel widget mode (see
+        android-app WebPageWidget/TunnelSessionManager) to reach a plain-http local device UI
+        without the phone needing real LAN/VPN reachability.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: The token and its expiry
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
+                  expiresAt: { type: number, description: Epoch milliseconds }
+        '403':
+          description: READ_FORBIDDEN - this role/user/device has no access rule granting this embed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '404':
+          description: NOT_FOUND - no such url embed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '401':
+          $ref: '#/components/responses/Error'
+
+  /tunnel/proxy:
+    parameters:
+      - name: X-Tunnel-Token
+        in: header
+        required: true
+        schema: { type: string }
+        description: Token from POST /tunnel-token/{id} - NOT the normal bearer token.
+      - name: X-Tunnel-Path
+        in: header
+        required: true
+        schema: { type: string }
+        description: Path (+ optional query string) relative to the token's approved origin, e.g. "/relay/0?turn=on".
+    get:
+      tags: [tunnel]
+      summary: Forward one HTTP request to the token's approved target
+      description: |
+        The actual transport hop of the tunnel (see src/tunnel/forward.ts) - forwards method,
+        an allowlisted subset of headers, and the request body to the real target the token was
+        issued for, and returns the raw response. The target origin always comes from the
+        server's own resolution of the token (never from anything the client supplies) - the
+        critical anti-SSRF property. Not behind the normal bearerAuth; authorized purely by the
+        tunnel token. Every HTTP method is accepted (GET shown here as representative); mounted
+        before the JSON body parser so any content-type's body is forwarded byte-for-byte.
+      responses:
+        '200':
+          description: The target's response, forwarded as-is (status, an allowlisted subset of headers, body)
+        '400':
+          description: VALIDATION_ERROR - missing tunnel headers, or the resolved path would escape the approved origin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '401':
+          description: AUTH_REQUIRED - the tunnel token is invalid, expired, or access was revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '429':
+          description: RATE_LIMITED - too many requests for this embed's tunnel in the current window
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '503':
+          description: SERVER_UNAVAILABLE - the target didn't respond, or the response exceeded the size limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
 
   /alarm-events:
     get:

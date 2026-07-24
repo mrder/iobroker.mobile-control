@@ -8,6 +8,38 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.40] - master, Testbuild
+
+Die "Mini-VPN"-Idee aus dem letzten Release, diesmal wirklich gebaut ("das wollen wir doch
+jetzt auch direkt gleich mit haben... möglichst hohe Sicherheitsfeatures... einen
+zusätzlichen separaten API-Key"): ein **Tunnel-Modus für Web-Seite-Widgets**, damit eine
+lokale Geräte-Oberfläche (plain `http://`, z.B. die Weboberfläche eines Zigbee-Aktors) über
+die App erreichbar bleibt, ohne dass das Handy im selben Netz oder per VPN verbunden sein
+muss.
+
+- **Backend, separates Zugangsmittel**: `TunnelService` (`src/tunnel/`) erzeugt ein
+  kurzlebiges (~10 Minuten), eng auf genau eine vom Admin freigegebene URL-Einbettung
+  beschränktes Token (`X-Tunnel-Token`) - bewusst getrennt vom normalen Bearer-Token, wie
+  live gewünscht. `forwardTunnelRequest` leitet jede Anfrage an das echte Ziel weiter; der
+  Ziel-Origin wird dabei **immer serverseitig aus dem Token abgeleitet, nie vom Client**
+  akzeptiert - die zentrale Anti-SSRF-Eigenschaft. Neue Endpunkte `POST /tunnel-token/{id}`
+  und `/tunnel/proxy` (vor dem globalen JSON-Body-Parser gemountet, damit jeder
+  Content-Type unverändert durchgereicht wird).
+- **Android, lokaler Proxy**: ein kleiner selbstgeschriebener HTTP/1.1-Proxy-Server läuft in
+  der App (nur Loopback, `127.0.0.1`), `androidx.webkit.ProxyController` leitet das WebView
+  für die Dauer einer Tunnel-Sitzung dadurch - nicht nur der erste Seitenaufruf, jede
+  Unteranfrage der Seite geht durch den Tunnel.
+- **Aktivierung pro Widget**: neuer Schalter "Tunnel (auch ohne WLAN/VPN)" im
+  Bearbeiten-Dialog eines Web-Seite-Widgets.
+- **Bewusste Scope-Grenze**: nur `http://`-Ziele (ein `https://`-Ziel bräuchte einen rohen
+  CONNECT/TLS-Tunnel - ein deutlich größeres Feature, siehe `docs/TODO.md`); kein chunked
+  Transfer-Encoding für Request-Bodies (Content-Length reicht für typische kleine
+  Formular-/Toggle-Anfragen); Cookies laufen transparent über WebViews eigenes
+  CookieManager, kein serverseitiger Cookie-Jar nötig.
+- Backend Ende-zu-Ende getestet (echter HTTP-Test-Server im Integrationstest, echter
+  Token-Issue-und-Proxy-Durchlauf); die WebView-/ProxyController-Integration selbst braucht
+  noch einen echten Test an einem echten lokalen Ziel.
+
 ## [0.0.39] - master, Testbuild
 
 Echten, bisher unentdeckten Backend-Bug live gefunden: nach dem Freigeben einer

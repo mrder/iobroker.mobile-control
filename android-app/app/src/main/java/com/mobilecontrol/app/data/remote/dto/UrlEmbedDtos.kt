@@ -17,3 +17,9 @@ data class UrlEmbedListResponseDto(
 data class UrlEmbedResolveResponseDto(
     val url: String,
 )
+
+@Serializable
+data class TunnelTokenResponseDto(
+    val token: String,
+    val expiresAt: Long,
+)

@@ -153,17 +153,21 @@ class DashboardEditorViewModel @Inject constructor(
      * width/height are set to absolute values instead of deltas so the dialog's own steppers can
      * move them independently (live-test feedback: coupling both dimensions per press made it
      * impossible to reach non-square shapes without over/undershooting one axis).
+     *
+     * [previewMode] and [tunnel] are only meaningful for WidgetType.WEB_VIEW - see
+     * ui/widgets/WidgetComposables.kt#WebPageWidget. Harmless no-ops for every other widget type.
+     * previewMode: "button" = tap-to-open only, no live mini-WebView in the grid tile; null/blank
+     * = default live preview. tunnel: "on" = route the page through the adapter's tunnel instead
+     * of direct LAN navigation; null/blank = default direct navigation.
      */
-    /** [previewMode] is only meaningful for WidgetType.WEB_VIEW ("button" = tap-to-open only, no
-     *  live mini-WebView in the grid tile; null/blank = default live preview) - see
-     *  ui/widgets/WidgetComposables.kt#WebPageWidget. Harmless no-op for every other widget type. */
-    fun updateWidget(widgetId: String, title: String, unit: String?, w: Int, h: Int, previewMode: String? = null) {
+    fun updateWidget(widgetId: String, title: String, unit: String?, w: Int, h: Int, previewMode: String? = null, tunnel: String? = null) {
         updateLayout(local.value.sizeClass) { layout ->
             layout.copy(
                 widgets = layout.widgets.map { widget ->
                     if (widget.id != widgetId) return@map widget
                     var config = if (unit.isNullOrBlank()) widget.config - "unit" else widget.config + ("unit" to unit)
                     config = if (previewMode.isNullOrBlank()) config - "previewMode" else config + ("previewMode" to previewMode)
+                    config = if (tunnel.isNullOrBlank()) config - "tunnel" else config + ("tunnel" to tunnel)
                     widget.copy(
                         title = title.ifBlank { widget.title },
                         w = w.coerceIn(1, layout.columns),

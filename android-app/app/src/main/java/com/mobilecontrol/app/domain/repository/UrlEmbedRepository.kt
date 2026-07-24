@@ -1,5 +1,6 @@
 package com.mobilecontrol.app.domain.repository
 
+import com.mobilecontrol.app.domain.model.TunnelToken
 import com.mobilecontrol.app.domain.model.UrlEmbed
 
 interface UrlEmbedRepository {
@@ -11,4 +12,8 @@ interface UrlEmbedRepository {
 
     /** GET /api/v1/url-embeds/{id}/resolve - the real target URL, for WebView-style widgets. */
     suspend fun resolveUrl(id: String): Result<String>
+
+    /** POST /api/v1/tunnel-token/{id} - a short-lived credential for the Tunnel mode's local
+     *  proxy (see com.mobilecontrol.app.tunnel), separate from the normal bearer token. */
+    suspend fun requestTunnelToken(id: String): Result<TunnelToken>
 }

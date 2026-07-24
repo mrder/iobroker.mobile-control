@@ -36,12 +36,14 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -66,6 +68,7 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.util.Locale
 import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 
 private fun WidgetState.currentValue(): Any? = when (this) {
     is WidgetState.Live -> value
@@ -664,8 +667,11 @@ private sealed interface WebPageLoadState {
  * Embeds an admin-approved local web UI (GET /api/v1/url-embeds/{id}/resolve, then a plain
  * Android WebView navigation) - the "HTML frame" use case from the allowlist feature. The client
  * never picks the URL itself, only an id from the allowlist; once resolved, the WebView navigates
- * the LAN directly (a full page's own relative sub-resource requests can't realistically be
- * rewritten through a single-resource proxy - see UrlEmbedsService's own docs for why). JavaScript
+ * the LAN directly by default (a full page's own relative sub-resource requests can't
+ * realistically be rewritten through a single-resource proxy - see UrlEmbedsService's own docs
+ * for why), so it still needs real network reachability (same LAN or VPN) - UNLESS [useTunnel] is
+ * on, in which case com.mobilecontrol.app.tunnel routes every request the page makes through the
+ * adapter instead (see TunnelSessionManager's own docs; plain http:// targets only). JavaScript
  * is enabled since most small device web UIs need it to function - same trust level as opening
  * that same admin-approved URL in any other LAN browser tab, no bridge to app code is exposed.
  */
@@ -678,6 +684,10 @@ fun WebPageWidget(
      *  a live mini-preview is mostly unreadable and wastes a page load on every dashboard render.
      *  Either way, opening fullscreen always shows the real, fully interactive page. */
     showLivePreview: Boolean = true,
+    /** true = route every request the page makes through the adapter's tunnel instead of letting
+     *  WebView reach the target directly - see TunnelSessionManager. Silently has no effect (falls
+     *  back to direct navigation) if the platform doesn't support it or the target isn't http://. */
+    useTunnel: Boolean = false,
     modifier: Modifier = Modifier,
     viewModel: UrlEmbedWidgetViewModel = hiltViewModel(),
 ) {
@@ -685,16 +695,29 @@ fun WebPageWidget(
     var refreshTrigger by remember(urlEmbedId) { mutableIntStateOf(0) }
     var fullscreen by remember { mutableStateOf(false) }
 
-    LaunchedEffect(urlEmbedId, refreshTrigger) {
+    LaunchedEffect(urlEmbedId, refreshTrigger, useTunnel) {
         if (urlEmbedId == null) {
             loadState = WebPageLoadState.Unavailable
             return@LaunchedEffect
         }
         loadState = WebPageLoadState.Loading
         loadState = viewModel.resolveUrl(urlEmbedId).fold(
-            onSuccess = { url -> WebPageLoadState.Resolved(url) },
+            onSuccess = { url ->
+                if (useTunnel) {
+                    viewModel.startTunnel(urlEmbedId, url)
+                }
+                WebPageLoadState.Resolved(url)
+            },
             onFailure = { WebPageLoadState.Unavailable },
         )
+    }
+
+    val coroutineScope = rememberCoroutineScope()
+    DisposableEffect(urlEmbedId, useTunnel) {
+        // onDispose is a plain (non-suspend) callback, so stopping the tunnel - a suspend call -
+        // has to be launched fire-and-forget on a scope that outlives this specific effect (the
+        // composable is already leaving composition by the time this runs).
+        onDispose { if (useTunnel) coroutineScope.launch { viewModel.stopTunnel() } }
     }
 
     WidgetCard(title = title, state = WidgetState.Stale(null, 0L), modifier = modifier) {

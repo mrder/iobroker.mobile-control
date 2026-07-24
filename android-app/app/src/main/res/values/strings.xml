@@ -60,6 +60,8 @@
     <string name="dashboard_editor_pick_different_source">Andere Quelle wählen</string>
     <string name="dashboard_editor_live_preview_label">Live-Vorschau in der Kachel</string>
     <string name="dashboard_editor_live_preview_hint">Aus: nur ein Öffnen-Button, die Seite wird erst beim Antippen geladen.</string>
+    <string name="dashboard_editor_tunnel_label">Tunnel (auch ohne WLAN/VPN)</string>
+    <string name="dashboard_editor_tunnel_hint">Leitet die Seite über den Adapter statt direkt über das Netzwerk - nur für http://-Ziele, benötigt eine unterstützte WebView-Version.</string>
 
     <!-- Object browser -->
     <string name="objects_title">Objektkatalog</string>

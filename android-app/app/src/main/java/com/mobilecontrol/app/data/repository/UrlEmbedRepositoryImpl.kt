@@ -4,6 +4,7 @@ import com.mobilecontrol.app.data.remote.ApiService
 import com.mobilecontrol.app.data.remote.safeApiCall
 import com.mobilecontrol.app.domain.model.ApiErrorCode
 import com.mobilecontrol.app.domain.model.ApiException
+import com.mobilecontrol.app.domain.model.TunnelToken
 import com.mobilecontrol.app.domain.model.UrlEmbed
 import com.mobilecontrol.app.domain.repository.UrlEmbedRepository
 import java.io.IOException
@@ -39,4 +40,7 @@ class UrlEmbedRepositoryImpl @Inject constructor(
 
     override suspend fun resolveUrl(id: String): Result<String> =
         safeApiCall { apiService.resolveUrlEmbed(id) }.map { it.url }
+
+    override suspend fun requestTunnelToken(id: String): Result<TunnelToken> =
+        safeApiCall { apiService.requestTunnelToken(id) }.map { TunnelToken(it.token, it.expiresAt) }
 }

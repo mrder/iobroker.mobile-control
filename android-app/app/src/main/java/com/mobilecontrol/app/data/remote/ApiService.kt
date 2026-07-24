@@ -16,6 +16,7 @@ import com.mobilecontrol.app.data.remote.dto.PairingStatusResponseDto
 import com.mobilecontrol.app.data.remote.dto.RefreshRequestDto
 import com.mobilecontrol.app.data.remote.dto.StatesResponseDto
 import com.mobilecontrol.app.data.remote.dto.TokenResponseDto
+import com.mobilecontrol.app.data.remote.dto.TunnelTokenResponseDto
 import com.mobilecontrol.app.data.remote.dto.UrlEmbedListResponseDto
 import com.mobilecontrol.app.data.remote.dto.UrlEmbedResolveResponseDto
 import okhttp3.ResponseBody
@@ -79,6 +80,9 @@ interface ApiService {
 
     @GET("api/v1/url-embeds/{id}/resolve")
     suspend fun resolveUrlEmbed(@Path("id") id: String): Response<UrlEmbedResolveResponseDto>
+
+    @POST("api/v1/tunnel-token/{id}")
+    suspend fun requestTunnelToken(@Path("id") id: String): Response<TunnelTokenResponseDto>
 
     @GET("api/v1/dashboards")
     suspend fun getDashboards(): Response<DashboardListResponseDto>

@@ -287,6 +287,25 @@ class DashboardEditorViewModelTest {
     }
 
     @Test
+    fun `updateWidget sets and clears the tunnel config key independently of previewMode`() = runTest {
+        val dashboard = testDashboard(widgets = listOf(widget("w1")))
+        val viewModel = buildViewModel(dashboard)
+        collectUiState(viewModel)
+        advanceUntilIdle()
+
+        viewModel.updateWidget("w1", title = "w1", unit = null, w = 2, h = 1, previewMode = "button", tunnel = "on")
+        val enabled = viewModel.uiState.value.currentLayout!!.widgets.single()
+        assertEquals("on", enabled.config["tunnel"])
+        assertEquals("button", enabled.config["previewMode"])
+
+        viewModel.updateWidget("w1", title = "w1", unit = null, w = 2, h = 1, previewMode = "button", tunnel = null)
+        val disabled = viewModel.uiState.value.currentLayout!!.widgets.single()
+        assertFalse(disabled.config.containsKey("tunnel"))
+        // clearing tunnel must not touch the unrelated previewMode key
+        assertEquals("button", disabled.config["previewMode"])
+    }
+
+    @Test
     fun `sendCommand records the returned commandId as pending on success, and nothing on failure`() = runTest {
         val dashboard = testDashboard()
         val commandRepo = FakeCommandRepository()

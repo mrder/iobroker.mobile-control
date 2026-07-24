@@ -39,12 +39,14 @@ import { AuditService } from './audit';
 import { HistoryService } from './history';
 import { CameraService } from './camera';
 import { UrlEmbedsService } from './urlEmbeds';
+import { TunnelService } from './tunnel';
 import { AlarmEventsService } from './alarms';
 import { RateLimiter } from './security/rateLimiter';
 import { AbuseGuard } from './security/abuseGuard';
 import { ReplayGuard } from './security/replayGuard';
 import { RealtimeGateway } from './realtime';
 import { createApiRouter } from './api/router';
+import { createTunnelRouter } from './api/tunnelRouter';
 import { runMigrations } from './migrations';
 
 interface AdapterNativeConfig {
@@ -110,6 +112,7 @@ class MobileControlAdapter extends utils.Adapter {
     private historyService!: HistoryService;
     private cameraService!: CameraService;
     private urlEmbedsService!: UrlEmbedsService;
+    private tunnelService!: TunnelService;
     private alarmEventsService!: AlarmEventsService;
     private abuseGuard!: AbuseGuard;
 
@@ -218,6 +221,7 @@ class MobileControlAdapter extends utils.Adapter {
         this.historyService = new HistoryService(this, config.historyInstance ?? '');
         this.cameraService = new CameraService(this);
         this.urlEmbedsService = new UrlEmbedsService(this, urlEmbedsStore, urlEmbedAccessStore);
+        this.tunnelService = new TunnelService(this.urlEmbedsService);
         this.alarmEventsService = new AlarmEventsService(this, alarmEventsStore);
         this.alarmEventsService
             .subscribeToAlarmObjects()
@@ -261,6 +265,22 @@ class MobileControlAdapter extends utils.Adapter {
         // cannot spoof their own IP via that header; only an already-trusted local hop can forward
         // one.
         app.set('trust proxy', 'loopback, linklocal, uniquelocal');
+        // Mounted BEFORE express.json() below, deliberately: /tunnel/proxy needs the request body
+        // as untouched raw bytes regardless of content-type (see createTunnelRouter's own docs -
+        // a JSON-parse-then-reserialize round trip would corrupt whatever the tunneled page sent).
+        // Any request this router doesn't recognize falls through to the routes mounted after it.
+        app.use(
+            '/api/v1',
+            createTunnelRouter({
+                adapter: this,
+                auth: this.authService,
+                sessions: this.sessionsService,
+                devices: this.devicesService,
+                tunnel: this.tunnelService,
+                audit: this.auditService,
+                tunnelRateLimiter: new RateLimiter(300),
+            }),
+        );
         app.use(express.json({ limit: '256kb' }));
         app.use(
             '/api/v1',
@@ -498,6 +518,7 @@ class MobileControlAdapter extends utils.Adapter {
                 case 'revokeDevice': {
                     const device = await this.devicesService.revoke(String(body.id));
                     await this.sessionsService.revokeAllForDevice(device.id);
+                    this.tunnelService.revokeAllForDevice(device.id);
                     this.realtimeGateway?.notifyDeviceRevoked(device.id);
                     await this.auditService.log({ action: 'device.revoked', actorDeviceId: device.id, result: 'success' });
                     respond(device);

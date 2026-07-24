@@ -158,8 +158,8 @@ fun DashboardEditorScreen(
                                 widget.objectId?.let { id -> viewModel.sendCommand(id, value, confirmed) }
                             },
                             onRemove = { viewModel.removeWidget(widget.id) },
-                            onSaveEdit = { title, unit, w, h, previewMode ->
-                                viewModel.updateWidget(widget.id, title, unit, w, h, previewMode)
+                            onSaveEdit = { title, unit, w, h, previewMode, tunnel ->
+                                viewModel.updateWidget(widget.id, title, unit, w, h, previewMode, tunnel)
                             },
                         )
                     }
@@ -333,7 +333,7 @@ private fun WidgetCell(
     modifier: Modifier = Modifier,
     onCommand: (value: Any?, confirmed: Boolean) -> Unit,
     onRemove: () -> Unit,
-    onSaveEdit: (title: String, unit: String?, w: Int, h: Int, previewMode: String?) -> Unit,
+    onSaveEdit: (title: String, unit: String?, w: Int, h: Int, previewMode: String?, tunnel: String?) -> Unit,
 ) {
     val widgetState = deriveWidgetState(widget, state)
     val catalogItem = state.catalog.firstOrNull { it.id == widget.objectId }
@@ -368,9 +368,10 @@ private fun WidgetCell(
             maxColumns = maxColumns,
             showUnitField = widget.type in UNIT_CAPABLE_TYPES,
             showPreviewToggle = widget.type == WidgetType.WEB_VIEW,
+            showTunnelToggle = widget.type == WidgetType.WEB_VIEW,
             onDismiss = { showEditDialog = false },
-            onSave = { title, unit, w, h, previewMode ->
-                onSaveEdit(title, unit, w, h, previewMode)
+            onSave = { title, unit, w, h, previewMode, tunnel ->
+                onSaveEdit(title, unit, w, h, previewMode, tunnel)
                 showEditDialog = false
             },
         )
@@ -383,14 +384,16 @@ private fun WidgetEditDialog(
     maxColumns: Int,
     showUnitField: Boolean,
     showPreviewToggle: Boolean,
+    showTunnelToggle: Boolean,
     onDismiss: () -> Unit,
-    onSave: (title: String, unit: String?, w: Int, h: Int, previewMode: String?) -> Unit,
+    onSave: (title: String, unit: String?, w: Int, h: Int, previewMode: String?, tunnel: String?) -> Unit,
 ) {
     var title by remember { mutableStateOf(widget.title) }
     var unit by remember { mutableStateOf(widget.config["unit"].orEmpty()) }
     var width by remember { mutableStateOf(widget.w.coerceIn(1, maxColumns)) }
     var height by remember { mutableStateOf(widget.h.coerceIn(1, DashboardEditorViewModel.MAX_WIDGET_ROWS)) }
     var livePreview by remember { mutableStateOf(widget.config["previewMode"] != "button") }
+    var tunnelEnabled by remember { mutableStateOf(widget.config["tunnel"] == "on") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -427,6 +430,18 @@ private fun WidgetEditDialog(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                if (showTunnelToggle) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.dashboard_editor_tunnel_label), modifier = Modifier.weight(1f))
+                        Switch(checked = tunnelEnabled, onCheckedChange = { tunnelEnabled = it })
+                    }
+                    Text(
+                        stringResource(R.string.dashboard_editor_tunnel_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 Spacer(modifier = Modifier.height(16.dp))
                 SizeStepper(
                     label = stringResource(R.string.dashboard_editor_width_label),
@@ -445,7 +460,8 @@ private fun WidgetEditDialog(
         confirmButton = {
             TextButton(onClick = {
                 val previewMode = if (showPreviewToggle && !livePreview) "button" else null
-                onSave(title, unit.ifBlank { null }, width, height, previewMode)
+                val tunnel = if (showTunnelToggle && tunnelEnabled) "on" else null
+                onSave(title, unit.ifBlank { null }, width, height, previewMode, tunnel)
             }) { Text(stringResource(R.string.common_ok)) }
         },
         dismissButton = {

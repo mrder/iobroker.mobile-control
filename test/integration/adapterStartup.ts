@@ -15,6 +15,7 @@
  */
 const assert = require('node:assert').strict;
 const { generateKeyPairSync, sign: cryptoSign } = require('node:crypto');
+const http = require('node:http');
 const { MockDatabase } = require('@iobroker/testing');
 const { mockAdapterCore } = require('@iobroker/testing/build/tests/unit/mocks/mockAdapterCore');
 
@@ -326,6 +327,80 @@ async function main(): Promise<void> {
             claimEvent,
             'expected the audit log to record the X-Forwarded-For client IP (via the loopback-trusted proxy hop), not the raw socket address',
         );
+    });
+
+    await step('the tunnel proxy forwards to an admin-approved target via a separate short-lived token, and rejects an invalid one', async () => {
+        // A tiny real HTTP server standing in for a local device web UI - the tunnel is supposed
+        // to reach exactly this over a real HTTP hop, never anything the client itself names.
+        const targetServer = http.createServer((req: { url: string }, res: { writeHead: (code: number, headers?: Record<string, string>) => void; end: (body?: string) => void }) => {
+            if (req.url === '/relay/0?turn=on') {
+                res.writeHead(200, { 'content-type': 'text/plain' });
+                res.end('switched on');
+            } else {
+                res.writeHead(404);
+                res.end();
+            }
+        });
+        await new Promise<void>((resolve) => targetServer.listen(0, '127.0.0.1', resolve));
+        const targetPort = targetServer.address().port;
+
+        try {
+            const user = await callAdmin<{ id: string }>('createUser', { name: 'Tunnel Test User', roleId: 'viewer' });
+            const invite = await callAdmin<{ qrPayload: { pairingId: string; pairingSecret: string } }>('createPairingInvite', {
+                userId: user.id,
+                roleId: 'viewer',
+            });
+            const { publicKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+            const publicKeyBase64 = publicKey.export({ type: 'spki', format: 'der' }).toString('base64');
+            const claimRes = await fetch(`${BASE_URL}/api/v1/pairing/claim`, {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({
+                    pairingId: invite.qrPayload.pairingId,
+                    pairingSecret: invite.qrPayload.pairingSecret,
+                    deviceName: 'Tunnel Test Device',
+                    platform: 'android',
+                    appVersion: '1.0',
+                    publicKey: publicKeyBase64,
+                }),
+            });
+            const claim = (await claimRes.json()) as { claimId: string };
+            await callAdmin('approveClaim', { claimId: claim.claimId });
+            const statusRes = await fetch(`${BASE_URL}/api/v1/pairing/status/${claim.claimId}`);
+            const status = (await statusRes.json()) as { accessToken: string };
+
+            const embed = await callAdmin<{ id: string }>('createUrlEmbed', {
+                name: 'Tunnel Test Target',
+                url: `http://127.0.0.1:${targetPort}/relay/0`,
+            });
+            await callAdmin('createUrlEmbedAccessRule', {
+                urlEmbedId: embed.id,
+                roleId: 'viewer',
+                userId: null,
+                deviceId: null,
+                deny: false,
+            });
+
+            const tokenRes = await fetch(`${BASE_URL}/api/v1/tunnel-token/${embed.id}`, {
+                method: 'POST',
+                headers: { authorization: `Bearer ${status.accessToken}` },
+            });
+            assert.equal(tokenRes.status, 200);
+            const { token } = (await tokenRes.json()) as { token: string };
+
+            const proxied = await fetch(`${BASE_URL}/api/v1/tunnel/proxy`, {
+                headers: { 'x-tunnel-token': token, 'x-tunnel-path': '/relay/0?turn=on' },
+            });
+            assert.equal(proxied.status, 200);
+            assert.equal(await proxied.text(), 'switched on');
+
+            const rejected = await fetch(`${BASE_URL}/api/v1/tunnel/proxy`, {
+                headers: { 'x-tunnel-token': 'not-a-real-token', 'x-tunnel-path': '/relay/0?turn=on' },
+            });
+            assert.equal(rejected.status, 401);
+        } finally {
+            await new Promise<void>((resolve) => targetServer.close(() => resolve()));
+        }
     });
 
     // Must be the LAST step: AbuseGuard blocks by IP for abuseBlockMinutes (30 here), and every

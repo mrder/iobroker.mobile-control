@@ -149,6 +149,7 @@ dependencies {
 
     implementation(libs.androidx.biometric)
     implementation(libs.androidx.security.crypto)
+    implementation(libs.androidx.webkit)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
