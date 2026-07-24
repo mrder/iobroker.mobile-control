@@ -44,6 +44,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -156,7 +157,9 @@ fun DashboardEditorScreen(
                                 widget.objectId?.let { id -> viewModel.sendCommand(id, value, confirmed) }
                             },
                             onRemove = { viewModel.removeWidget(widget.id) },
-                            onSaveEdit = { title, unit, w, h -> viewModel.updateWidget(widget.id, title, unit, w, h) },
+                            onSaveEdit = { title, unit, w, h, previewMode ->
+                                viewModel.updateWidget(widget.id, title, unit, w, h, previewMode)
+                            },
                         )
                     }
                 }
@@ -329,7 +332,7 @@ private fun WidgetCell(
     modifier: Modifier = Modifier,
     onCommand: (value: Any?, confirmed: Boolean) -> Unit,
     onRemove: () -> Unit,
-    onSaveEdit: (title: String, unit: String?, w: Int, h: Int) -> Unit,
+    onSaveEdit: (title: String, unit: String?, w: Int, h: Int, previewMode: String?) -> Unit,
 ) {
     val widgetState = deriveWidgetState(widget, state)
     val catalogItem = state.catalog.firstOrNull { it.id == widget.objectId }
@@ -363,9 +366,10 @@ private fun WidgetCell(
             widget = widget,
             maxColumns = maxColumns,
             showUnitField = widget.type in UNIT_CAPABLE_TYPES,
+            showPreviewToggle = widget.type == WidgetType.WEB_VIEW,
             onDismiss = { showEditDialog = false },
-            onSave = { title, unit, w, h ->
-                onSaveEdit(title, unit, w, h)
+            onSave = { title, unit, w, h, previewMode ->
+                onSaveEdit(title, unit, w, h, previewMode)
                 showEditDialog = false
             },
         )
@@ -377,13 +381,15 @@ private fun WidgetEditDialog(
     widget: Widget,
     maxColumns: Int,
     showUnitField: Boolean,
+    showPreviewToggle: Boolean,
     onDismiss: () -> Unit,
-    onSave: (title: String, unit: String?, w: Int, h: Int) -> Unit,
+    onSave: (title: String, unit: String?, w: Int, h: Int, previewMode: String?) -> Unit,
 ) {
     var title by remember { mutableStateOf(widget.title) }
     var unit by remember { mutableStateOf(widget.config["unit"].orEmpty()) }
     var width by remember { mutableStateOf(widget.w.coerceIn(1, maxColumns)) }
     var height by remember { mutableStateOf(widget.h.coerceIn(1, DashboardEditorViewModel.MAX_WIDGET_ROWS)) }
+    var livePreview by remember { mutableStateOf(widget.config["previewMode"] != "button") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -408,6 +414,18 @@ private fun WidgetEditDialog(
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
+                if (showPreviewToggle) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.dashboard_editor_live_preview_label), modifier = Modifier.weight(1f))
+                        Switch(checked = livePreview, onCheckedChange = { livePreview = it })
+                    }
+                    Text(
+                        stringResource(R.string.dashboard_editor_live_preview_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 Spacer(modifier = Modifier.height(16.dp))
                 SizeStepper(
                     label = stringResource(R.string.dashboard_editor_width_label),
@@ -424,7 +442,10 @@ private fun WidgetEditDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onSave(title, unit.ifBlank { null }, width, height) }) { Text(stringResource(R.string.common_ok)) }
+            TextButton(onClick = {
+                val previewMode = if (showPreviewToggle && !livePreview) "button" else null
+                onSave(title, unit.ifBlank { null }, width, height, previewMode)
+            }) { Text(stringResource(R.string.common_ok)) }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }

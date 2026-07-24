@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material.icons.Icons
@@ -670,6 +671,11 @@ private sealed interface WebPageLoadState {
 fun WebPageWidget(
     title: String,
     urlEmbedId: String?,
+    /** false = don't render the live WebView in the small grid tile at all, just a tap-to-open
+     *  button - for embeds that are a full external website rather than a small device UI, where
+     *  a live mini-preview is mostly unreadable and wastes a page load on every dashboard render.
+     *  Either way, opening fullscreen always shows the real, fully interactive page. */
+    showLivePreview: Boolean = true,
     modifier: Modifier = Modifier,
     viewModel: UrlEmbedWidgetViewModel = hiltViewModel(),
 ) {
@@ -693,19 +699,26 @@ fun WebPageWidget(
         when (val current = loadState) {
             WebPageLoadState.Loading -> Text("Lädt…", style = MaterialTheme.typography.bodyMedium)
             WebPageLoadState.Unavailable -> EmbedUnavailable(message = "Seite nicht verfügbar", onRetry = { refreshTrigger++ })
-            is WebPageLoadState.Resolved -> Box(modifier = Modifier.fillMaxSize()) {
-                EmbeddedWebView(url = current.url, modifier = Modifier.fillMaxSize())
-                // A semi-transparent circular backing keeps the icon legible over arbitrary page
-                // content - the WebView itself can't double as the tap target here (it needs to
-                // keep receiving touches for the page's own scrolling/interaction).
-                Surface(
-                    modifier = Modifier.align(Alignment.TopEnd).padding(4.dp),
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
-                ) {
-                    IconButton(onClick = { fullscreen = true }) {
-                        Icon(Icons.Filled.Fullscreen, contentDescription = "Vollbild")
+            is WebPageLoadState.Resolved -> if (showLivePreview) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    EmbeddedWebView(url = current.url, modifier = Modifier.fillMaxSize())
+                    // A semi-transparent circular backing keeps the icon legible over arbitrary page
+                    // content - the WebView itself can't double as the tap target here (it needs to
+                    // keep receiving touches for the page's own scrolling/interaction).
+                    Surface(
+                        modifier = Modifier.align(Alignment.TopEnd).padding(4.dp),
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+                    ) {
+                        IconButton(onClick = { fullscreen = true }) {
+                            Icon(Icons.Filled.Fullscreen, contentDescription = "Vollbild")
+                        }
                     }
+                }
+            } else {
+                Button(onClick = { fullscreen = true }, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Filled.Fullscreen, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Text("Öffnen", modifier = Modifier.padding(start = 8.dp))
                 }
             }
         }

@@ -273,6 +273,20 @@ class DashboardEditorViewModelTest {
     }
 
     @Test
+    fun `updateWidget sets and clears the previewMode config key`() = runTest {
+        val dashboard = testDashboard(widgets = listOf(widget("w1")))
+        val viewModel = buildViewModel(dashboard)
+        collectUiState(viewModel)
+        advanceUntilIdle()
+
+        viewModel.updateWidget("w1", title = "w1", unit = null, w = 2, h = 1, previewMode = "button")
+        assertEquals("button", viewModel.uiState.value.currentLayout!!.widgets.single().config["previewMode"])
+
+        viewModel.updateWidget("w1", title = "w1", unit = null, w = 2, h = 1, previewMode = null)
+        assertFalse(viewModel.uiState.value.currentLayout!!.widgets.single().config.containsKey("previewMode"))
+    }
+
+    @Test
     fun `sendCommand records the returned commandId as pending on success, and nothing on failure`() = runTest {
         val dashboard = testDashboard()
         val commandRepo = FakeCommandRepository()

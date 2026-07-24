@@ -54,6 +54,8 @@
     <string name="dashboard_editor_add_label">Heading</string>
     <string name="dashboard_editor_label_title_hint">Label text</string>
     <string name="dashboard_editor_pick_different_source">Pick a different source</string>
+    <string name="dashboard_editor_live_preview_label">Live preview in the tile</string>
+    <string name="dashboard_editor_live_preview_hint">Off: just an open button, the page only loads when tapped.</string>
 
     <string name="objects_title">Object catalog</string>
     <string name="objects_search_hint">Search name or path</string>

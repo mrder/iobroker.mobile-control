@@ -8,6 +8,24 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.36] - master, Testbuild
+
+Echtes UX-Problem behoben, direkt nach den URL-Einbettungs-Freigaben live gefunden: eine ganze
+externe Website (nicht eine kleine lokale Geräte-Oberfläche) als "Web-Seite"-Widget einzubetten
+rendert bisher immer eine live laufende Mini-WebView in der kleinen Dashboard-Kachel - bei der
+Größe meist unlesbar, und lädt die Seite bei jedem Dashboard-Rendern neu ("ich wollte das ja
+als Button drin haben, wo ich drauf klicke und die Website öffnen kann").
+
+- **Neuer Schalter "Live-Vorschau in der Kachel"** im Bearbeiten-Dialog eines Widgets, nur bei
+  Web-Seite-Widgets sichtbar. Ausgeschaltet zeigt die Kachel nur noch einen "Öffnen"-Button,
+  der die Seite erst beim Antippen lädt - in derselben Vollbildansicht, die es im
+  Live-Vorschau-Modus schon gab (kein doppelter WebView-Code).
+- Bestehende Web-Seite-Widgets behalten die Live-Vorschau standardmäßig bei.
+- **Hinweis**: ein bereits als "URL-Bild" angelegtes Widget (das bei einer echten Website
+  "Kein Bild verfügbar" zeigt) lässt sich nicht nachträglich auf "Web-Seite" umstellen - dafür
+  das Widget löschen und über den zweiten Reiter im Widget-Picker mit dem Typ "Web-Seite" neu
+  anlegen.
+
 ## [0.0.35] - master, Testbuild
 
 Drei Sicherheits-Sichtbarkeits-Folgepunkte aus einer Live-Nachfrage direkt nach den

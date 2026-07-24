@@ -154,12 +154,16 @@ class DashboardEditorViewModel @Inject constructor(
      * move them independently (live-test feedback: coupling both dimensions per press made it
      * impossible to reach non-square shapes without over/undershooting one axis).
      */
-    fun updateWidget(widgetId: String, title: String, unit: String?, w: Int, h: Int) {
+    /** [previewMode] is only meaningful for WidgetType.WEB_VIEW ("button" = tap-to-open only, no
+     *  live mini-WebView in the grid tile; null/blank = default live preview) - see
+     *  ui/widgets/WidgetComposables.kt#WebPageWidget. Harmless no-op for every other widget type. */
+    fun updateWidget(widgetId: String, title: String, unit: String?, w: Int, h: Int, previewMode: String? = null) {
         updateLayout(local.value.sizeClass) { layout ->
             layout.copy(
                 widgets = layout.widgets.map { widget ->
                     if (widget.id != widgetId) return@map widget
-                    val config = if (unit.isNullOrBlank()) widget.config - "unit" else widget.config + ("unit" to unit)
+                    var config = if (unit.isNullOrBlank()) widget.config - "unit" else widget.config + ("unit" to unit)
+                    config = if (previewMode.isNullOrBlank()) config - "previewMode" else config + ("previewMode" to previewMode)
                     widget.copy(
                         title = title.ifBlank { widget.title },
                         w = w.coerceIn(1, layout.columns),

@@ -58,6 +58,8 @@
     <string name="dashboard_editor_add_label">Überschrift</string>
     <string name="dashboard_editor_label_title_hint">Beschriftung</string>
     <string name="dashboard_editor_pick_different_source">Andere Quelle wählen</string>
+    <string name="dashboard_editor_live_preview_label">Live-Vorschau in der Kachel</string>
+    <string name="dashboard_editor_live_preview_hint">Aus: nur ein Öffnen-Button, die Seite wird erst beim Antippen geladen.</string>
 
     <!-- Object browser -->
     <string name="objects_title">Objektkatalog</string>
