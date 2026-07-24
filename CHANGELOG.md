@@ -8,6 +8,30 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.38] - master, Testbuild
+
+Echten, bisher unentdeckten Bug live gefunden: ein Web-Seite-Widget zu einem lokalen Gerät per
+`http://192.168.178.87:8097` scheiterte mit `net::ERR_CLEARTEXT_NOT_PERMITTED`.
+
+- **Ursache größer als das eine Widget**: Android blockiert ab API 28 standardmäßig jeglichen
+  unverschlüsselten `http://`-Verkehr, und die App hatte dafür keine
+  Netzwerksicherheits-Konfiguration. Das hätte theoretisch auch Pairing/Login/die komplette App
+  kaputt gemacht, sobald sich jemand direkt mit einem plain-http-Adapter im LAN verbindet, ohne
+  Reverse-Proxy davor (ein vollständig unterstütztes, dokumentiertes Setup laut README "im
+  lokalen Netz erreichbar") - ist bisher nur nicht aufgefallen, weil hier gegen eine per HTTPS
+  erreichbare Instanz getestet wird.
+- **Fix**: Neue `network_security_config.xml`, die Cleartext-Verkehr app-weit erlaubt -
+  passend zum tatsächlichen Vertrauensmodell dieser App (selbst gehostetes LAN-Tool, vom Admin
+  freigegebene Ziele, kein Store-Vertrieb).
+- **Zusätzlich**: echte Fehlererkennung beim WebView-Laden ergänzt - eine gescheiterte Seite
+  zeigte bisher nur ein leeres/kaputtes Bild statt "Seite nicht verfügbar".
+- **Klarstellung zur Architektur** (auf Nachfrage, ob der Adapter als Proxy dient): "URL-Bild"
+  läuft bereits über das Backend als Proxy und funktioniert von überall. "Web-Seite" navigiert
+  das WebView des Handys bewusst direkt zur LAN-URL (eine ganze Website durch einen
+  Einzelressourcen-Proxy zu schleusen ist nicht realistisch umsetzbar) - braucht deshalb auch
+  mit diesem Fix weiterhin echte Netzwerk-Erreichbarkeit (gleiches Netz oder VPN, siehe
+  "Verbindung & Fernzugriff" im Admin-Tab).
+
 ## [0.0.37] - master, Testbuild
 
 Echten Bedienbarkeits-Bug behoben, live gefunden: "ich habe ein neuen URL einbetten wollen,

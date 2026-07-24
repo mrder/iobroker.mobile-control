@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  This app's entire premise is talking to a self-hosted adapter and admin-approved local
+  devices on the user's own network, most of which never have (and don't need) a real TLS
+  certificate - the adapter itself doesn't terminate TLS either (see docs/DEPLOYMENT.md), and
+  the app is not distributed through a store. Since Android 9 (API 28), the platform network
+  stack blocks ALL plain http:// traffic by default for both OkHttp/Retrofit (REST + WebSocket,
+  see NetworkModule.kt) and WebView (see WidgetComposables.kt#EmbeddedWebView) unless explicitly
+  allowed here - without this, pairing directly to a plain-http adapter on the LAN (no reverse
+  proxy in front) and any "Web-Seite" URL embed pointing at a plain-http local device UI both
+  fail outright with CLEARTEXT_NOT_PERMITTED, even though that's a fully supported, documented
+  usage mode (see README "im lokalen Netz erreichbar").
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

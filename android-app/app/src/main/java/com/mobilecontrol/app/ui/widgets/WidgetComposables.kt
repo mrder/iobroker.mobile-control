@@ -1,6 +1,8 @@
 package com.mobilecontrol.app.ui.widgets
 
 import android.graphics.BitmapFactory
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.Image
@@ -701,7 +703,11 @@ fun WebPageWidget(
             WebPageLoadState.Unavailable -> EmbedUnavailable(message = "Seite nicht verfügbar", onRetry = { refreshTrigger++ })
             is WebPageLoadState.Resolved -> if (showLivePreview) {
                 Box(modifier = Modifier.fillMaxSize()) {
-                    EmbeddedWebView(url = current.url, modifier = Modifier.fillMaxSize())
+                    EmbeddedWebView(
+                        url = current.url,
+                        modifier = Modifier.fillMaxSize(),
+                        onError = { loadState = WebPageLoadState.Unavailable },
+                    )
                     // A semi-transparent circular backing keeps the icon legible over arbitrary page
                     // content - the WebView itself can't double as the tap target here (it needs to
                     // keep receiving touches for the page's own scrolling/interaction).
@@ -736,7 +742,11 @@ fun WebPageWidget(
                                 Icon(Icons.Filled.Close, contentDescription = "Schließen")
                             }
                         }
-                        EmbeddedWebView(url = current.url, modifier = Modifier.weight(1f).fillMaxWidth())
+                        EmbeddedWebView(
+                            url = current.url,
+                            modifier = Modifier.weight(1f).fillMaxWidth(),
+                            onError = { loadState = WebPageLoadState.Unavailable; fullscreen = false },
+                        )
                     }
                 }
             }
@@ -748,16 +758,25 @@ fun WebPageWidget(
 
 /** Fresh WebView per composition (inline widget and fullscreen dialog each get their own) - a
  *  live page's scroll/input state isn't worth the complexity of sharing a single View instance
- *  across two different parts of the composition, opening fullscreen just reloads the same URL. */
+ *  across two different parts of the composition, opening fullscreen just reloads the same URL.
+ *  [onError] fires for a failed *main-frame* load only (e.g. CLEARTEXT_NOT_PERMITTED, DNS
+ *  failure, connection refused) - a failed sub-resource (a blocked tracking script, a missing
+ *  image) must not flag the whole page unavailable. */
 @Composable
-private fun EmbeddedWebView(url: String, modifier: Modifier = Modifier) {
+private fun EmbeddedWebView(url: String, modifier: Modifier = Modifier, onError: (() -> Unit)? = null) {
     AndroidView(
         modifier = modifier,
         factory = { context ->
             WebView(context).apply {
                 settings.javaScriptEnabled = true
                 settings.domStorageEnabled = true
-                webViewClient = WebViewClient()
+                webViewClient = object : WebViewClient() {
+                    override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+                        if (request.isForMainFrame) {
+                            onError?.invoke()
+                        }
+                    }
+                }
             }
         },
         update = { webView -> webView.loadUrl(url) },
