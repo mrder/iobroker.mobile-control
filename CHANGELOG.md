@@ -8,6 +8,28 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.41] - master, Testbuild
+
+Echten Bug behoben, live beim allerersten Test des neuen Tunnel-Modus gefunden: Die
+getunnelte Seite zeigte erst weiß, dann wirren/binär aussehenden Text ("Hieroglyphen")
+statt des eigentlichen Inhalts.
+
+- **Ursache**: WebView schickt bei jeder Anfrage automatisch `Accept-Encoding: gzip, deflate,
+  br`, und der lokale Tunnel-Proxy hat das unverändert an den Aufruf zum Adapter
+  weitergereicht. OkHttp entpackt eine gzip-Antwort aber nur automatisch, wenn der Aufrufer
+  `Accept-Encoding` **nicht selbst** gesetzt hat - das Weiterreichen von WebViews Header hat
+  diese automatische Entpackung also still abgeschaltet. Komprimiert dann irgendetwas
+  zwischen Handy und Ziel die Antwort (z.B. ein Reverse-Proxy vor einem öffentlich
+  erreichbaren Adapter - der übliche Fall), landen die rohen komprimierten Bytes ohne
+  erklärenden `Content-Encoding`-Header direkt bei WebView - und werden als Datenmüll
+  angezeigt statt als Seite.
+- **Fix**: Für den Hop vom lokalen Proxy zum Adapter wird jetzt explizit
+  `Accept-Encoding: identity` (gar keine Komprimierung) angefordert, statt sich auf OkHttps
+  rein gzip-beschränkte automatische Entpackung zu verlassen.
+- **Zusätzlich**: OkHttp-Logging auf BASIC-Stufe für diesen Client ergänzt (nur
+  Methode/URL/Status, keine Header/Body - das Tunnel-Token darf nie ins Logcat), damit eine
+  laufende Tunnel-Sitzung beim nächsten Mal per `adb logcat` diagnostizierbar ist.
+
 ## [0.0.40] - master, Testbuild
 
 Die "Mini-VPN"-Idee aus dem letzten Release, diesmal wirklich gebaut ("das wollen wir doch

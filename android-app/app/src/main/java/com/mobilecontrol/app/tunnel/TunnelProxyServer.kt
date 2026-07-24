@@ -19,7 +19,19 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 
-private val HOP_BY_HOP_HEADERS = setOf("host", "connection", "proxy-connection", "content-length")
+/**
+ * Headers describing THIS leg (WebView<->local proxy) that must not be forwarded verbatim onto
+ * the next one (local proxy<->adapter). "accept-encoding" belongs here too, for a subtler reason
+ * than the others: OkHttp's BridgeInterceptor only auto-decompresses a gzip response when the
+ * caller did NOT explicitly set Accept-Encoding on the request - WebView always sends one
+ * ("gzip, deflate, br"), and forwarding it verbatim silently disabled OkHttp's transparent
+ * decompression for the adapter call. If anything between here and the target compresses the
+ * response (a reverse proxy in front of the adapter, for one - the common case for a publicly
+ * reachable instance), the raw gzip bytes then got relayed straight to WebView with no
+ * Content-Encoding header to explain them, which rendered as garbled text ("hieroglyphs") instead
+ * of the page - confirmed live. Omitting the header lets OkHttp negotiate and decompress normally.
+ */
+private val HOP_BY_HOP_HEADERS = setOf("host", "connection", "proxy-connection", "content-length", "accept-encoding")
 
 /**
  * A tiny HTTP/1.1 forward-proxy server bound to 127.0.0.1 on an ephemeral port, for exactly one
@@ -118,6 +130,11 @@ class TunnelProxyServer(
             .url(tunnelProxyUrl)
             .header("X-Tunnel-Token", token)
             .header("X-Tunnel-Path", request.pathAndQuery)
+            // Explicitly asks every well-behaved hop (a reverse proxy in front of the adapter,
+            // for one) not to compress this response at all, rather than relying on OkHttp's
+            // gzip-only implicit auto-decompression - that only covers gzip, not e.g. Brotli, and
+            // still requires Accept-Encoding to have been left untouched (see HOP_BY_HOP_HEADERS).
+            .header("Accept-Encoding", "identity")
             .method(method, body)
         for ((name, value) in request.headers) {
             // Hop-by-hop headers describe THIS leg (WebView<->local proxy), not the one we're

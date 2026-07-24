@@ -1,5 +1,6 @@
 package com.mobilecontrol.app.tunnel
 
+import com.mobilecontrol.app.BuildConfig
 import com.mobilecontrol.app.data.remote.ServerConfigHolder
 import com.mobilecontrol.app.domain.model.TunnelToken
 import com.mobilecontrol.app.domain.repository.UrlEmbedRepository
@@ -10,6 +11,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
 
 /** Refresh a token this long before it actually expires, so a long-open WebView session never
  *  hits a gap between "token about to expire" and "next request needs one". */
@@ -36,6 +38,10 @@ class TunnelSessionManager @Inject constructor(
     private val lock = Mutex()
     private val httpClient = OkHttpClient.Builder()
         .callTimeout(15, TimeUnit.SECONDS)
+        // BASIC level (method/URL/response code/content-length, no headers or body - the tunnel
+        // token itself must never land in logcat) so a live tunnel session is actually
+        // diagnosable via `adb logcat` tag "OkHttp", same convention as NetworkModule's client.
+        .addInterceptor(HttpLoggingInterceptor().apply { level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BASIC else HttpLoggingInterceptor.Level.NONE })
         .build()
 
     private var server: TunnelProxyServer? = null
