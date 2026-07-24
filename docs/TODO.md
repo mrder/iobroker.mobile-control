@@ -241,6 +241,12 @@
 - [ ] App Staging
 - [ ] interne APK
 - [ ] GitHub Releases (Automatisierung steht via `.github/workflows/release.yml`, aber es wurde noch kein Tag/Release erstellt)
+- [ ] **App-Installationsseite direkt vom Adapter** (Praxis-Idee, live besprochen: "sodass sich der Nutzer z.B mithilfe einer Installationsseite/QR-Code die App direkt über die eingestellte Domain oder über das lokale Netzwerk runterladen könnte"). Aktueller Stand der Debug-APK: **43 MB** (ungeshrinkt/unminifiziert, wie bei jedem Debug-Build üblich - eine echte Release-Build mit R8/ProGuard + Resource-Shrinking läge vermutlich bei 15-25 MB).
+  - **Nicht ins Git-Repo/npm-Paket einbetten**: Bei dieser Größe und der Häufigkeit neuer Versionen würde jede einzelne Version das Repo dauerhaft aufblähen (Git kann Binärdateien nicht diffen, jede neue APK ist ein kompletter neuer Blob in der Historie, für immer).
+  - Stattdessen: **GitHub Release als Hosting** - `.github/workflows/release.yml` (läuft schon bei jedem `v*.*.*`-Tag auf `main`) um einen Android-Build-Schritt erweitern, der die APK als Release-Asset anhängt (`softprops/action-gh-release` unterstützt das direkt über `files:`). Kostet das Repo selbst nichts, nutzt GitHubs eigenes Asset-Hosting mit stabiler URL pro Version.
+  - **Release-Signing fehlt noch als Voraussetzung**: aktuell existiert nur ein Debug-Build-Pfad (fester, eingecheckter Debug-Keystore seit v0.0.17, nur für `adb install -r`/CI gedacht). Für eine echte "lade dir die App runter"-Seite bräuchte es einen eigenen Release-Build-Flavor mit Release-Keystore (Signing-Key sicher als GitHub-Secret, nicht eingecheckt).
+  - Adapter-seitig: kleine servierte HTML-Seite (z.B. `GET /install` oder `/download`) mit QR-Code (Erzeugung schon vorhanden, siehe `qrcode`-Dependency/Pairing-Invites) auf die aktuelle GitHub-Release-Asset-URL, erreichbar sowohl über die konfigurierte `publicUrl` als auch übers lokale Netz.
+  - Hinweis für die Seite: Installation aus "unbekannten Quellen" muss der Nutzer einmalig manuell erlauben (kein Play-Store-Vertrieb) - sollte auf der Installationsseite kurz erklärt werden.
 - [x] Changelog (CHANGELOG.md)
 - [x] Installationsanleitung
 - [x] Updateprozess (dokumentiert in README „Release-Prozess": Admin-Tab „Update" bzw. erneutes `iobroker url`, da GitHub-Install statt npm-Registry)

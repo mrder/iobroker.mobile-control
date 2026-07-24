@@ -8,6 +8,25 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.37] - master, Testbuild
+
+Echten Bedienbarkeits-Bug behoben, live gefunden: "ich habe ein neuen URL einbetten wollen,
+aber ich könnte nur URL Bild auswählen und nix anderes...".
+
+- **Ursache**: Der Widget-Typ-Auswähler zeigte beim Anlegen eines Widgets aus einer
+  URL-Einbettung alle 15 Widget-Typen im Dropdown, inklusive reiner Objekt-Typen (Temperatur,
+  Schalter, ...), die für eine URL-Einbettung gar nicht funktionieren. "Web-Seite" ging dabei
+  fast am Ende der Liste unter und wurde leicht übersehen - man landete beim vorausgewählten
+  "URL-Bild", was dann bei einer echten Website "Kein Bild verfügbar" zeigt.
+- **Fix**: Das Dropdown ist jetzt kontextabhängig gefiltert - nur "URL-Bild"/"Web-Seite" bei
+  einer URL-Einbettung, nur die objekt-kompatiblen Typen bei einem ioBroker-Objekt.
+- Zusätzlich ein Dropdown-Pfeil-Symbol am Typ-Chip ergänzt, damit klar erkennbar ist, dass es
+  eine Mehrfachauswahl ist und kein statisches Label.
+- **Dokumentiert, nicht umgesetzt**: konkreter Plan in `docs/TODO.md` (Phase 18) für eine
+  spätere "App direkt vom Adapter installieren"-Seite (QR-Code, GitHub-Release-Asset statt
+  APK im Git eingebettet, Release-Signing als offene Voraussetzung) - live besprochene
+  Praxis-Idee, bewusst als Vormerkung statt sofortiger Umsetzung.
+
 ## [0.0.36] - master, Testbuild
 
 Echtes UX-Problem behoben, direkt nach den URL-Einbettungs-Freigaben live gefunden: eine ganze

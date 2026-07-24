@@ -25,6 +25,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -510,6 +511,28 @@ private fun suggestedWidgetType(item: ObjectCatalogItem): WidgetType =
     item.suggestedWidgets.firstOrNull()?.let { WidgetType.fromSuggestion(it) }
         ?: (if (item.canWrite) WidgetType.SWITCH else WidgetType.TEXT_VALUE)
 
+/** Widget types backed by an ioBroker objectId - offered when picking from the object tree. */
+private val OBJECT_WIDGET_TYPES = listOf(
+    WidgetType.TEXT_VALUE,
+    WidgetType.TEMPERATURE,
+    WidgetType.HUMIDITY,
+    WidgetType.BOOLEAN_STATUS,
+    WidgetType.SWITCH,
+    WidgetType.HISTORY,
+    WidgetType.MOMENTARY_BUTTON,
+    WidgetType.SLIDER,
+    WidgetType.ROLLER_SHUTTER,
+    WidgetType.THERMOSTAT,
+    WidgetType.ALARM,
+    WidgetType.CAMERA,
+)
+
+/** Widget types backed by widget.config["urlEmbedId"] instead - offered when picking a URL
+ *  embed. Live-test feedback: showing all 15 WidgetType entries (the object-backed ones
+ *  included) buried "Web-Seite" near the bottom of an irrelevant 15-item dropdown, making it
+ *  easy to miss and land back on the pre-selected "URL-Bild" by default. */
+private val URL_EMBED_WIDGET_TYPES = listOf(WidgetType.URL_IMAGE, WidgetType.WEB_VIEW)
+
 /** Which source the step-1 picker currently browses - objects (the ioBroker catalog, as before)
  *  or the admin-managed URL-embed allowlist (see UrlEmbedPickerViewModel). */
 private enum class PickerSource { OBJECT, URL_EMBED }
@@ -656,7 +679,7 @@ private fun AddWidgetDialog(
                     Text(item.name, style = MaterialTheme.typography.titleMedium)
                     Text(item.path.joinToString(" / "), style = MaterialTheme.typography.bodySmall)
                     Spacer(modifier = Modifier.height(16.dp))
-                    WidgetTypeSelector(selected = widgetType, onSelect = { widgetType = it })
+                    WidgetTypeSelector(selected = widgetType, options = OBJECT_WIDGET_TYPES, onSelect = { widgetType = it })
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = title,
@@ -671,7 +694,7 @@ private fun AddWidgetDialog(
                     Text(embed.name, style = MaterialTheme.typography.titleMedium)
                     Text(stringResource(R.string.dashboard_editor_url_embed_label), style = MaterialTheme.typography.bodySmall)
                     Spacer(modifier = Modifier.height(16.dp))
-                    WidgetTypeSelector(selected = widgetType, onSelect = { widgetType = it })
+                    WidgetTypeSelector(selected = widgetType, options = URL_EMBED_WIDGET_TYPES, onSelect = { widgetType = it })
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = title,
@@ -729,15 +752,16 @@ private fun ValueTypeFilterChip(value: ValueType?, label: String, selected: Valu
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun WidgetTypeSelector(selected: WidgetType, onSelect: (WidgetType) -> Unit) {
+private fun WidgetTypeSelector(selected: WidgetType, options: List<WidgetType>, onSelect: (WidgetType) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     FilterChip(
         selected = true,
         onClick = { expanded = true },
         label = { Text(WIDGET_TYPE_LABELS[selected] ?: selected.name) },
+        trailingIcon = { Icon(Icons.Filled.ArrowDropDown, contentDescription = null) },
     )
     DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-        WidgetType.entries.forEach { type ->
+        options.forEach { type ->
             DropdownMenuItem(text = { Text(WIDGET_TYPE_LABELS[type] ?: type.name) }, onClick = { onSelect(type); expanded = false })
         }
     }
