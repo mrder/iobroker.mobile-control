@@ -55,6 +55,14 @@ export default function OverviewTab(): JSX.Element {
         return () => clearInterval(interval);
     }, []);
 
+    // Derived straight from the same abuseState the table below already shows - no separate
+    // tracking needed. "Fehlversuche (5 Min)" sums every watched IP's current-window failure
+    // count on /pairing/claim, /auth/challenge, /auth/login and /auth/refresh; it does not cover
+    // authorization denials (READ_FORBIDDEN/WRITE_FORBIDDEN) on the general API, which AbuseGuard
+    // doesn't watch.
+    const blockedIpCount = abuseState.filter((e) => e.blocked).length;
+    const recentFailureCount = abuseState.reduce((sum, e) => sum + e.failures, 0);
+
     return (
         <Box>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
@@ -80,6 +88,12 @@ export default function OverviewTab(): JSX.Element {
                 </Grid>
                 <Grid item>
                     <StatCard label="Verbundene Geräte (live)" value={overview?.connectedDevices ?? '–'} />
+                </Grid>
+                <Grid item>
+                    <StatCard label="Gesperrte IPs (live)" value={blockedIpCount} />
+                </Grid>
+                <Grid item>
+                    <StatCard label="Fehlversuche (5 Min)" value={recentFailureCount} />
                 </Grid>
             </Grid>
 

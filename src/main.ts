@@ -250,6 +250,17 @@ class MobileControlAdapter extends utils.Adapter {
         });
 
         const app = express();
+        // Most real deployments (this user's included) put a reverse proxy in front - often in
+        // its own Docker container - so the socket Express sees is the proxy's own address, not
+        // the real client's. Without this, every req.ip (audit log, AbuseGuard, device.lastIp,
+        // isLocalNetwork) would silently record the proxy's Docker-bridge IP for every request
+        // instead of the actual caller. Express's 'loopback, linklocal, uniquelocal' preset only
+        // trusts the X-Forwarded-For header when the DIRECT connecting peer is itself a private/
+        // loopback address (127.0.0.1, a Docker bridge subnet, a LAN reverse proxy, ...) - an
+        // attacker connecting straight from the public internet is never in that range, so they
+        // cannot spoof their own IP via that header; only an already-trusted local hop can forward
+        // one.
+        app.set('trust proxy', 'loopback, linklocal, uniquelocal');
         app.use(express.json({ limit: '256kb' }));
         app.use(
             '/api/v1',
@@ -635,6 +646,25 @@ class MobileControlAdapter extends utils.Adapter {
                 case 'listAudit':
                     respond(this.auditService.list(typeof body.limit === 'number' ? body.limit : undefined));
                     break;
+                case 'clearAudit': {
+                    const removed = await this.auditService.clearAll();
+                    // Logged AFTER clearing, deliberately - the clear itself stays visible as the
+                    // one surviving entry rather than being wiped by its own action.
+                    await this.auditService.log({ action: 'audit.cleared', result: 'success', detail: `removed=${removed}` });
+                    respond({ ok: true, removed });
+                    break;
+                }
+                case 'clearAuditOlderThan': {
+                    const days = typeof body.days === 'number' && body.days > 0 ? body.days : 7;
+                    const removed = await this.auditService.clearOlderThan(days);
+                    await this.auditService.log({
+                        action: 'audit.cleared',
+                        result: 'success',
+                        detail: `removed=${removed} olderThanDays=${days}`,
+                    });
+                    respond({ ok: true, removed });
+                    break;
+                }
 
                 case 'getOverview':
                     respond({

@@ -115,6 +115,24 @@ export class CollectionStore<T extends { id: string }> {
         await this.persist();
     }
 
+    /**
+     * Keeps only items matching `predicate`, evicting the rest in a single persist. General-
+     * purpose eviction by content rather than count/age-rank (unlike `trim`) - e.g. an admin
+     * clearing the audit log entirely (`() => false`) or down to the last N days
+     * (`(e) => e.timestamp >= cutoff`). Returns how many items were removed.
+     */
+    async retain(predicate: (item: T) => boolean): Promise<number> {
+        this.ensureLoaded();
+        const before = this.cache.size;
+        const keep = this.list().filter(predicate);
+        this.cache.clear();
+        for (const item of keep) {
+            this.cache.set(item.id, item);
+        }
+        await this.persist();
+        return before - keep.length;
+    }
+
     private async persist(): Promise<void> {
         const obj: Record<string, T> = {};
         for (const [id, value] of this.cache) {

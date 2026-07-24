@@ -8,6 +8,28 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.35] - master, Testbuild
+
+Drei Sicherheits-Sichtbarkeits-Folgepunkte aus einer Live-Nachfrage direkt nach den
+URL-Einbettungs-Freigaben ("wo sehen wir nun die verbundenen IPs... damit ggf. Angriffe
+sicher gemacht werden").
+
+- **Echter Bugfix, kein neues Feature**: `req.ip` war für **jede** Anfrage falsch, sobald ein
+  Reverse-Proxy vor dem Adapter steht (z.B. Docker-Setup mit nginx/Caddy davor, wie beim
+  Nutzer selbst) - Express hat ohne `trust proxy`-Konfiguration die Adresse des Proxys
+  aufgezeichnet statt die des echten Clients. Das hat still Audit-Log, AbuseGuard und
+  `device.lastIp` verfälscht. Jetzt vertraut der Adapter `X-Forwarded-For` nur, wenn die
+  direkt verbundene Gegenstelle selbst eine Loopback-/private Adresse ist (Docker-Bridge,
+  lokaler Proxy) - ein Angreifer direkt aus dem Internet kann das nicht fälschen, nur ein
+  bereits lokal vertrauter Proxy kann eine IP weiterreichen.
+- **Audit-Log aufräumen**: neue Buttons "Alles löschen" und "Nur letzte N Tage behalten" im
+  Audit-Tab (bisher nur die harte 5000-Einträge-Obergrenze als einzige Begrenzung), dazu eine
+  IP-Spalte in der Tabelle - das Feld wurde schon erfasst, war nur nicht sichtbar.
+- **Neue Kennzahlen in der Übersicht**: "Gesperrte IPs (live)" und "Fehlversuche (5 Min)",
+  direkt aus demselben AbuseGuard-Snapshot berechnet, den das "Auffällige IPs"-Panel darunter
+  schon zeigt - deckt weiterhin nur die vier überwachten Auth-/Pairing-Endpunkte ab, keine
+  allgemeinen Autorisierungs-Ablehnungen auf der übrigen API.
+
 ## [0.0.34] - master, Testbuild
 
 URL-Einbettungen bekommen dasselbe Freigabemodell wie Objektfreigaben, live angefragt ("da

@@ -290,6 +290,44 @@ async function main(): Promise<void> {
         assert.equal(authedRes.status, 401);
     });
 
+    await step('a reverse proxy on loopback can correctly forward the real client IP via X-Forwarded-For', async () => {
+        // Simulates the real-world setup this was fixed for: an nginx/Caddy reverse proxy (often
+        // its own Docker container) sitting in front of the adapter. The test itself always
+        // connects via loopback (127.0.0.1) either way, which is exactly the "trusted local
+        // proxy hop" case app.set('trust proxy', ...) is meant to honor - so a forwarded header
+        // from here should be believed, while an attacker connecting directly from the public
+        // internet (not exercised here, but see the trust-proxy comment in main.ts) would not be.
+        const user = await callAdmin<{ id: string }>('createUser', { name: 'Trust Proxy Test User', roleId: 'viewer' });
+        const invite = await callAdmin<{ qrPayload: { pairingId: string; pairingSecret: string } }>('createPairingInvite', {
+            userId: user.id,
+            roleId: 'viewer',
+        });
+        const { publicKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+        const publicKeyBase64 = publicKey.export({ type: 'spki', format: 'der' }).toString('base64');
+
+        const spoofedClientIp = '203.0.113.42';
+        const claimRes = await fetch(`${BASE_URL}/api/v1/pairing/claim`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', 'x-forwarded-for': spoofedClientIp },
+            body: JSON.stringify({
+                pairingId: invite.qrPayload.pairingId,
+                pairingSecret: invite.qrPayload.pairingSecret,
+                deviceName: 'Trust Proxy Test Device',
+                platform: 'android',
+                appVersion: '1.0',
+                publicKey: publicKeyBase64,
+            }),
+        });
+        assert.equal(claimRes.status, 200);
+
+        const auditEvents = await callAdmin<Array<{ action: string; ip: string | null }>>('listAudit', { limit: 500 });
+        const claimEvent = auditEvents.find((e) => e.action === 'pairing.claim' && e.ip === spoofedClientIp);
+        assert.ok(
+            claimEvent,
+            'expected the audit log to record the X-Forwarded-For client IP (via the loopback-trusted proxy hop), not the raw socket address',
+        );
+    });
+
     // Must be the LAST step: AbuseGuard blocks by IP for abuseBlockMinutes (30 here), and every
     // request in this whole script comes from the same loopback IP - tripping the block earlier
     // would break every legitimate call in the steps above it.

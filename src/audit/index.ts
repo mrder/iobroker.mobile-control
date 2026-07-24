@@ -49,4 +49,16 @@ export class AuditService {
             .sort((a, b) => b.timestamp - a.timestamp)
             .slice(0, limit);
     }
+
+    /** Wipes every event. Returns how many were removed - callers are expected to log a fresh
+     *  "audit log cleared" event immediately afterwards, so the clear itself stays traceable. */
+    async clearAll(): Promise<number> {
+        return this.store.retain(() => false);
+    }
+
+    /** Keeps only events from the last `days` days, evicting everything older. */
+    async clearOlderThan(days: number): Promise<number> {
+        const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+        return this.store.retain((event) => event.timestamp >= cutoff);
+    }
 }
