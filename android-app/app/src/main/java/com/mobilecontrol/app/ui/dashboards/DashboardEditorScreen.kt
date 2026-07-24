@@ -171,6 +171,7 @@ fun DashboardEditorScreen(
     if (state.showAddWidgetDialog) {
         AddWidgetDialog(
             catalog = state.catalog,
+            folderNames = state.folderNames,
             onDismiss = { viewModel.showAddWidgetDialog(false) },
             onAdd = { item, type, title, urlEmbedId -> viewModel.addWidget(item, type, title, urlEmbedId) },
         )
@@ -565,6 +566,7 @@ private enum class PickerSource { OBJECT, URL_EMBED }
 @Composable
 private fun AddWidgetDialog(
     catalog: List<ObjectCatalogItem>,
+    folderNames: Map<String, String>,
     onDismiss: () -> Unit,
     onAdd: (ObjectCatalogItem?, WidgetType, String, String?) -> Unit,
     urlEmbedViewModel: UrlEmbedPickerViewModel = hiltViewModel(),
@@ -590,7 +592,7 @@ private fun AddWidgetDialog(
             query.isBlank() || item.name.contains(query, true) || item.path.joinToString("/").contains(query, true)
         }.take(200)
     }
-    val tree = remember(typeFiltered) { buildObjectTree(typeFiltered) }
+    val tree = remember(typeFiltered, folderNames) { buildObjectTree(typeFiltered, folderNames) }
 
     fun selectItem(item: ObjectCatalogItem) {
         selectedUrlEmbed = null

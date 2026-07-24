@@ -4,7 +4,10 @@ package com.mobilecontrol.app.domain.model
  * A folder-level grouping synthesized purely from ObjectCatalogItem.path (the app never sees
  * real channel/device objects - only the server's already-filtered, flat catalog of exposed
  * leaf states - so unlike the admin web tab's object tree, there is no separate "container"
- * object to fetch; folders here are just common path prefixes).
+ * object to fetch; folders here are just common path prefixes). [name] is the server-resolved
+ * display name from the catalog response's folderNames map when available (e.g. a zigbee
+ * device's real name instead of its raw id segment) - see [buildObjectTree]; falls back to the
+ * bare path segment when the server has no name for that folder (or none was passed at all).
  */
 data class ObjectTreeNode(
     /** Dot-joined path up to and including this folder, e.g. "zigbee.0.living_room". */
@@ -24,8 +27,13 @@ private class MutableTreeNode(val name: String, val id: String) {
  * Groups a flat catalog into a tree by ObjectCatalogItem.path. Items with an empty path (no
  * folder at all) end up directly in the returned root's own `items`, alongside top-level folders
  * in `children` - callers render both at depth 0.
+ *
+ * [folderNames] is the catalog response's own folder-id -> display-name map (see
+ * CatalogResponseDto.folderNames) - a folder id not present there (server has no resolved name,
+ * or the caller didn't pass one at all) falls back to its bare path segment, exactly like before
+ * this map existed.
  */
-fun buildObjectTree(items: List<ObjectCatalogItem>): ObjectTreeNode {
+fun buildObjectTree(items: List<ObjectCatalogItem>, folderNames: Map<String, String> = emptyMap()): ObjectTreeNode {
     val root = MutableTreeNode(name = "", id = "")
     for (item in items) {
         var node = root
@@ -33,7 +41,8 @@ fun buildObjectTree(items: List<ObjectCatalogItem>): ObjectTreeNode {
         for (segment in item.path) {
             if (pathSoFar.isNotEmpty()) pathSoFar.append('.')
             pathSoFar.append(segment)
-            node = node.children.getOrPut(segment) { MutableTreeNode(name = segment, id = pathSoFar.toString()) }
+            val folderId = pathSoFar.toString()
+            node = node.children.getOrPut(segment) { MutableTreeNode(name = folderNames[folderId] ?: segment, id = folderId) }
         }
         node.items.add(item)
     }

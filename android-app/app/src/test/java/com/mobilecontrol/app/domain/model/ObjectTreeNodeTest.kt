@@ -58,6 +58,22 @@ class ObjectTreeNodeTest {
     }
 
     @Test
+    fun `a folder id resolved in folderNames uses that display name instead of the raw path segment`() {
+        val tree = buildObjectTree(
+            listOf(item("state", listOf("zigbee", "0", "00124b0024510164"))),
+            folderNames = mapOf("zigbee.0.00124b0024510164" to "SNZB-03 Bewegungsmelder Briefkasten"),
+        )
+        val zigbeeAdapter = tree.children.single()
+        // Not present in folderNames - falls back to its raw path segment, same as before this
+        // parameter existed.
+        assertEquals("zigbee", zigbeeAdapter.name)
+        val instance = zigbeeAdapter.children.single()
+        assertEquals("0", instance.name)
+        val device = instance.children.single()
+        assertEquals("SNZB-03 Bewegungsmelder Briefkasten", device.name)
+    }
+
+    @Test
     fun `visibleLeafIds only includes items under expanded folders`() {
         val tree = buildObjectTree(
             listOf(

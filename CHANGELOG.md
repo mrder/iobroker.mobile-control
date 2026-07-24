@@ -8,6 +8,28 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.43] - master, Testbuild
+
+Zwei live gemeldete Folgepunkte zum Tunnel-Feature und zum Objektbaum.
+
+- **Tunnel-Performance**: Eine getunnelte Seite mit eigener Live-Verbindung (Long-Polling) hat
+  immer wieder "Verbindung verloren - verbinde neu" gemeldet. Ursache: Der Backend-Fetch-Timeout
+  (`FETCH_TIMEOUT_MS`, bisher 10s) und der Android-OkHttp-`callTimeout` (bisher 15s) waren beide
+  zu knapp für eine Anfrage, die eine Live-Verbindung berechtigterweise länger offen hält, während
+  sie auf das nächste Ereignis wartet. Backend-Timeout auf 45s angehoben; Android nutzt jetzt
+  `readTimeout`(50s)/`connectTimeout`(10s)/`writeTimeout`(15s) statt eines pauschalen
+  `callTimeout`, der die gesamte Wartezeit begrenzt hätte.
+- Bekannte Grenze weiterhin bestehend: eine Zielseite mit echter WebSocket-Verbindung (statt
+  Long-Polling) funktioniert nicht durch den Tunnel - `TunnelProxyServer`/`forwardTunnelRequest`
+  sind reines Request/Response-HTTP, kein Byte-Relay. Dokumentiert in `docs/TODO.md`.
+- **Objektbaum-Namen**: Admin-Tab "Objektfreigaben", der App-eigene Objektkatalog-Bildschirm und
+  der "Widget hinzufügen"-Dialog zeigten Ordner (z.B. ein Zigbee-Gerät) bisher nur mit ihrer
+  rohen ID an, nicht mit ihrem echten Namen - der an die App ausgelieferte, serverseitig
+  gefilterte Katalog enthielt nur einzelne Datenpunkte, nie die Container-Objekte, auf denen der
+  Name eigentlich steht. `CatalogService.effectiveCatalog()` liefert jetzt zusätzlich
+  `folderNames` (Ordner-ID -> Name) für jeden Ordner mit mindestens einem sichtbaren Objekt
+  darin - Ordner ganz ohne Freigabe verraten ihren Namen weiterhin nicht.
+
 ## [0.0.42] - master, Testbuild
 
 Neues Feature, live angefragt: alte, nicht mehr genutzte gekoppelte Geräte lassen sich jetzt

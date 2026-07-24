@@ -1,6 +1,12 @@
 import { ApiError } from '../lib/errors';
 
-const FETCH_TIMEOUT_MS = 10_000;
+// Generous on purpose: a device UI's own live-data connection (long-polling, e.g. socket.io's
+// fallback transport when a real WebSocket upgrade isn't possible - this tunnel doesn't relay
+// WebSocket frames, see docs/TODO.md) legitimately holds a request open for tens of seconds
+// waiting for the next event, with nothing wrong happening. The original 10s value cut those off
+// mid-wait, which the page's own client saw as a dropped connection and kept reconnecting -
+// confirmed live. Still bounded, not infinite, so a genuinely hung target can't leak a request.
+const FETCH_TIMEOUT_MS = 45_000;
 const MAX_RESPONSE_BYTES = 20 * 1024 * 1024;
 
 /** Deliberately narrow allowlists in both directions - the tunnel forwards enough for a typical

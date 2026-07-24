@@ -21,6 +21,11 @@ async function setup() {
                 common: { name: 'Wohnzimmer Temperatur', role: 'value.temperature', type: 'number', unit: '°C' },
                 native: {},
             },
+            'zigbee.0.living_room': {
+                type: 'channel',
+                common: { name: 'Wohnzimmer' },
+                native: {},
+            },
             [SMOKE_ALARM_STATE_ID]: {
                 type: 'state',
                 common: { name: 'Rauchmelder Küche', role: 'sensor.alarm.fire', type: 'boolean' },
@@ -164,6 +169,25 @@ describe('CatalogService', () => {
         const camera = objects.find((o) => o.name === 'Haustür Kamera');
         assert.ok(camera);
         assert.deepEqual(camera!.suggestedWidgets, ['camera']);
+    });
+
+    it('effectiveCatalog resolves folder display names for every visible object\'s path, from the real ioBroker container object', async () => {
+        const { exposureStore, catalog } = await setup();
+        await exposureStore.put(baseRule({ roleId: 'viewer', read: true }));
+
+        const { folderNames } = await catalog.effectiveCatalog(CTX);
+        assert.equal(folderNames['zigbee.0.living_room'], 'Wohnzimmer');
+    });
+
+    it('effectiveCatalog never leaks a folder name for a folder with no visible object beneath it', async () => {
+        const { catalog } = await setup();
+
+        // No exposure rule granted at all here - STATE_ID (and therefore its zigbee.0.living_room
+        // parent) must not appear in the catalog, so the folder's name must not leak either, even
+        // though the real ioBroker object (and its name) does exist.
+        const { objects, folderNames } = await catalog.effectiveCatalog(CTX);
+        assert.equal(objects.length, 0);
+        assert.equal(folderNames['zigbee.0.living_room'], undefined);
     });
 
     it('effectiveCatalog is empty when no exposure rule grants read access', async () => {

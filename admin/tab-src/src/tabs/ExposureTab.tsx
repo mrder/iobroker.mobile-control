@@ -109,9 +109,13 @@ function TreeRow({
                     ) : (
                         <Box component="span" sx={{ display: 'inline-block', width: 28 }} />
                     )}
-                    {node.name}
+                    <Box component="span" sx={{ fontFamily: 'monospace', fontSize: 11, color: 'text.secondary' }}>
+                        {node.id}
+                    </Box>
+                    {node.name && node.name !== node.id.split('.').pop() && (
+                        <Box component="span"> – {node.name}</Box>
+                    )}
                 </TableCell>
-                <TableCell sx={{ fontFamily: 'monospace', fontSize: 11, color: 'text.secondary' }}>{node.id}</TableCell>
                 <TableCell>{node.entry?.kind === 'state' ? node.entry.role : hasChildren ? 'Ordner' : ''}</TableCell>
                 <TableCell align="right">
                     <Button size="small" onClick={() => onGrant(node.entry ?? syntheticEntry(node))}>
@@ -237,8 +241,7 @@ export default function ExposureTab(): JSX.Element {
                     <Table size="small">
                         <TableHead>
                             <TableRow>
-                                <TableCell>Name</TableCell>
-                                <TableCell>ID</TableCell>
+                                <TableCell>ID – Name</TableCell>
                                 <TableCell>Rolle</TableCell>
                                 <TableCell />
                             </TableRow>
@@ -247,8 +250,14 @@ export default function ExposureTab(): JSX.Element {
                             {search.trim()
                                 ? filtered.map((entry) => (
                                       <TableRow key={entry.id} hover>
-                                          <TableCell>{entry.name}</TableCell>
-                                          <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>{entry.id}</TableCell>
+                                          <TableCell>
+                                              <Box component="span" sx={{ fontFamily: 'monospace', fontSize: 12, color: 'text.secondary' }}>
+                                                  {entry.id}
+                                              </Box>
+                                              {entry.name && entry.name !== entry.id.split('.').pop() && (
+                                                  <Box component="span"> – {entry.name}</Box>
+                                              )}
+                                          </TableCell>
                                           <TableCell>{entry.kind === 'state' ? entry.role : 'Ordner'}</TableCell>
                                           <TableCell align="right">
                                               <Button size="small" onClick={() => openDialog(entry)}>

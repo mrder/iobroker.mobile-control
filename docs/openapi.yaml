@@ -790,6 +790,15 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/CatalogObject'
+        folderNames:
+          type: object
+          additionalProperties: { type: string }
+          description: >-
+            Display name for every folder id (dot-joined path prefix, e.g. "zigbee.0.living_room")
+            that has at least one visible object beneath it, taken from that ioBroker object's own
+            common.name - so a client can label a folder by its real name instead of the bare id
+            segment. Only folders with at least one currently-visible object are included; a folder
+            with zero exposed content never appears here, even if the real ioBroker object exists.
 
     CatalogObject:
       type: object

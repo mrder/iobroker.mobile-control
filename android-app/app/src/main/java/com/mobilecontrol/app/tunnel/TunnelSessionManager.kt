@@ -37,7 +37,16 @@ class TunnelSessionManager @Inject constructor(
 ) {
     private val lock = Mutex()
     private val httpClient = OkHttpClient.Builder()
-        .callTimeout(15, TimeUnit.SECONDS)
+        // Deliberately NOT callTimeout: that bounds the entire call including time spent waiting
+        // for the response body, which is exactly wrong for a device UI's own live-data
+        // connection (long-polling, held open for tens of seconds while it waits for the next
+        // event server-side - normal, not stuck). A callTimeout cut those off mid-wait, which the
+        // page's own client saw as a dropped connection and kept reconnecting - confirmed live.
+        // readTimeout is the correct tool: it only fires on an actual stall (no bytes at all for
+        // that long), not on a slow-but-alive held-open request.
+        .connectTimeout(10, TimeUnit.SECONDS)
+        .readTimeout(50, TimeUnit.SECONDS)
+        .writeTimeout(15, TimeUnit.SECONDS)
         // BASIC level (method/URL/response code/content-length, no headers or body - the tunnel
         // token itself must never land in logcat) so a live tunnel session is actually
         // diagnosable via `adb logcat` tag "OkHttp", same convention as NetworkModule's client.

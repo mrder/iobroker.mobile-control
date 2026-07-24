@@ -40,11 +40,16 @@ private fun catalogItem(
     suggestedWidgets = emptyList(),
 )
 
-private class FakeObjectCatalogRepository(private val items: List<ObjectCatalogItem>) : ObjectCatalogRepository {
+private class FakeObjectCatalogRepository(
+    private val items: List<ObjectCatalogItem>,
+    private val folderNames: Map<String, String> = emptyMap(),
+) : ObjectCatalogRepository {
     var refreshCalls = 0
     private val _catalog = MutableStateFlow(items)
 
     override fun observeCatalog(): Flow<List<ObjectCatalogItem>> = _catalog
+
+    override fun observeFolderNames(): Flow<Map<String, String>> = MutableStateFlow(folderNames)
 
     override suspend fun refreshCatalog(): Result<Unit> {
         refreshCalls++
@@ -183,6 +188,20 @@ class ObjectBrowserViewModelTest {
 
         val roomNames = viewModel.uiState.value.tree.children.map { it.name }.sorted()
         assertEquals(listOf("Küche", "Wohnzimmer"), roomNames)
+        collector.cancel()
+    }
+
+    @Test
+    fun `tree resolves folder display names from the repository's folderNames, not the raw path segment`() = runTest {
+        val catalogRepo = FakeObjectCatalogRepository(
+            listOf(livingRoomLamp),
+            folderNames = mapOf("Wohnzimmer" to "Wohnzimmer (Erdgeschoss)"),
+        )
+        val viewModel = ObjectBrowserViewModel(catalogRepo, FakeStateRepository(), FakeCommandRepository())
+        val collector = launch { viewModel.uiState.collect {} }
+        advanceUntilIdle()
+
+        assertEquals(listOf("Wohnzimmer (Erdgeschoss)"), viewModel.uiState.value.tree.children.map { it.name })
         collector.cancel()
     }
 

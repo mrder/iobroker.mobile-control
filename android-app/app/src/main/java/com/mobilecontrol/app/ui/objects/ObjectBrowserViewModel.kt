@@ -22,6 +22,7 @@ import javax.inject.Inject
 
 data class ObjectBrowserUiState(
     val allObjects: List<ObjectCatalogItem> = emptyList(),
+    val folderNames: Map<String, String> = emptyMap(),
     val searchQuery: String = "",
     val selectedRoom: String? = null,
     val selectedRole: String? = null,
@@ -47,7 +48,7 @@ data class ObjectBrowserUiState(
     val hasActiveFilter: Boolean
         get() = searchQuery.isNotBlank() || selectedRoom != null || selectedRole != null || writableOnly
 
-    val tree: ObjectTreeNode get() = buildObjectTree(allObjects)
+    val tree: ObjectTreeNode get() = buildObjectTree(allObjects, folderNames)
 }
 
 @HiltViewModel
@@ -61,11 +62,12 @@ class ObjectBrowserViewModel @Inject constructor(
 
     val uiState: StateFlow<ObjectBrowserUiState> = combine(
         catalogRepository.observeCatalog(),
+        catalogRepository.observeFolderNames(),
         filters,
         stateRepository.liveValues,
         stateRepository.connectionState,
-    ) { catalog, filterState, live, connection ->
-        filterState.copy(allObjects = catalog, liveValues = live, connectionState = connection)
+    ) { catalog, folderNames, filterState, live, connection ->
+        filterState.copy(allObjects = catalog, folderNames = folderNames, liveValues = live, connectionState = connection)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ObjectBrowserUiState())
 
     init {

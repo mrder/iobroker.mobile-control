@@ -80,8 +80,12 @@ private class FakeDashboardRepository(private var dashboard: Dashboard?) : Dashb
     override suspend fun getStartDashboardId(): String? = null
 }
 
-private class FakeObjectCatalogRepository(private val items: List<ObjectCatalogItem> = emptyList()) : ObjectCatalogRepository {
+private class FakeObjectCatalogRepository(
+    private val items: List<ObjectCatalogItem> = emptyList(),
+    private val folderNames: Map<String, String> = emptyMap(),
+) : ObjectCatalogRepository {
     override fun observeCatalog(): Flow<List<ObjectCatalogItem>> = MutableStateFlow(items)
+    override fun observeFolderNames(): Flow<Map<String, String>> = MutableStateFlow(folderNames)
     override suspend fun refreshCatalog(): Result<Unit> = Result.success(Unit)
 }
 
@@ -146,6 +150,17 @@ class DashboardEditorViewModelTest {
 
         assertEquals(dashboard, viewModel.uiState.value.dashboard)
         assertEquals(setOf(setOf("obj1", "obj2")), stateRepo.subscribedBatches.toSet())
+    }
+
+    @Test
+    fun `init also collects the catalog repository's folderNames into ui state`() = runTest {
+        val dashboard = testDashboard()
+        val catalogRepo = FakeObjectCatalogRepository(folderNames = mapOf("zigbee.0.device1" to "Wohnzimmer Lampe"))
+        val viewModel = buildViewModel(dashboard, catalogRepo = catalogRepo)
+        collectUiState(viewModel)
+        advanceUntilIdle()
+
+        assertEquals(mapOf("zigbee.0.device1" to "Wohnzimmer Lampe"), viewModel.uiState.value.folderNames)
     }
 
     @Test

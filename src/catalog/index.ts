@@ -52,6 +52,13 @@ function suggestWidgets(role: string, valueType: CatalogObject['valueType']): st
 export interface EffectiveCatalog {
     version: number;
     objects: CatalogObject[];
+    /** Display name for every folder id that has at least one visible object beneath it (dot-
+     *  joined path prefix -> ioBroker common.name), so a client can label "zigbee.0.00124b..."
+     *  as e.g. "SNZB-03 Bewegungsmelder Briefkasten" instead of the bare id segment. Deliberately
+     *  NOT the full container list from browseObjectTree(): only folders that actually have a
+     *  visible descendant here are included, so a folder with zero exposed content never leaks
+     *  its name to a client with no access to anything inside it. */
+    folderNames: Record<string, string>;
 }
 
 export class CatalogService {
@@ -111,6 +118,13 @@ export class CatalogService {
         const entries = await this.exposure.browseObjectTree();
         const version = this.currentVersion();
 
+        const containerNames = new Map<string, string>();
+        for (const entry of entries) {
+            if (entry.kind === 'container') {
+                containerNames.set(entry.id, entry.name);
+            }
+        }
+
         const objects: CatalogObject[] = [];
         for (const entry of entries) {
             // Same isolation principle as ExposureService.browseObjectTree(): one entry whose
@@ -145,6 +159,21 @@ export class CatalogService {
                 this.adapter.log.warn(`mobile-control: skipping "${entry.id}" while building the catalog: ${(err as Error).message}`);
             }
         }
-        return { version, objects };
+
+        const folderNames: Record<string, string> = {};
+        for (const obj of objects) {
+            let prefix = '';
+            for (const segment of obj.path) {
+                prefix = prefix ? `${prefix}.${segment}` : segment;
+                if (!(prefix in folderNames)) {
+                    const name = containerNames.get(prefix);
+                    if (name) {
+                        folderNames[prefix] = name;
+                    }
+                }
+            }
+        }
+
+        return { version, objects, folderNames };
     }
 }

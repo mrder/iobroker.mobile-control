@@ -8,6 +8,10 @@ data class CatalogResponseDto(
     // Server sends this as a JSON number (a FNV-1a hash, see CatalogService.effectiveCatalog).
     val version: Long = 0,
     val objects: List<ObjectDto>,
+    // Folder id (dot-joined path prefix) -> display name, for every folder with at least one
+    // visible object beneath it - see CatalogService.effectiveCatalog's own doc on why folders
+    // with nothing visible inside them are deliberately never included here.
+    val folderNames: Map<String, String> = emptyMap(),
 )
 
 @Serializable

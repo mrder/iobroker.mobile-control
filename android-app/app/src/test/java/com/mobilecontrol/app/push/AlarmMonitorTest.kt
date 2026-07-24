@@ -40,6 +40,7 @@ private class FakeObjectCatalogRepository(items: List<ObjectCatalogItem> = empty
     private val flow = MutableStateFlow(items)
     var refreshCalls = 0
     override fun observeCatalog(): Flow<List<ObjectCatalogItem>> = flow
+    override fun observeFolderNames(): Flow<Map<String, String>> = MutableStateFlow(emptyMap())
     override suspend fun refreshCatalog(): Result<Unit> {
         refreshCalls++
         return Result.success(Unit)

@@ -10,6 +10,8 @@ import com.mobilecontrol.app.domain.model.ObjectCatalogItem
 import com.mobilecontrol.app.domain.model.ValueType
 import com.mobilecontrol.app.domain.repository.ObjectCatalogRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
@@ -18,13 +20,20 @@ class ObjectCatalogRepositoryImpl @Inject constructor(
     private val catalogDao: CatalogDao,
 ) : ObjectCatalogRepository {
 
+    // In-memory only - see ObjectCatalogRepository.observeFolderNames doc for why this
+    // deliberately isn't part of the Room cache.
+    private val folderNames = MutableStateFlow<Map<String, String>>(emptyMap())
+
     override fun observeCatalog(): Flow<List<ObjectCatalogItem>> =
         catalogDao.observeAll().map { entities -> entities.map { it.toDomain() } }
+
+    override fun observeFolderNames(): Flow<Map<String, String>> = folderNames.asStateFlow()
 
     override suspend fun refreshCatalog(): Result<Unit> {
         val result = safeApiCall { apiService.getCatalog() }
         val body = result.getOrElse { return Result.failure(it) }
         catalogDao.replaceAll(body.objects.map { it.toEntity() })
+        folderNames.value = body.folderNames
         return Result.success(Unit)
     }
 }

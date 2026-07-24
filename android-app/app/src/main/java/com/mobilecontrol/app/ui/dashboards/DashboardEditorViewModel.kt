@@ -35,6 +35,7 @@ data class DashboardEditorUiState(
     val editMode: Boolean = false,
     val sizeClass: SizeClass = SizeClass.COMPACT,
     val catalog: List<ObjectCatalogItem> = emptyList(),
+    val folderNames: Map<String, String> = emptyMap(),
     val showAddWidgetDialog: Boolean = false,
     val revisionConflict: Boolean = false,
     val isSaving: Boolean = false,
@@ -79,6 +80,9 @@ class DashboardEditorViewModel @Inject constructor(
         }
         viewModelScope.launch {
             catalogRepository.observeCatalog().collect { catalog -> local.update { it.copy(catalog = catalog) } }
+        }
+        viewModelScope.launch {
+            catalogRepository.observeFolderNames().collect { names -> local.update { it.copy(folderNames = names) } }
         }
     }
 
