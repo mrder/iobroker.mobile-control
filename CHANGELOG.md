@@ -8,6 +8,28 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.34] - master, Testbuild
+
+URL-Einbettungen bekommen dasselbe Freigabemodell wie Objektfreigaben, live angefragt ("da
+müssten wir das noch ähnlich machen wie bei den Objektfreigaben, was wird für wen
+freigegeben"). Bisher war eine vom Admin angelegte URL-Einbettung automatisch für jedes
+gekoppelte Gerät sichtbar - anders als Datenpunkte, die standardmäßig verboten sind und eine
+explizite Freigabe brauchen.
+
+- **Neuer `UrlEmbedAccessRule`-Typ**: dieselbe Rolle/Benutzer/Gerät-Eigentümerschaft und
+  derselbe Verbot-gewinnt-Vorrang (explizites Verbot > Gerät > Benutzer > Rolle >
+  Standardverbot) wie `ExposureRule` - ohne die Lesen/Schreiben/Historie/Min/Max-Felder, die
+  für eine URL keinen Sinn ergeben (sie ist sichtbar oder nicht, Lesen/Schreiben spielt hier
+  keine Rolle).
+- **`GET /api/v1/url-embeds`** liefert jetzt nur noch Einbettungen, für die das anfragende
+  Gerät eine Freigabe hat; `/content` und `/resolve` prüfen dieselbe Freigabe pro Aufruf
+  (`READ_FORBIDDEN`, wenn nicht freigegeben).
+- **Admin-Tab**: neuer Bereich "Zugriff freigeben" unter URL-Einbettungen, gleiches
+  Rolle/Benutzer/Gerät-Auswahlmuster wie bei den Objektfreigaben, plus eine Tabelle der
+  aktiven Freigaben zum Widerrufen.
+- **Achtung**: Bestehende URL-Einbettungen haben noch keine Freigaben und sind ab diesem
+  Update für kein Gerät mehr sichtbar, bis im Admin-Tab eine Freigabe angelegt wird.
+
 ## [0.0.33] - master, Testbuild
 
 Drei Widget-Wünsche aus dem Livetest ("wenn man ein Widget einrichtet, sollte man auch den

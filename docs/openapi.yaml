@@ -319,6 +319,9 @@ paths:
         Admin-managed allowlist (see src/urlEmbeds/index.ts) - deliberately returns only {id, name}
         for every entry, never the underlying URL. A client cannot fetch or navigate to a URL of
         its own choosing; it can only reference an id from this list via the two endpoints below.
+        Only returns embeds this role/user/device has been explicitly granted access to (same
+        default-deny, deny-wins-outright priority as object exposure rules) - an embed with no
+        access rule at all is invisible here even though it exists in the admin's allowlist.
       security: [{ bearerAuth: [] }]
       responses:
         '200':
@@ -359,6 +362,12 @@ paths:
           content:
             '*/*':
               schema: { type: string, format: binary }
+        '403':
+          description: READ_FORBIDDEN - this role/user/device has no access rule granting this embed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
         '404':
           description: NOT_FOUND - no such url embed
           content:
@@ -398,6 +407,12 @@ paths:
                 type: object
                 properties:
                   url: { type: string }
+        '403':
+          description: READ_FORBIDDEN - this role/user/device has no access rule granting this embed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
         '404':
           description: NOT_FOUND - no such url embed
           content:

@@ -19,6 +19,7 @@ import type {
     Role,
     Session,
     UrlEmbed,
+    UrlEmbedAccessRule,
     User,
 } from './lib/types';
 
@@ -169,6 +170,7 @@ class MobileControlAdapter extends utils.Adapter {
         const commandsStore = new CollectionStore<CommandRecord>(this, 'commands');
         const auditStore = new CollectionStore<AuditEvent>(this, 'auditEvents');
         const urlEmbedsStore = new CollectionStore<UrlEmbed>(this, 'urlEmbeds');
+        const urlEmbedAccessStore = new CollectionStore<UrlEmbedAccessRule>(this, 'urlEmbedAccessRules');
         const alarmEventsStore = new CollectionStore<AlarmEvent>(this, 'alarmEvents');
 
         await Promise.all([
@@ -185,6 +187,7 @@ class MobileControlAdapter extends utils.Adapter {
             commandsStore.init(),
             auditStore.init(),
             urlEmbedsStore.init(),
+            urlEmbedAccessStore.init(),
             alarmEventsStore.init(),
         ]);
 
@@ -214,7 +217,7 @@ class MobileControlAdapter extends utils.Adapter {
         this.commandsService = new CommandsService(this, commandsStore, this.catalogService, this.auditService, rateLimiter, replayGuard);
         this.historyService = new HistoryService(this, config.historyInstance ?? '');
         this.cameraService = new CameraService(this);
-        this.urlEmbedsService = new UrlEmbedsService(this, urlEmbedsStore);
+        this.urlEmbedsService = new UrlEmbedsService(this, urlEmbedsStore, urlEmbedAccessStore);
         this.alarmEventsService = new AlarmEventsService(this, alarmEventsStore);
         this.alarmEventsService
             .subscribeToAlarmObjects()
@@ -690,6 +693,29 @@ class MobileControlAdapter extends utils.Adapter {
                     const embedId = String(body.id);
                     await this.urlEmbedsService.delete(embedId);
                     await this.auditService.log({ action: 'urlEmbed.deleted', result: 'success', detail: `embed=${embedId}` });
+                    respond({ ok: true });
+                    break;
+                }
+
+                case 'listUrlEmbedAccessRules':
+                    respond(this.urlEmbedsService.listAccessRules());
+                    break;
+                case 'createUrlEmbedAccessRule': {
+                    const created = await this.urlEmbedsService.createAccessRule(
+                        body as unknown as Omit<UrlEmbedAccessRule, 'id' | 'createdAt'>,
+                    );
+                    await this.auditService.log({
+                        action: 'urlEmbed.access_rule_created',
+                        result: 'success',
+                        detail: `rule=${created.id} embed=${created.urlEmbedId}`,
+                    });
+                    respond(created);
+                    break;
+                }
+                case 'deleteUrlEmbedAccessRule': {
+                    const ruleId = String(body.id);
+                    await this.urlEmbedsService.deleteAccessRule(ruleId);
+                    await this.auditService.log({ action: 'urlEmbed.access_rule_deleted', result: 'success', detail: `rule=${ruleId}` });
                     respond({ ok: true });
                     break;
                 }

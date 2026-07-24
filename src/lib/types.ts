@@ -124,6 +124,23 @@ export interface UrlEmbed {
 }
 
 /**
+ * Who may see/use a given UrlEmbed - same role/user/device ownership and deny-wins priority as
+ * ExposureRule (see AuthorizationService.resolve), deliberately without the read/write/history/
+ * min/max/... fields that don't apply to a URL embed: it's either visible to a device or it
+ * isn't, there's no separate "write" concept for an embedded URL. Same default-deny behavior as
+ * object exposure - an embed with zero access rules is invisible to everyone until granted.
+ */
+export interface UrlEmbedAccessRule {
+    id: string;
+    urlEmbedId: string;
+    roleId: RoleId | null;
+    userId: string | null;
+    deviceId: string | null;
+    deny: boolean;
+    createdAt: number;
+}
+
+/**
  * A persisted "alarm went active" transition for an ioBroker state whose role marks it as an
  * alarm (same role.includes('alarm') convention CatalogService uses for suggestedWidgets).
  * Collected regardless of whether any client currently has that object open (unlike

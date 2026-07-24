@@ -362,13 +362,18 @@ export function createApiRouter(services: ApiServices): Router {
 
     // ---- URL embeds -----------------------------------------------------------
     // Admin-managed allowlist (see UrlEmbedsService docs) - the app only ever learns {id, name}
-    // here, never a raw URL, and every fetch/resolve below happens by that id.
-    router.get('/url-embeds', requireAuth, (_req: AuthenticatedRequest, res: Response) => {
-        res.json({ embeds: services.urlEmbeds.list().map((e) => ({ id: e.id, name: e.name })) });
+    // here, never a raw URL, and every fetch/resolve below happens by that id. Which embeds a
+    // device even gets to see is itself access-controlled per role/user/device (see
+    // UrlEmbedsService.canAccess), same default-deny-unless-granted model as object exposure.
+    router.get('/url-embeds', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+        res.json({ embeds: services.urlEmbeds.listAccessible(req.ctx!).map((e) => ({ id: e.id, name: e.name })) });
     });
 
     router.get('/url-embeds/:id/content', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
         try {
+            if (!services.urlEmbeds.canAccess(req.params.id, req.ctx!)) {
+                throw new ApiError('READ_FORBIDDEN');
+            }
             const content = await services.urlEmbeds.fetchContent(req.params.id);
             res.set('Cache-Control', 'no-store');
             res.set('X-Content-Timestamp', new Date(content.timestamp).toISOString());
@@ -380,6 +385,9 @@ export function createApiRouter(services: ApiServices): Router {
 
     router.get('/url-embeds/:id/resolve', requireAuth, (req: AuthenticatedRequest, res: Response) => {
         try {
+            if (!services.urlEmbeds.canAccess(req.params.id, req.ctx!)) {
+                throw new ApiError('READ_FORBIDDEN');
+            }
             res.json({ url: services.urlEmbeds.resolve(req.params.id) });
         } catch (err) {
             sendError(res, err);

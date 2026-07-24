@@ -2,16 +2,28 @@ import { strict as assert } from 'node:assert';
 import { CollectionStore } from '../src/lib/store';
 import { UrlEmbedsService } from '../src/urlEmbeds';
 import { ApiError } from '../src/lib/errors';
-import type { UrlEmbed } from '../src/lib/types';
+import type { UrlEmbed, UrlEmbedAccessRule } from '../src/lib/types';
+import type { AuthContext } from '../src/authorization';
 import { createFakeAdapter } from './helpers/fakeAdapter';
 
 async function setup(cacheTtlMs?: number) {
     const adapter = createFakeAdapter();
     const store = new CollectionStore<UrlEmbed>(adapter, 'urlEmbeds');
-    await store.init();
-    const service = cacheTtlMs === undefined ? new UrlEmbedsService(adapter, store) : new UrlEmbedsService(adapter, store, cacheTtlMs);
-    return { adapter, store, service };
+    const accessStore = new CollectionStore<UrlEmbedAccessRule>(adapter, 'urlEmbedAccessRules');
+    await Promise.all([store.init(), accessStore.init()]);
+    const service =
+        cacheTtlMs === undefined
+            ? new UrlEmbedsService(adapter, store, accessStore)
+            : new UrlEmbedsService(adapter, store, accessStore, cacheTtlMs);
+    return { adapter, store, accessStore, service };
 }
+
+const ctx = (overrides: Partial<AuthContext> = {}): AuthContext => ({
+    userId: 'user-1',
+    deviceId: 'device-1',
+    roleId: 'viewer',
+    ...overrides,
+});
 
 describe('UrlEmbedsService', () => {
     it('creates an entry and lists it back', async () => {
@@ -177,5 +189,102 @@ describe('UrlEmbedsService', () => {
         } finally {
             global.fetch = originalFetch;
         }
+    });
+
+    it('delete also removes every access rule that granted it (no orphaned rules left behind)', async () => {
+        const { service } = await setup();
+        const created = await service.create({ name: 'Original', url: 'http://192.168.1.40/a' });
+        const rule = await service.createAccessRule({ urlEmbedId: created.id, roleId: 'viewer', userId: null, deviceId: null, deny: false });
+
+        await service.delete(created.id);
+
+        assert.deepEqual(service.listAccessRules(), []);
+        // deleteAccessRule on an already-gone rule must not throw either.
+        await service.deleteAccessRule(rule.id);
+    });
+});
+
+describe('UrlEmbedsService access rules', () => {
+    it('an embed with no access rule at all is invisible to everyone (default deny)', async () => {
+        const { service } = await setup();
+        const created = await service.create({ name: 'Snapshot', url: 'http://192.168.1.40/a' });
+
+        assert.equal(service.canAccess(created.id, ctx()), false);
+        assert.deepEqual(service.listAccessible(ctx()), []);
+    });
+
+    it('a role-level grant makes the embed visible to every user/device with that role, not others', async () => {
+        const { service } = await setup();
+        const created = await service.create({ name: 'Snapshot', url: 'http://192.168.1.40/a' });
+        await service.createAccessRule({ urlEmbedId: created.id, roleId: 'viewer', userId: null, deviceId: null, deny: false });
+
+        assert.equal(service.canAccess(created.id, ctx({ roleId: 'viewer' })), true);
+        assert.equal(service.canAccess(created.id, ctx({ roleId: 'operator' })), false);
+    });
+
+    it('a device-level grant wins over a role-level deny for that same device', async () => {
+        const { service } = await setup();
+        const created = await service.create({ name: 'Snapshot', url: 'http://192.168.1.40/a' });
+        await service.createAccessRule({ urlEmbedId: created.id, roleId: 'viewer', userId: null, deviceId: null, deny: false });
+        await service.createAccessRule({ urlEmbedId: created.id, roleId: null, userId: null, deviceId: 'device-1', deny: true });
+
+        // device-1's own explicit deny beats the role grant it would otherwise inherit...
+        assert.equal(service.canAccess(created.id, ctx({ deviceId: 'device-1', roleId: 'viewer' })), false);
+        // ...but a different device with the same role is unaffected.
+        assert.equal(service.canAccess(created.id, ctx({ deviceId: 'device-2', roleId: 'viewer' })), true);
+    });
+
+    it('any explicit deny wins outright, even alongside a matching grant at a different level', async () => {
+        const { service } = await setup();
+        const created = await service.create({ name: 'Snapshot', url: 'http://192.168.1.40/a' });
+        await service.createAccessRule({ urlEmbedId: created.id, roleId: null, userId: 'user-1', deviceId: null, deny: false });
+        await service.createAccessRule({ urlEmbedId: created.id, roleId: null, userId: null, deviceId: 'device-1', deny: true });
+
+        assert.equal(service.canAccess(created.id, ctx({ userId: 'user-1', deviceId: 'device-1' })), false);
+    });
+
+    it('listAccessible only returns embeds the given ctx can actually see', async () => {
+        const { service } = await setup();
+        const visible = await service.create({ name: 'Visible', url: 'http://192.168.1.40/a' });
+        await service.create({ name: 'Hidden', url: 'http://192.168.1.40/b' });
+        await service.createAccessRule({ urlEmbedId: visible.id, roleId: 'viewer', userId: null, deviceId: null, deny: false });
+
+        assert.deepEqual(
+            service.listAccessible(ctx({ roleId: 'viewer' })).map((e) => e.id),
+            [visible.id],
+        );
+    });
+
+    it('createAccessRule requires exactly one of role/user/device', async () => {
+        const { service } = await setup();
+        const created = await service.create({ name: 'Snapshot', url: 'http://192.168.1.40/a' });
+
+        await assert.rejects(
+            () => service.createAccessRule({ urlEmbedId: created.id, roleId: null, userId: null, deviceId: null, deny: false }),
+            (err: unknown) => err instanceof ApiError && err.code === 'VALIDATION_ERROR',
+        );
+        await assert.rejects(
+            () => service.createAccessRule({ urlEmbedId: created.id, roleId: 'viewer', userId: 'user-1', deviceId: null, deny: false }),
+            (err: unknown) => err instanceof ApiError && err.code === 'VALIDATION_ERROR',
+        );
+    });
+
+    it('createAccessRule rejects an unknown urlEmbedId', async () => {
+        const { service } = await setup();
+        await assert.rejects(
+            () => service.createAccessRule({ urlEmbedId: 'does-not-exist', roleId: 'viewer', userId: null, deviceId: null, deny: false }),
+            (err: unknown) => err instanceof ApiError && err.code === 'NOT_FOUND',
+        );
+    });
+
+    it('deleteAccessRule revokes access immediately', async () => {
+        const { service } = await setup();
+        const created = await service.create({ name: 'Snapshot', url: 'http://192.168.1.40/a' });
+        const rule = await service.createAccessRule({ urlEmbedId: created.id, roleId: 'viewer', userId: null, deviceId: null, deny: false });
+        assert.equal(service.canAccess(created.id, ctx({ roleId: 'viewer' })), true);
+
+        await service.deleteAccessRule(rule.id);
+
+        assert.equal(service.canAccess(created.id, ctx({ roleId: 'viewer' })), false);
     });
 });

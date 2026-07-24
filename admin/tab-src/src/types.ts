@@ -127,6 +127,16 @@ export interface UrlEmbed {
     createdAt: number;
 }
 
+export interface UrlEmbedAccessRule {
+    id: string;
+    urlEmbedId: string;
+    roleId: string | null;
+    userId: string | null;
+    deviceId: string | null;
+    deny: boolean;
+    createdAt: number;
+}
+
 export interface AbuseSnapshotEntry {
     key: string;
     failures: number;

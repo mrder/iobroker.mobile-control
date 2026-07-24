@@ -1,7 +1,8 @@
 import { v4 as uuid } from 'uuid';
 import { CollectionStore } from '../lib/store';
 import { ApiError } from '../lib/errors';
-import type { UrlEmbed } from '../lib/types';
+import type { UrlEmbed, UrlEmbedAccessRule } from '../lib/types';
+import type { AuthContext } from '../authorization';
 
 export interface ProxiedContent {
     buffer: Buffer;
@@ -37,11 +38,59 @@ export class UrlEmbedsService {
     constructor(
         private readonly adapter: ioBroker.Adapter,
         private readonly store: CollectionStore<UrlEmbed>,
+        private readonly accessStore: CollectionStore<UrlEmbedAccessRule>,
         private readonly cacheTtlMs: number = CACHE_TTL_MS,
     ) {}
 
     list(): UrlEmbed[] {
         return this.store.list();
+    }
+
+    /** Every embed [ctx] is currently permitted to see - the app-facing GET /url-embeds filters
+     *  through this rather than returning the full admin-managed list unfiltered. */
+    listAccessible(ctx: AuthContext): UrlEmbed[] {
+        return this.store.list().filter((embed) => this.canAccess(embed.id, ctx));
+    }
+
+    /**
+     * Same role/user/device priority as AuthorizationService.resolve (explicit deny > device >
+     * user > role > default deny), just collapsed to a single boolean since there's no read/write
+     * distinction for a URL embed - see UrlEmbedAccessRule's own docs.
+     */
+    canAccess(embedId: string, ctx: AuthContext): boolean {
+        const rules = this.accessStore
+            .find((rule) => rule.urlEmbedId === embedId)
+            .filter(
+                (rule) =>
+                    rule.deviceId === ctx.deviceId ||
+                    (rule.userId === ctx.userId && !rule.deviceId) ||
+                    (rule.roleId === ctx.roleId && !rule.userId && !rule.deviceId),
+            );
+        if (rules.some((rule) => rule.deny)) {
+            return false;
+        }
+        const deviceRule = rules.find((rule) => rule.deviceId === ctx.deviceId);
+        const userRule = rules.find((rule) => rule.userId === ctx.userId && !rule.deviceId);
+        const roleRule = rules.find((rule) => rule.roleId === ctx.roleId && !rule.userId && !rule.deviceId);
+        return !!(deviceRule ?? userRule ?? roleRule);
+    }
+
+    listAccessRules(): UrlEmbedAccessRule[] {
+        return this.accessStore.list();
+    }
+
+    async createAccessRule(data: Omit<UrlEmbedAccessRule, 'id' | 'createdAt'>): Promise<UrlEmbedAccessRule> {
+        UrlEmbedsService.validateSingleOwner(data);
+        if (!this.store.get(data.urlEmbedId)) {
+            throw new ApiError('NOT_FOUND', `url embed ${data.urlEmbedId} not found`);
+        }
+        const rule: UrlEmbedAccessRule = { ...data, id: uuid(), createdAt: Date.now() };
+        await this.accessStore.put(rule);
+        return rule;
+    }
+
+    async deleteAccessRule(id: string): Promise<void> {
+        await this.accessStore.delete(id);
     }
 
     get(id: string): UrlEmbed | undefined {
@@ -74,6 +123,9 @@ export class UrlEmbedsService {
     async delete(id: string): Promise<void> {
         await this.store.delete(id);
         this.cache.delete(id);
+        for (const rule of this.accessStore.find((r) => r.urlEmbedId === id)) {
+            await this.accessStore.delete(rule.id);
+        }
     }
 
     /** Resolves the real target URL for a single admin-approved id - used by WebView-style
@@ -111,6 +163,13 @@ export class UrlEmbedsService {
                 return cached.content;
             }
             throw err;
+        }
+    }
+
+    private static validateSingleOwner(rule: Pick<UrlEmbedAccessRule, 'roleId' | 'userId' | 'deviceId'>): void {
+        const ownerCount = [rule.roleId, rule.userId, rule.deviceId].filter((v) => v !== null && v !== undefined).length;
+        if (ownerCount !== 1) {
+            throw new ApiError('VALIDATION_ERROR', 'an access rule must apply to exactly one of role, user or device');
         }
     }
 
