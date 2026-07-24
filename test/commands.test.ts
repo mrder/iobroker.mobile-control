@@ -64,7 +64,7 @@ async function setup(rateLimitPerMinute = 60) {
 
     const exposure = new ExposureService(adapter, exposureStore);
     const authorization = new AuthorizationService(exposure);
-    const catalog = new CatalogService(exposure, authorization, mappingsStore);
+    const catalog = new CatalogService(adapter, exposure, authorization, mappingsStore);
     const audit = new AuditService(auditStore);
     const rateLimiter = new RateLimiter(rateLimitPerMinute);
     const replayGuard = new ReplayGuard();

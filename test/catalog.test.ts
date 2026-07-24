@@ -50,9 +50,9 @@ async function setup() {
 
     const exposure = new ExposureService(adapter, exposureStore);
     const authorization = new AuthorizationService(exposure);
-    const catalog = new CatalogService(exposure, authorization, mappingsStore);
+    const catalog = new CatalogService(adapter, exposure, authorization, mappingsStore);
 
-    return { exposureStore, exposure, catalog };
+    return { adapter, exposureStore, exposure, catalog };
 }
 
 function baseRule(overrides: Partial<ExposureRule>): ExposureRule {
@@ -193,5 +193,42 @@ describe('CatalogService', () => {
         await exposureStore.put(baseRule({ roleId: 'viewer', read: true }));
         const { version } = await catalog.effectiveCatalog(CTX);
         assert.equal(catalog.currentVersion(), version);
+    });
+
+    // Regression test: one entry whose permission resolution throws (a real ExposureRule bug, a
+    // transient mapping-store write failure, ...) used to abort effectiveCatalog() entirely -
+    // isolating this per-entry means every OTHER category a client is entitled to still shows up
+    // instead of the whole catalog silently going empty because of a single bad entry.
+    it('an entry that throws while resolving authorization is skipped, other entries still appear', async () => {
+        const { adapter, exposureStore, exposure } = await setup();
+        await exposureStore.put(baseRule({ roleId: 'viewer', read: true }));
+        await exposureStore.put(baseRule({ target: SMOKE_ALARM_STATE_ID, roleId: 'viewer', read: true }));
+
+        const warnCalls: string[] = [];
+        adapter.log.warn = (msg: string) => {
+            warnCalls.push(msg);
+        };
+
+        const realAuthorization = new AuthorizationService(exposure);
+        const poisonedAuthorization = {
+            resolve: (stateId: string, ctx: typeof CTX) => {
+                if (stateId === SMOKE_ALARM_STATE_ID) {
+                    throw new Error('boom');
+                }
+                return realAuthorization.resolve(stateId, ctx);
+            },
+            canRead: (stateId: string, ctx: typeof CTX) => realAuthorization.canRead(stateId, ctx),
+            canWrite: (stateId: string, ctx: typeof CTX) => realAuthorization.canWrite(stateId, ctx),
+        } as unknown as AuthorizationService;
+
+        const mappingsStore = new CollectionStore<PublicObjectMapping>(adapter, 'objectMappings2');
+        await mappingsStore.init();
+        const poisonedCatalog = new CatalogService(adapter, exposure, poisonedAuthorization, mappingsStore);
+
+        const { objects } = await poisonedCatalog.effectiveCatalog(CTX);
+
+        assert.equal(objects.length, 1);
+        assert.equal(objects[0].name, 'Wohnzimmer Temperatur');
+        assert.ok(warnCalls.some((m) => m.includes(SMOKE_ALARM_STATE_ID)), 'expected a warning naming the skipped entry');
     });
 });

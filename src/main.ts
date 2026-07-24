@@ -209,7 +209,7 @@ class MobileControlAdapter extends utils.Adapter {
         this.exposureService = new ExposureService(this, exposureStore);
         this.exposureProfilesService = new ExposureProfilesService(exposureProfilesStore, this.exposureService);
         this.authorizationService = new AuthorizationService(this.exposureService);
-        this.catalogService = new CatalogService(this.exposureService, this.authorizationService, mappingsStore);
+        this.catalogService = new CatalogService(this, this.exposureService, this.authorizationService, mappingsStore);
         this.dashboardsService = new DashboardsService(dashboardsStore, mappingsStore, this.authorizationService, this.usersService);
 
         const rateLimiter = new RateLimiter(config.rateLimitPerMinute);

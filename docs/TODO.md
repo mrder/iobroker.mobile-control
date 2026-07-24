@@ -215,6 +215,10 @@
 - [ ] Sicherheitsprüfung (interner Review-Durchgang fand & fixte 3 echte Lücken, siehe DEPLOYMENT.md; kein externes Review)
 - [x] Dokumentation
 - [x] Verbindungs-Info im Adapter (Settings-Hinweistext + Übersicht-Tab zeigt Port/Bind-Adresse/öffentliche URL/lokale IPs, erklärt VPN- vs. Reverse-Proxy-Optionen, ohne selbst VPN/Proxy zu implementieren)
+- [ ] **Getunnelter Zugriff auf "Web-Seite"-Einbettungen ohne echtes LAN/VPN** (Praxis-Idee, live besprochen: "wie ist es dann wie eine Art mini VPN in diese App und beim Pairing zu integrieren... rechtebasiert freigegeben"). Hintergrund: "Web-Seite"-Widgets navigieren das WebView des Handys bewusst *direkt* zur LAN-URL (kein Content-Proxy - eine ganze Website mit relativen Links/CSS/JS/Cookies durch einen Einzelressourcen-Proxy zu schleusen ist nicht realistisch umsetzbar, siehe UrlEmbedsService-Doku), braucht daher echte Netzwerk-Erreichbarkeit.
+  - **Sauberer Ansatz statt Content-Rewriting**: ein *Transport-Tunnel* statt eines Content-Proxys - eine kleine lokale HTTP-Proxy-Instanz IN der App (Loopback), die Anfragen des WebView über den bereits bestehenden authentifizierten Kanal (WebSocket/HTTPS) zum Adapter durchreicht; der Adapter macht die eigentliche LAN-Verbindung und reicht die rohen Bytes zurück. Das entspricht dem Funktionsprinzip von Tools wie ngrok/frp - technisch der richtige Weg für "ganze Seite von außen erreichbar", ohne HTML/CSS/JS umschreiben zu müssen.
+  - **Sicherheitsmodell bleibt gleich**: nur pro `UrlEmbed`-Eintrag (Host:Port bereits vom Admin freigegeben) tunnelbar, dieselben `UrlEmbedAccessRule`-Freigaben wie jetzt (Rolle/Nutzer/Gerät, deny-gewinnt) gelten unverändert - kein allgemeiner offener Tunnel ins LAN.
+  - **Umfang, deshalb bewusst zurückgestellt**: neue lokale Proxy-Komponente in der Android-App, ein Anfrage/Antwort-Framing-Protokoll über den bestehenden WebSocket-Kanal, Umgang mit Cookies/Redirects/binären Inhalten/Timeouts, und die Absicherung, dass daraus kein offener SSRF-Tunnel wird (Ziel-Host muss serverseitig gegen die Admin-Allowlist geprüft werden, nicht nur clientseitig).
 
 ## Phase 17 – Tests
 

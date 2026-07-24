@@ -56,6 +56,7 @@ export interface EffectiveCatalog {
 
 export class CatalogService {
     constructor(
+        private readonly adapter: ioBroker.Adapter,
         private readonly exposure: ExposureService,
         private readonly authorization: AuthorizationService,
         private readonly mappings: CollectionStore<PublicObjectMapping>,
@@ -112,30 +113,37 @@ export class CatalogService {
 
         const objects: CatalogObject[] = [];
         for (const entry of entries) {
-            const permission = this.authorization.resolve(entry.id, ctx);
-            if (!permission.read) {
-                continue;
+            // Same isolation principle as ExposureService.browseObjectTree(): one entry whose
+            // permission resolution or mapping throws must not wipe every other category out of
+            // the catalog for this client - skip and log it instead.
+            try {
+                const permission = this.authorization.resolve(entry.id, ctx);
+                if (!permission.read) {
+                    continue;
+                }
+                const mapping = await this.getOrCreateMapping(entry.id);
+                const valueType = mapValueType(entry.type);
+                objects.push({
+                    id: mapping.id,
+                    name: permission.displayName ?? entry.name,
+                    path: entry.path.slice(0, -1),
+                    role: entry.role,
+                    valueType,
+                    unit: entry.unit,
+                    read: permission.read,
+                    write: permission.write,
+                    history: permission.history,
+                    min: permission.min,
+                    max: permission.max,
+                    step: permission.step,
+                    allowedValues: permission.allowedValues,
+                    localOnly: permission.localOnly,
+                    confirmPolicy: permission.confirmPolicy,
+                    suggestedWidgets: permission.suggestedWidgets ?? suggestWidgets(entry.role, valueType),
+                });
+            } catch (err) {
+                this.adapter.log.warn(`mobile-control: skipping "${entry.id}" while building the catalog: ${(err as Error).message}`);
             }
-            const mapping = await this.getOrCreateMapping(entry.id);
-            const valueType = mapValueType(entry.type);
-            objects.push({
-                id: mapping.id,
-                name: permission.displayName ?? entry.name,
-                path: entry.path.slice(0, -1),
-                role: entry.role,
-                valueType,
-                unit: entry.unit,
-                read: permission.read,
-                write: permission.write,
-                history: permission.history,
-                min: permission.min,
-                max: permission.max,
-                step: permission.step,
-                allowedValues: permission.allowedValues,
-                localOnly: permission.localOnly,
-                confirmPolicy: permission.confirmPolicy,
-                suggestedWidgets: permission.suggestedWidgets ?? suggestWidgets(entry.role, valueType),
-            });
         }
         return { version, objects };
     }

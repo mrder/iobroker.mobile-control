@@ -70,25 +70,34 @@ export class ExposureService {
         const objects = await this.adapter.getForeignObjectsAsync('*');
         const entries: ObjectTreeEntry[] = [];
         for (const [id, obj] of Object.entries(objects)) {
-            if (isBlockedStateId(id) || !obj) {
-                continue;
+            // A single malformed object (an adapter with an unexpected common shape, e.g. some
+            // third-party adapters' zigbee/etc objects) must not take down the ENTIRE tree - and
+            // by extension every user's whole catalog, since effectiveCatalog() builds from this
+            // same list. Isolate per-object so one bad entry is skipped (and logged, so it's
+            // actually diagnosable) instead of silently emptying everything downstream of it.
+            try {
+                if (isBlockedStateId(id) || !obj) {
+                    continue;
+                }
+                const isState = obj.type === 'state';
+                const isContainer = ExposureService.CONTAINER_TYPES.has(obj.type);
+                if (!isState && !isContainer) {
+                    continue;
+                }
+                const common = obj.common as ioBroker.StateCommon | undefined;
+                const name = typeof common?.name === 'string' ? common.name : (common?.name?.en ?? id);
+                entries.push({
+                    id,
+                    name,
+                    role: common?.role ?? '',
+                    type: isState ? ((common?.type as string) ?? 'mixed') : obj.type,
+                    unit: isState ? (common?.unit ?? null) : null,
+                    path: id.split('.'),
+                    kind: isState ? 'state' : 'container',
+                });
+            } catch (err) {
+                this.adapter.log.warn(`mobile-control: skipping malformed object "${id}" while browsing the object tree: ${(err as Error).message}`);
             }
-            const isState = obj.type === 'state';
-            const isContainer = ExposureService.CONTAINER_TYPES.has(obj.type);
-            if (!isState && !isContainer) {
-                continue;
-            }
-            const common = obj.common as ioBroker.StateCommon | undefined;
-            const name = typeof common?.name === 'string' ? common.name : (common?.name?.en ?? id);
-            entries.push({
-                id,
-                name,
-                role: common?.role ?? '',
-                type: isState ? ((common?.type as string) ?? 'mixed') : obj.type,
-                unit: isState ? (common?.unit ?? null) : null,
-                path: id.split('.'),
-                kind: isState ? 'state' : 'container',
-            });
         }
         return entries.sort((a, b) => a.id.localeCompare(b.id));
     }

@@ -8,6 +8,30 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.39] - master, Testbuild
+
+Echten, bisher unentdeckten Backend-Bug live gefunden: nach dem Freigeben einer
+Channel-Freigabe mit Schreibrecht (ein ganzer Zigbee-Ordner, zum Testen von Aktoren)
+erschienen die freigegebenen Objekte überhaupt nicht im Katalog der App - nicht nur nicht
+schreibbar, komplett unsichtbar.
+
+- **Ursache lag nicht am Schreibrecht** (geprüft: kein Codepfad in `matchesScope`,
+  `AuthorizationService.resolve` oder `CatalogService.effectiveCatalog` behandelt `write`
+  anders als `read` für die Aufnahme in den Katalog).
+- **Tatsächliches Risiko**: ein einzelnes fehlerhaft geformtes Objekt irgendwo im
+  ioBroker-Objektbaum (manche Adapter, darunter zigbee, liefern beobachtet ungewöhnliche
+  Objektformen) konnte beim Baumaufbau oder bei der Rechteauflösung eine Exception auslösen -
+  ohne Isolierung pro Eintrag riss das den **kompletten Katalog** für diese Anfrage mit, nicht
+  nur das eine fehlerhafte Objekt.
+- **Fix**: `ExposureService.browseObjectTree()` und `CatalogService.effectiveCatalog()`
+  isolieren jetzt jedes Objekt/jeden Eintrag in einem eigenen try/catch - ein fehlerhafter
+  Eintrag wird übersprungen und mit seiner genauen Objekt-Id im Adapter-Log protokolliert,
+  statt jede andere Kategorie mit runterzureißen.
+- **Architekturfrage beantwortet** (live gestellt: "wie wäre es mit einer Art Mini-VPN"): als
+  konkrete, sinnvoll abgegrenzte Idee in `docs/TODO.md` (Phase 16) dokumentiert - ein
+  Transport-Tunnel über den bestehenden authentifizierten Kanal statt Content-Rewriting, mit
+  demselben Freigabemodell wie jetzt. Diesmal nicht umgesetzt.
+
 ## [0.0.38] - master, Testbuild
 
 Echten, bisher unentdeckten Bug live gefunden: ein Web-Seite-Widget zu einem lokalen Gerät per
