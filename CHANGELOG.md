@@ -8,6 +8,17 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.44] - master, Testbuild
+
+Reiner Diagnose-Build, kein für Nutzer sichtbares Verhalten geändert.
+
+- Temporäre Log-Zeile in `CatalogService.effectiveCatalog()`: meldet Anzahl der von
+  `browseObjectTree()` gefundenen Container-Objekte (Ordner/Geräte) plus eine Stichprobe -
+  zur Fehlersuche bei einem live gemeldeten Bug: die neue `folderNames`-Zuordnung (v0.0.43)
+  kommt trotz bestätigtem `common.name` am echten Zigbee-Geräteobjekt leer zurück (bestätigt
+  über die rohe `/catalog`-Antwort, geloggt via Android-OkHttp BODY-Level-Logging).
+- Wird nach Diagnose wieder entfernt.
+
 ## [0.0.43] - master, Testbuild
 
 Zwei live gemeldete Folgepunkte zum Tunnel-Feature und zum Objektbaum.
