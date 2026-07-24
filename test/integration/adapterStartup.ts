@@ -403,6 +403,77 @@ async function main(): Promise<void> {
         }
     });
 
+    await step('deleteDevice removes the device and cleans up its exposure/url-embed access rules, but leaves other devices alone', async () => {
+        const user = await callAdmin<{ id: string }>('createUser', { name: 'Delete Test User', roleId: 'viewer' });
+        const invite = await callAdmin<{ qrPayload: { pairingId: string; pairingSecret: string } }>('createPairingInvite', {
+            userId: user.id,
+            roleId: 'viewer',
+        });
+        const { publicKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+        const publicKeyBase64 = publicKey.export({ type: 'spki', format: 'der' }).toString('base64');
+        const claimRes = await fetch(`${BASE_URL}/api/v1/pairing/claim`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+                pairingId: invite.qrPayload.pairingId,
+                pairingSecret: invite.qrPayload.pairingSecret,
+                deviceName: 'Delete Test Device',
+                platform: 'android',
+                appVersion: '1.0',
+                publicKey: publicKeyBase64,
+            }),
+        });
+        const claim = (await claimRes.json()) as { claimId: string };
+        await callAdmin('approveClaim', { claimId: claim.claimId });
+        const statusRes = await fetch(`${BASE_URL}/api/v1/pairing/status/${claim.claimId}`);
+        const status = (await statusRes.json()) as { deviceId: string };
+        const deviceId = status.deviceId;
+
+        await callAdmin('createExposureRule', {
+            scope: 'state',
+            target: 'zigbee.0.some.object',
+            deviceId,
+            userId: null,
+            roleId: null,
+            read: true,
+            write: false,
+            history: false,
+            deny: false,
+            min: null,
+            max: null,
+            step: null,
+            allowedValues: null,
+            localOnly: false,
+            confirmPolicy: 'NONE',
+            displayName: null,
+        });
+        const embed = await callAdmin<{ id: string }>('createUrlEmbed', { name: 'Delete Test Embed', url: 'http://127.0.0.1:1/x' });
+        await callAdmin('createUrlEmbedAccessRule', {
+            urlEmbedId: embed.id,
+            roleId: null,
+            userId: null,
+            deviceId,
+            deny: false,
+        });
+
+        const devicesBefore = await callAdmin<Array<{ id: string }>>('listDevices');
+        assert.ok(devicesBefore.some((d) => d.id === deviceId));
+        const exposureRulesBefore = await callAdmin<Array<{ deviceId: string | null }>>('listExposureRules');
+        assert.ok(exposureRulesBefore.some((r) => r.deviceId === deviceId));
+
+        await callAdmin('deleteDevice', { id: deviceId });
+
+        const devicesAfter = await callAdmin<Array<{ id: string }>>('listDevices');
+        assert.ok(!devicesAfter.some((d) => d.id === deviceId), 'deleted device must no longer be listed');
+        assert.ok(devicesAfter.some((d) => d.id === firstDeviceStatus.deviceId), 'other devices must be unaffected by the delete');
+
+        const exposureRulesAfter = await callAdmin<Array<{ deviceId: string | null }>>('listExposureRules');
+        assert.ok(!exposureRulesAfter.some((r) => r.deviceId === deviceId), 'orphaned exposure rules for the deleted device must be cleaned up');
+
+        // deleting again must be a harmless no-op, not an error
+        await callAdmin('deleteDevice', { id: deviceId });
+    });
+
     // Must be the LAST step: AbuseGuard blocks by IP for abuseBlockMinutes (30 here), and every
     // request in this whole script comes from the same loopback IP - tripping the block earlier
     // would break every legitimate call in the steps above it.

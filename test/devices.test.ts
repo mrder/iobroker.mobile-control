@@ -67,3 +67,29 @@ describe('DevicesService.hasRecentlyActiveDevice', () => {
         assert.equal(devices.hasRecentlyActiveDevice(5 * 60_000), false);
     });
 });
+
+describe('DevicesService.delete', () => {
+    it('permanently removes the device record, unlike revoke() which only flips its status', async () => {
+        const { devices } = await setup();
+        const device = await devices.register(NEW_DEVICE);
+        await devices.delete(device.id);
+        assert.equal(devices.get(device.id), undefined);
+        assert.equal(devices.list().length, 0);
+    });
+
+    it('returns true when a device was actually deleted, false for an already-gone id', async () => {
+        const { devices } = await setup();
+        const device = await devices.register(NEW_DEVICE);
+        assert.equal(await devices.delete(device.id), true);
+        assert.equal(await devices.delete(device.id), false);
+    });
+
+    it('does not affect other devices', async () => {
+        const { devices } = await setup();
+        const a = await devices.register(NEW_DEVICE);
+        const b = await devices.register({ ...NEW_DEVICE, fingerprint: 'fp-2' });
+        await devices.delete(a.id);
+        assert.equal(devices.get(a.id), undefined);
+        assert.ok(devices.get(b.id));
+    });
+});

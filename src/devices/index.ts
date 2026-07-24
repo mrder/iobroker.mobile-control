@@ -65,6 +65,16 @@ export class DevicesService {
         return this.setStatus(id, 'revoked');
     }
 
+    /** Permanently removes the device record itself (unlike revoke(), which only flips its
+     *  status and keeps it listed forever) - for clearing out old, no-longer-used devices from
+     *  the admin tab. No-op (returns false) if already gone, matching CollectionStore.delete's
+     *  own idempotent contract. Callers are responsible for revoking sessions/tunnels and any
+     *  exposure/access rules still owned by this device first - see the 'deleteDevice' admin
+     *  message handler in main.ts, which does all of that around this call. */
+    async delete(id: string): Promise<boolean> {
+        return this.store.delete(id);
+    }
+
     isUsable(device: Device): boolean {
         return device.status === 'approved';
     }

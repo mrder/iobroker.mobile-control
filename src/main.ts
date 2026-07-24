@@ -524,6 +524,40 @@ class MobileControlAdapter extends utils.Adapter {
                     respond(device);
                     break;
                 }
+                // Permanently removes a device the admin no longer wants listed (an old/retired
+                // phone, a rejected pairing attempt, ...) - unlike revoke, which only flips its
+                // status and keeps it around forever. Revokes first (idempotent if it already was)
+                // so an admin can't accidentally delete a still-usable device out from under an
+                // active session, then also clears every exposure/URL-embed-access rule still
+                // owned by it - those would otherwise become permanently unreachable dead entries
+                // (the device can never authenticate again) cluttering the Objektfreigaben/
+                // URL-Einbettungen admin views for no reason.
+                case 'deleteDevice': {
+                    const deviceId = String(body.id);
+                    const device = this.devicesService.get(deviceId);
+                    if (!device) {
+                        respond({ ok: true });
+                        break;
+                    }
+                    await this.sessionsService.revokeAllForDevice(deviceId);
+                    this.tunnelService.revokeAllForDevice(deviceId);
+                    this.realtimeGateway?.notifyDeviceRevoked(deviceId);
+                    for (const rule of this.exposureService.list().filter((r) => r.deviceId === deviceId)) {
+                        await this.exposureService.delete(rule.id);
+                    }
+                    for (const rule of this.urlEmbedsService.listAccessRules().filter((r) => r.deviceId === deviceId)) {
+                        await this.urlEmbedsService.deleteAccessRule(rule.id);
+                    }
+                    await this.devicesService.delete(deviceId);
+                    await this.auditService.log({
+                        action: 'device.deleted',
+                        actorDeviceId: deviceId,
+                        result: 'success',
+                        detail: `name=${device.name}`,
+                    });
+                    respond({ ok: true });
+                    break;
+                }
 
                 case 'createPairingInvite': {
                     const created = await this.pairingService.createInvite(String(body.userId), String(body.roleId));

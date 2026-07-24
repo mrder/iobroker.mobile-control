@@ -64,6 +64,11 @@ export default function DevicesPairingTab(): JSX.Element {
         await callAdapter('revokeDevice', { id });
         loadAll();
     };
+    const deleteDevice = async (id: string, name: string): Promise<void> => {
+        if (!window.confirm(`"${name}" endgültig löschen? Freigaben für dieses Gerät gehen dabei ebenfalls verloren.`)) return;
+        await callAdapter('deleteDevice', { id });
+        loadAll();
+    };
 
     const userName = (id: string): string => users.find((u) => u.id === id)?.name ?? id;
 
@@ -185,6 +190,9 @@ export default function DevicesPairingTab(): JSX.Element {
                                                 Widerrufen
                                             </Button>
                                         )}
+                                        <Button size="small" color="error" onClick={() => deleteDevice(device.id, device.name)}>
+                                            Löschen
+                                        </Button>
                                     </TableCell>
                                 </TableRow>
                             ))}

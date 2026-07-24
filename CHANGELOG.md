@@ -8,6 +8,21 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.42] - master, Testbuild
+
+Neues Feature, live angefragt: alte, nicht mehr genutzte gekoppelte Geräte lassen sich jetzt
+im Admin-Tab endgültig löschen.
+
+- Neuer "Löschen"-Button je Gerät (mit `window.confirm()`-Bestätigung, da nicht rückgängig
+  machbar) - bisher gab es nur "Widerrufen", was das Gerät für immer in der Liste beließ.
+- `DevicesService.delete()` entfernt den Datensatz; der neue `deleteDevice`-Admin-Handler
+  in `main.ts` widerruft davor Sitzungen/Tunnel und räumt alle Objekt- (`ExposureRule`) und
+  URL-Einbettungs-Zugriffsregeln (`UrlEmbedAccessRule`) auf, die noch auf das Gerät verwiesen
+  haben, damit keine verwaisten Regeln zurückbleiben. Audit-Eintrag `device.deleted`.
+- `AuditEvent.actorDeviceId` (reines Verlaufsprotokoll) bleibt unangetastet.
+- Neuer Integrationstest deckt den vollen Lösch-Ablauf inkl. Regel-Aufräumung ab, neue
+  Unit-Tests für `DevicesService.delete()`.
+
 ## [0.0.41] - master, Testbuild
 
 Echten Bug behoben, live beim allerersten Test des neuen Tunnel-Modus gefunden: Die

@@ -24,6 +24,7 @@ android-app/*.iml
 android-app/captures/
 android-app/.cxx/
 android-app/*/release/
+android-app/app/schemas/
 
 # OS / Editor
 .DS_Store
