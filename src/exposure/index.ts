@@ -59,6 +59,8 @@ export class ExposureService {
     /** Object types that count as a folder-like grouping rather than an actual datapoint. */
     private static readonly CONTAINER_TYPES = new Set(['channel', 'device', 'folder', 'adapter', 'instance']);
 
+    private static readonly ALL_TYPES: ioBroker.ObjectType[] = ['state', 'channel', 'device', 'folder', 'adapter', 'instance'];
+
     /**
      * Admin UI object browser: real ioBroker state tree, minus the mandatory blocklist. Includes
      * both leaf states AND their container objects (channel/device/folder) so the admin tab can
@@ -67,22 +69,17 @@ export class ExposureService {
      * against every state underneath it, see matchesScope) just as well as on a single state.
      */
     async browseObjectTree(): Promise<ObjectTreeEntry[]> {
-        const objects = await this.adapter.getForeignObjectsAsync('*');
-        const typeCounts = new Map<string, number>();
-        for (const obj of Object.values(objects)) {
-            // Same per-entry isolation as the main loop below - accessing .type on a malformed
-            // object (see the "single malformed object" test) must not abort the whole diagnostic
-            // pass, let alone the real tree-building loop that follows it.
-            try {
-                const t = obj ? String((obj as { type?: unknown }).type) : 'undefined-obj';
-                typeCounts.set(t, (typeCounts.get(t) ?? 0) + 1);
-            } catch {
-                typeCounts.set('threw-on-access', (typeCounts.get('threw-on-access') ?? 0) + 1);
-            }
-        }
-        this.adapter.log.warn(
-            `mobile-control: DIAG browseObjectTree: getForeignObjectsAsync('*') returned ${Object.keys(objects).length} objects, type breakdown=${JSON.stringify([...typeCounts.entries()])}`,
+        // getForeignObjectsAsync('*') with NO type argument is NOT "all types" in practice -
+        // confirmed live on a large (~38k object) installation that it silently returns states
+        // only, even though nothing in its contract documents that restriction. The only reliable
+        // way to also get channel/device/folder/adapter/instance objects is one call per type.
+        const results = await Promise.all(
+            ExposureService.ALL_TYPES.map((type) => this.adapter.getForeignObjectsAsync('*', type)),
         );
+        const objects: Record<string, ioBroker.Object | undefined> = {};
+        for (const result of results) {
+            Object.assign(objects, result);
+        }
         const entries: ObjectTreeEntry[] = [];
         for (const [id, obj] of Object.entries(objects)) {
             // A single malformed object (an adapter with an unexpected common shape, e.g. some

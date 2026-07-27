@@ -61,6 +61,46 @@ describe('ExposureService.browseObjectTree', () => {
         assert.equal(adapterNode?.kind, 'container');
     });
 
+    // Regression test for a real bug found live on a ~38k-object installation:
+    // getForeignObjectsAsync('*') with NO type argument silently returned states only - not
+    // documented anywhere, but confirmed live (0 containers out of 38604 objects, despite
+    // channel/device/folder objects definitely existing). browseObjectTree() must therefore call
+    // it once per type and merge the results, never rely on the untyped "all types" call. This
+    // fixture simulates exactly that real-world behavior: unlike the fixture above (which
+    // ignores the type argument entirely), this one actually filters by it, so the test only
+    // passes if browseObjectTree() makes a properly typed call for every object kind.
+    it('assembles the tree from per-type calls, not a single untyped call that silently returns states only', async () => {
+        const allObjects: Record<string, { type: string; common: { name: string }; native: Record<string, never> }> = {
+            zigbee: { type: 'adapter', common: { name: 'zigbee' }, native: {} },
+            'zigbee.0': { type: 'instance', common: { name: 'zigbee.0' }, native: {} },
+            'zigbee.0.00124b0024510164': { type: 'device', common: { name: 'SNZB-03 Bewegungsmelder Briefkasten' }, native: {} },
+            'zigbee.0.00124b0024510164.available': {
+                type: 'state',
+                common: { name: 'Available' },
+                native: {},
+            },
+        };
+        const adapter = createFakeAdapter({
+            getForeignObjectsAsync: async (_pattern: string, type?: string) => {
+                if (!type) {
+                    // The exact real-world bug: an untyped call only ever returns states.
+                    return Object.fromEntries(Object.entries(allObjects).filter(([, o]) => o.type === 'state'));
+                }
+                return Object.fromEntries(Object.entries(allObjects).filter(([, o]) => o.type === type));
+            },
+        });
+        const store = new CollectionStore<ExposureRule>(adapter, 'exposureRules');
+        await store.init();
+        const exposure = new ExposureService(adapter, store);
+
+        const entries = await exposure.browseObjectTree();
+
+        const device = entries.find((e) => e.id === 'zigbee.0.00124b0024510164');
+        assert.equal(device?.kind, 'container');
+        assert.equal(device?.name, 'SNZB-03 Bewegungsmelder Briefkasten');
+        assert.ok(entries.some((e) => e.id === 'zigbee.0.00124b0024510164.available'));
+    });
+
     it('a rule granted on a container scope matches every state underneath it', async () => {
         const adapter = createFakeAdapter();
         const store = new CollectionStore<ExposureRule>(adapter, 'exposureRules');

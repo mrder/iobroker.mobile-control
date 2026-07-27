@@ -8,6 +8,25 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.47] - master, Testbuild
+
+Echten, live gefundenen Bug behoben: Ordner-/Gerätenamen fehlten im Objektbaum.
+
+- **Ursache**, über zwei Runden Live-Diagnose gefunden: `getForeignObjectsAsync('*')` liefert
+  auf dieser Installation ohne explizite Typ-Angabe stillschweigend nur `state`-Objekte
+  zurück - 38604 Objekte, alle vom Typ `state`, 0 Container, obwohl Channel-/Device-/
+  Ordner-Objekte definitiv existieren (bestätigt am Zigbee-Gerät selbst, Typ `device`, mit
+  korrekt gesetztem Namen). Dieses Verhalten ist nirgends dokumentiert.
+- **Fix**: `ExposureService.browseObjectTree()` ruft `getForeignObjectsAsync('*', type)` jetzt
+  einmal pro Objekttyp auf (`state`, `channel`, `device`, `folder`, `adapter`, `instance`) und
+  führt die Ergebnisse zusammen, statt sich auf den ungetypten "alle Typen"-Aufruf zu
+  verlassen.
+- Regressionstest ergänzt, der genau dieses reale Verhalten nachstellt (ein Mock, der bei
+  einem Aufruf ohne Typ-Angabe nur States liefert), damit das nicht unbemerkt wieder
+  kaputtgeht.
+- Betrifft alle drei Stellen, die vorher nur rohe IDs zeigten: Admin-Tab "Objektfreigaben",
+  der Objektkatalog der App, und der "Widget hinzufügen"-Dialog im Dashboard.
+
 ## [0.0.46] - master, Testbuild
 
 Reiner Diagnose-Build, Folge-Untersuchung zu v0.0.44/v0.0.45.
