@@ -124,10 +124,6 @@ export class CatalogService {
                 containerNames.set(entry.id, entry.name);
             }
         }
-        this.adapter.log.warn(
-            `mobile-control: DIAG effectiveCatalog: ${entries.length} total entries, ` +
-                `${containerNames.size} containers, sample=${JSON.stringify([...containerNames.entries()].slice(0, 5))}`,
-        );
 
         const objects: CatalogObject[] = [];
         for (const entry of entries) {

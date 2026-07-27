@@ -8,6 +8,15 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.48] - master, Testbuild
+
+Aufräumen, keine funktionale Änderung.
+
+- Die temporäre Diagnose-Log-Zeile aus `effectiveCatalog()` (seit v0.0.44) wieder entfernt -
+  mit v0.0.47 live bestätigt, dass der Objektbaum-Fix funktioniert: 13033 Container gefunden
+  und korrekt benannt (vorher 0), z.B. `zigbee.0.00124b0024510164` → "SNZB-03 Bewegungsmelder
+  Briefkasten".
+
 ## [0.0.47] - master, Testbuild
 
 Echten, live gefundenen Bug behoben: Ordner-/Gerätenamen fehlten im Objektbaum.
