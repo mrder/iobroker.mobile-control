@@ -8,6 +8,23 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.49] - master, Testbuild
+
+Echten, live gefundenen Fehlalarm behoben: Schalter-Widget zeigte "fehlgeschlagen" für einen
+Befehl, der tatsächlich funktioniert hatte.
+
+- **Symptom**: Ein Zigbee-Aktor-Schalter blieb nach dem Antippen bei "…" (Bearbeiten) hängen,
+  zeigte danach ein rotes "✗" (fehlgeschlagen) - beim Neuladen der Seite stand der Schalter
+  aber korrekt auf "EIN". Der Befehl hatte also funktioniert, nur die Rückmeldung kam zu spät.
+- **Ursache**: Das Backend wartet nach dem Senden eines Befehls auf die eigene Bestätigung des
+  Geräts (`ack: true`), bevor es "confirmed" meldet - bisher nur 10 Sekunden, danach "timeout".
+  Ein Zigbee-Mesh-Gerät (Funk-Hop-Wiederholung, Aufwachen aus dem Schlafmodus) kann dafür
+  durchaus länger brauchen, auch wenn der Befehl selbst erfolgreich ankam.
+- **Fix**: Bestätigungswartezeit im Backend (`CommandsService.CONFIRMATION_TIMEOUT_MS`) von
+  10s auf 25s angehoben. Die App-eigene lokale Wartezeit (`CommandRepositoryImpl.COMMAND_TIMEOUT_MS`)
+  passend von 15s auf 30s erhöht, damit sie nicht vorher selbst aufgibt und einen unnötigen
+  Zweitbefehl sendet, bevor die korrekte Rückmeldung vom Backend überhaupt ankommen konnte.
+
 ## [0.0.48] - master, Testbuild
 
 Aufräumen, keine funktionale Änderung.

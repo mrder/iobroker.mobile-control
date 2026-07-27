@@ -29,7 +29,14 @@ export interface CommandResultEvent {
     status: CommandRecord['status'];
 }
 
-const CONFIRMATION_TIMEOUT_MS = 10_000;
+// Generous on purpose: live-confirmed a real actuator (a zigbee switch) taking longer than the
+// previous 10s to write its confirmed (ack:true) state back - the command had genuinely
+// succeeded, but the app showed a false "failed" (timeout) because this fired first. A mesh
+// device retrying its own radio hop, or briefly waking from sleep, can easily need more than
+// 10s. Android's own client-side watchdog (CommandRepositoryImpl.COMMAND_TIMEOUT_MS) must stay
+// comfortably above this value, so the backend's own timeout/confirmed result always has time to
+// arrive over the websocket before the app gives up locally and retries.
+const CONFIRMATION_TIMEOUT_MS = 25_000;
 
 interface PendingConfirmation {
     commandId: string;

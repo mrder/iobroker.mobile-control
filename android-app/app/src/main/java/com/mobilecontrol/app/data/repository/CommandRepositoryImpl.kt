@@ -145,6 +145,13 @@ class CommandRepositoryImpl @Inject constructor(
     }
 
     private companion object {
-        const val COMMAND_TIMEOUT_MS = 15_000L
+        // Must stay comfortably above the backend's own CommandsService.CONFIRMATION_TIMEOUT_MS
+        // (25s) - live-confirmed a real actuator (a zigbee switch) whose device confirmation
+        // legitimately took longer than the previous, too-tight 15s here, triggering a needless
+        // duplicate retry command before the backend's own (correct) confirmed/timeout result had
+        // a chance to arrive over the websocket. This margin gives that result time to arrive
+        // first in the normal case; this local watchdog stays only as a last-resort fallback for
+        // an actually lost websocket message, not the common path.
+        const val COMMAND_TIMEOUT_MS = 30_000L
     }
 }
