@@ -8,6 +8,32 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.45] - master, Testbuild
+
+Echten, live gefundenen Deadlock behoben.
+
+- **Ursache**: Sobald der Zugriffstoken eines Widgets abgelaufen war, hat `TokenAuthenticator`
+  ihn per `runBlocking` über denselben geteilten `OkHttpClient` erneuert, der auch die
+  dauerhafte Live-WebSocket-Verbindung hält. OkHttp begrenzt gleichzeitige Anfragen pro Host
+  (Standard: 5) über alle Aufrufe eines Clients, auch offene WebSockets - war das Limit
+  erreicht, brauchte der blockierte Refresh-Aufruf einen Verbindungsplatz, den nur sein
+  eigener (blockierter) Thread hätte freigeben können. Echter Deadlock, kein Timeout.
+- **Symptome, die dadurch erklärt sind**: ein Web-Seite-Widget blieb dauerhaft bei "Lädt…"
+  hängen; das Speichern im Dashboard-Editor blieb scheinbar wirkungslos (derselbe Deadlock,
+  ausgelöst durch den `PUT /dashboards`-Call).
+- **Fix**: `TokenAuthenticator` nutzt jetzt einen komplett eigenen `OkHttpClient` (eigener
+  Verbindungspool, kein Authenticator auf sich selbst, kein Bearer-Header nötig) für den
+  `auth/refresh`-Aufruf - kann nie mehr mit dem WebSocket um einen Slot konkurrieren.
+- Live bestätigt: dasselbe Widget, das vorher endlos hing, scheitert jetzt sofort mit einem
+  echten, protokollierten 401 statt zu hängen (die zugehörige Sitzung dieses Testgeräts war
+  durch die vielen Testunterbrechungen der letzten Tage inzwischen selbst ungültig geworden -
+  ein separates, erwartetes Sitzungsproblem, kein neuer Bug; das Gerät muss neu gekoppelt
+  werden).
+- Zusätzlich behebt v0.0.43's Tunnel-Timeout-Fix jetzt sauber: `WebViewProxyOverride`s
+  Plattform-Callback ist jetzt selbst mit 5s Timeout abgesichert (live beobachtet: kann auf
+  manchen WebView-Provider-Builds ausbleiben), und der Tunnel-Aufbau blockiert die
+  Seitenanzeige nicht mehr - beides zusätzliche Härtung, nicht die Hauptursache.
+
 ## [0.0.44] - master, Testbuild
 
 Reiner Diagnose-Build, kein für Nutzer sichtbares Verhalten geändert.

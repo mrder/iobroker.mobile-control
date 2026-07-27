@@ -6,6 +6,7 @@ import androidx.webkit.WebViewFeature
 import java.util.concurrent.Executor
 import kotlin.coroutines.resume
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Thin suspend wrapper around androidx.webkit.ProxyController - the platform API that actually
@@ -22,21 +23,34 @@ object WebViewProxyOverride {
 
     private val immediateExecutor = Executor { command -> command.run() }
 
+    /** The platform callback is bounded here on purpose: confirmed live on a Fire tablet that it
+     *  can simply never fire on some WebView provider builds despite [isSupported] reporting
+     *  true, which left a caller's suspendCancellableCoroutine parked forever - and since the
+     *  original caller (WebPageWidget) awaited this before showing the resolved page at all, the
+     *  whole widget got stuck on its loading state permanently. A timeout can't distinguish "the
+     *  callback will never come" from "just slow", but treating either the same way (proceed
+     *  without the tunnel) is strictly better than hanging forever either way. */
+    private const val CALLBACK_TIMEOUT_MS = 5_000L
+
     suspend fun enable(localProxyHostPort: String) {
         if (!isSupported) return
-        suspendCancellableCoroutine { cont ->
-            val config = ProxyConfig.Builder().addProxyRule(localProxyHostPort).build()
-            ProxyController.getInstance().setProxyOverride(config, immediateExecutor) {
-                if (cont.isActive) cont.resume(Unit)
+        withTimeoutOrNull(CALLBACK_TIMEOUT_MS) {
+            suspendCancellableCoroutine { cont ->
+                val config = ProxyConfig.Builder().addProxyRule(localProxyHostPort).build()
+                ProxyController.getInstance().setProxyOverride(config, immediateExecutor) {
+                    if (cont.isActive) cont.resume(Unit)
+                }
             }
         }
     }
 
     suspend fun disable() {
         if (!isSupported) return
-        suspendCancellableCoroutine { cont ->
-            ProxyController.getInstance().clearProxyOverride(immediateExecutor) {
-                if (cont.isActive) cont.resume(Unit)
+        withTimeoutOrNull(CALLBACK_TIMEOUT_MS) {
+            suspendCancellableCoroutine { cont ->
+                ProxyController.getInstance().clearProxyOverride(immediateExecutor) {
+                    if (cont.isActive) cont.resume(Unit)
+                }
             }
         }
     }

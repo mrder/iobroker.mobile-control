@@ -2,6 +2,7 @@ package com.mobilecontrol.app.data.remote
 
 import com.mobilecontrol.app.data.local.TokenStore
 import com.mobilecontrol.app.data.remote.dto.RefreshRequestDto
+import com.mobilecontrol.app.di.AuthRefresh
 import kotlinx.coroutines.runBlocking
 import okhttp3.Authenticator
 import okhttp3.Request
@@ -14,11 +15,17 @@ import javax.inject.Provider
  * Handles 401s by rotating the refresh token. [apiServiceProvider] is a Dagger Provider (not a
  * direct ApiService) to break the dependency cycle: OkHttpClient -> Authenticator -> ApiService
  * -> Retrofit -> OkHttpClient. The provider is only resolved lazily when a 401 actually occurs.
+ *
+ * Deliberately the @AuthRefresh-qualified ApiService (its own dedicated OkHttpClient), NOT the
+ * app's shared one - see NetworkModule.provideAuthRefreshOkHttpClient's doc for the deadlock this
+ * avoids: this method's own runBlocking call runs on a thread from the calling client's
+ * Dispatcher, and reusing that same client for the nested refresh call could need a Dispatcher
+ * slot that only this very (blocked) thread could free.
  */
 class TokenAuthenticator @Inject constructor(
     private val tokenStore: TokenStore,
     private val serverConfigHolder: ServerConfigHolder,
-    private val apiServiceProvider: Provider<ApiService>,
+    @AuthRefresh private val apiServiceProvider: Provider<ApiService>,
 ) : Authenticator {
 
     override fun authenticate(route: Route?, response: Response): Request? {

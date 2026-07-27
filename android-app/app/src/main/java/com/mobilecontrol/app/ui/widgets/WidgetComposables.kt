@@ -695,6 +695,8 @@ fun WebPageWidget(
     var refreshTrigger by remember(urlEmbedId) { mutableIntStateOf(0) }
     var fullscreen by remember { mutableStateOf(false) }
 
+    val coroutineScope = rememberCoroutineScope()
+
     LaunchedEffect(urlEmbedId, refreshTrigger, useTunnel) {
         if (urlEmbedId == null) {
             loadState = WebPageLoadState.Unavailable
@@ -703,16 +705,22 @@ fun WebPageWidget(
         loadState = WebPageLoadState.Loading
         loadState = viewModel.resolveUrl(urlEmbedId).fold(
             onSuccess = { url ->
+                // Deliberately NOT awaited here: the page itself is already resolved and ready to
+                // show at this point, and startTunnel() involves a platform callback
+                // (WebViewProxyOverride) that's been confirmed to sometimes never fire on some
+                // WebView provider builds - awaiting it here left the whole widget stuck on its
+                // loading state forever even though the page was ready long before. The tunnel
+                // still gets set up, just without blocking the page on it; a request made before
+                // it's ready simply goes direct instead (fine for the same-LAN case, and
+                // WebViewProxyOverride itself is timeout-bounded now too).
                 if (useTunnel) {
-                    viewModel.startTunnel(urlEmbedId, url)
+                    coroutineScope.launch { viewModel.startTunnel(urlEmbedId, url) }
                 }
                 WebPageLoadState.Resolved(url)
             },
             onFailure = { WebPageLoadState.Unavailable },
         )
     }
-
-    val coroutineScope = rememberCoroutineScope()
     DisposableEffect(urlEmbedId, useTunnel) {
         // onDispose is a plain (non-suspend) callback, so stopping the tunnel - a suspend call -
         // has to be launched fire-and-forget on a scope that outlives this specific effect (the
