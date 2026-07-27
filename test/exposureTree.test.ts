@@ -133,7 +133,9 @@ describe('ExposureService.browseObjectTree', () => {
         const entries = await exposure.browseObjectTree();
 
         assert.deepEqual(entries.map((e) => e.id), ['zigbee.0.good.state']);
-        assert.equal(warnCalls.length, 1);
-        assert.match(warnCalls[0], /zigbee\.0\.broken/);
+        // Not asserting warnCalls.length exactly - browseObjectTree may also log other, unrelated
+        // diagnostics (e.g. a type-breakdown line) on every call; what matters here is that THIS
+        // specific malformed object was caught, isolated and logged, not the total call count.
+        assert.ok(warnCalls.some((msg) => /zigbee\.0\.broken/.test(msg)));
     });
 });

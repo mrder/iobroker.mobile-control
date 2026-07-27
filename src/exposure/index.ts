@@ -68,6 +68,21 @@ export class ExposureService {
      */
     async browseObjectTree(): Promise<ObjectTreeEntry[]> {
         const objects = await this.adapter.getForeignObjectsAsync('*');
+        const typeCounts = new Map<string, number>();
+        for (const obj of Object.values(objects)) {
+            // Same per-entry isolation as the main loop below - accessing .type on a malformed
+            // object (see the "single malformed object" test) must not abort the whole diagnostic
+            // pass, let alone the real tree-building loop that follows it.
+            try {
+                const t = obj ? String((obj as { type?: unknown }).type) : 'undefined-obj';
+                typeCounts.set(t, (typeCounts.get(t) ?? 0) + 1);
+            } catch {
+                typeCounts.set('threw-on-access', (typeCounts.get('threw-on-access') ?? 0) + 1);
+            }
+        }
+        this.adapter.log.warn(
+            `mobile-control: DIAG browseObjectTree: getForeignObjectsAsync('*') returned ${Object.keys(objects).length} objects, type breakdown=${JSON.stringify([...typeCounts.entries()])}`,
+        );
         const entries: ObjectTreeEntry[] = [];
         for (const [id, obj] of Object.entries(objects)) {
             // A single malformed object (an adapter with an unexpected common shape, e.g. some

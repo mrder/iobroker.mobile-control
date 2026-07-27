@@ -8,6 +8,22 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.46] - master, Testbuild
+
+Reiner Diagnose-Build, Folge-Untersuchung zu v0.0.44/v0.0.45.
+
+- Die erste Diagnose-Zeile (v0.0.44) zeigte live: `browseObjectTree()` fand 37514 Objekte
+  insgesamt, aber **0 Container** (Ordner/Geräte) - trotz live bestätigt vorhandener Ordner
+  mit echt vergebenen Namen in der App.
+- Neue Log-Zeile `mobile-control: DIAG browseObjectTree:` in `ExposureService.browseObjectTree()`
+  zählt jetzt die rohen ioBroker-Objekttypen (`obj.type`) auf, bevor irgendeine Filterung
+  passiert, um zu sehen ob Channel-/Device-/Ordner-Objekte im Rohergebnis von
+  `getForeignObjectsAsync('*')` wirklich fehlen oder nur beim Parsen scheitern.
+- Nebenbei: die neue Zähl-Schleife läuft jetzt pro Eintrag isoliert (try/catch), damit ein
+  einzelnes fehlerhaftes Objekt beim Zählen nicht dieselbe Klasse von Bug reproduziert, die
+  `browseObjectTree()` selbst schon behebt (siehe Regressionstest
+  "a single malformed object is skipped").
+
 ## [0.0.45] - master, Testbuild
 
 Echten, live gefundenen Deadlock behoben.
