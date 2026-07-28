@@ -49,6 +49,14 @@ class SettingsRepositoryImpl @Inject constructor(
 
     override suspend fun hasPin(): Boolean = tokenStore.getPinHash() != null
 
+    override suspend fun getFailedPinAttempts(): Int = tokenStore.getFailedPinAttempts()
+
+    override suspend fun setFailedPinAttempts(count: Int) = tokenStore.setFailedPinAttempts(count)
+
+    override suspend fun getPinLockoutUntil(): Long = tokenStore.getPinLockoutUntil()
+
+    override suspend fun setPinLockoutUntil(epochMillis: Long) = tokenStore.setPinLockoutUntil(epochMillis)
+
     override suspend fun clearCache() = withContext(Dispatchers.IO) {
         appDatabase.clearAllTables()
     }

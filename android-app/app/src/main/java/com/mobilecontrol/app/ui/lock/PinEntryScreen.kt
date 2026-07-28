@@ -17,6 +17,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,6 +26,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
 import com.mobilecontrol.app.R
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 enum class PinMode { SETUP, VERIFY }
 
@@ -42,16 +45,33 @@ fun PinEntryScreen(
 ) {
     val wrongPin by viewModel.wrongPin.collectAsState()
     val biometricEnabled by viewModel.biometricEnabled.collectAsState()
+    val lockoutUntil by viewModel.lockoutUntil.collectAsState()
     var pin by remember { mutableStateOf("") }
     var confirmStage by remember { mutableStateOf(false) }
     var firstPin by remember { mutableStateOf("") }
     var setupComplete by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val activity = context as? FragmentActivity
+    val coroutineScope = rememberCoroutineScope()
 
-    // Try biometrics automatically once when verifying, if the user has opted in.
-    LaunchedEffect(mode) {
-        if (mode == PinMode.VERIFY && biometricEnabled && activity != null) {
+    // Ticks once a second while a lockout is active, purely to drive the countdown text below -
+    // the actual lockout enforcement lives in LockViewModel.verifyPin (persisted, checked fresh
+    // on every attempt), this is display-only.
+    var remainingLockoutMs by remember { mutableStateOf(0L) }
+    LaunchedEffect(lockoutUntil) {
+        while (true) {
+            val remaining = lockoutUntil - System.currentTimeMillis()
+            remainingLockoutMs = remaining.coerceAtLeast(0L)
+            if (remaining <= 0L) break
+            delay(1_000L)
+        }
+    }
+    val isLockedOut = mode == PinMode.VERIFY && remainingLockoutMs > 0L
+
+    // Try biometrics automatically once when verifying, if the user has opted in - but never
+    // while locked out (a biometric bypass would defeat the whole point of the PIN lockout).
+    LaunchedEffect(mode, isLockedOut) {
+        if (mode == PinMode.VERIFY && !isLockedOut && biometricEnabled && activity != null) {
             if (BiometricPromptHelper.authenticate(activity, "App entsperren")) {
                 viewModel.onBiometricSuccess()
                 onUnlocked()
@@ -59,22 +79,25 @@ fun PinEntryScreen(
         }
     }
 
-    // wrongPin flipping back to false after a successful verifyPin() call is our unlock signal.
-    var verifyAttempted by remember { mutableStateOf(false) }
-    LaunchedEffect(wrongPin, verifyAttempted) {
-        if (mode == PinMode.VERIFY && verifyAttempted && !wrongPin) {
-            onUnlocked()
-        }
-    }
     LaunchedEffect(setupComplete) {
         if (setupComplete) onUnlocked()
     }
 
     var biometricRetryTrigger by remember { mutableStateOf(0) }
     LaunchedEffect(biometricRetryTrigger) {
-        if (biometricRetryTrigger > 0 && activity != null) {
+        if (biometricRetryTrigger > 0 && !isLockedOut && activity != null) {
             if (BiometricPromptHelper.authenticate(activity, "App entsperren")) {
                 viewModel.onBiometricSuccess()
+                onUnlocked()
+            }
+        }
+    }
+
+    fun submitVerify(submittedPin: String) {
+        coroutineScope.launch {
+            // Only the actual, awaited result unlocks - see LockViewModel.verifyPin's own doc for
+            // the race this replaced (a wrong PIN briefly let the user through).
+            if (viewModel.verifyPin(submittedPin)) {
                 onUnlocked()
             }
         }
@@ -96,6 +119,19 @@ fun PinEntryScreen(
                 Text("PIN bestätigen", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
             }
 
+            if (isLockedOut) {
+                val totalSeconds = (remainingLockoutMs / 1000L).toInt()
+                val minutes = totalSeconds / 60
+                val seconds = totalSeconds % 60
+                Text(
+                    text = "Zu viele Fehlversuche. Gesperrt für noch %d:%02d Minuten.".format(minutes, seconds),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(vertical = 24.dp),
+                )
+                return@Column
+            }
+
             PinDots(length = pin.length, modifier = Modifier.padding(vertical = 24.dp))
 
             if (wrongPin) {
@@ -108,9 +144,9 @@ fun PinEntryScreen(
                     if (pin.length == MAX_PIN_LENGTH) {
                         when (mode) {
                             PinMode.VERIFY -> {
-                                viewModel.verifyPin(pin)
-                                verifyAttempted = true
+                                val submitted = pin
                                 pin = ""
+                                submitVerify(submitted)
                             }
                             PinMode.SETUP -> {
                                 if (!confirmStage) {

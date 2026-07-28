@@ -55,6 +55,11 @@ private class FakeSettingsRepository : SettingsRepository {
     override suspend fun getPinHash(): String? = pinHash
     override suspend fun hasPin(): Boolean = pinHash != null
 
+    override suspend fun getFailedPinAttempts(): Int = 0
+    override suspend fun setFailedPinAttempts(count: Int) {}
+    override suspend fun getPinLockoutUntil(): Long = 0L
+    override suspend fun setPinLockoutUntil(epochMillis: Long) {}
+
     override suspend fun clearCache() {}
 
     override fun observeLastConnectionAt(): Flow<Long?> = MutableStateFlow(null)

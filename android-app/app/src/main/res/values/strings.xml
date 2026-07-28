@@ -31,6 +31,7 @@
     <string name="start_tab_objects">Objekte</string>
     <string name="start_tab_notifications">Meldungen</string>
     <string name="start_tab_settings">Einstellungen</string>
+    <string name="start_press_back_again_to_exit">Nochmal zurück drücken, um die App zu beenden</string>
 
     <!-- Dashboards -->
     <string name="dashboards_title">Dashboards</string>

@@ -51,6 +51,20 @@ class TokenStore @Inject constructor(
 
     suspend fun getPinHash(): String? = withContext(Dispatchers.IO) { prefs.getString(KEY_PIN_HASH, null) }
 
+    /** Both persisted here (not in AppLockManager, which is deliberately in-memory-only) - a
+     *  lockout that a simple force-close/reopen could bypass would be pointless. */
+    suspend fun getFailedPinAttempts(): Int = withContext(Dispatchers.IO) { prefs.getInt(KEY_FAILED_PIN_ATTEMPTS, 0) }
+
+    suspend fun setFailedPinAttempts(count: Int) = withContext(Dispatchers.IO) {
+        prefs.edit().putInt(KEY_FAILED_PIN_ATTEMPTS, count).apply()
+    }
+
+    suspend fun getPinLockoutUntil(): Long = withContext(Dispatchers.IO) { prefs.getLong(KEY_PIN_LOCKOUT_UNTIL, 0L) }
+
+    suspend fun setPinLockoutUntil(epochMillis: Long) = withContext(Dispatchers.IO) {
+        prefs.edit().putLong(KEY_PIN_LOCKOUT_UNTIL, epochMillis).apply()
+    }
+
     suspend fun clear() = withContext(Dispatchers.IO) {
         prefs.edit().clear().apply()
     }
@@ -60,5 +74,7 @@ class TokenStore @Inject constructor(
         const val KEY_REFRESH = "refresh_token"
         const val KEY_EXPIRES_AT = "access_token_expires_at"
         const val KEY_PIN_HASH = "pin_hash"
+        const val KEY_FAILED_PIN_ATTEMPTS = "failed_pin_attempts"
+        const val KEY_PIN_LOCKOUT_UNTIL = "pin_lockout_until"
     }
 }

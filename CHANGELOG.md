@@ -8,6 +8,29 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.50] - master, Testbuild
+
+Sicherheitsfehler bei der PIN-Prüfung behoben, Sperre nach Fehlversuchen ergänzt, doppeltes
+Zurück zum Beenden ergänzt, und einen echten "Schalter tut nichts"-Fehler behoben.
+
+- **Sicherheitsfehler (live gefunden)**: Eine falsch eingegebene PIN konnte die App trotzdem
+  kurzzeitig entsperren. Ursache war eine Race Condition: Die Entsperr-Navigation reagierte auf
+  einen `wrongPin`-Zustand, der zum Zeitpunkt der Prüfung noch seinen alten (falschen) Wert
+  `false` hatte, weil die eigentliche (asynchrone) PIN-Prüfung noch nicht fertig war. Die
+  PIN-Prüfung wird jetzt direkt abgewartet (`suspend fun verifyPin(): Boolean`), entsperrt wird
+  nur noch bei tatsächlich korrektem Ergebnis.
+- **Neu**: PIN-Sperre nach 3 falschen Versuchen in Folge für 10 Minuten, mit Live-Countdown auf
+  dem Sperrbildschirm. Die Sperre wird verschlüsselt gespeichert (nicht nur im Speicher), damit
+  ein erzwungenes Schließen und Neuöffnen der App sie nicht umgeht.
+- **Neu**: Doppeltes Zurück-Drücken erforderlich, um die App vom Startbildschirm aus zu beenden
+  (mit kurzem Hinweis-Toast beim ersten Drücken).
+- **Fehler behoben**: Ein Schalter-Widget konnte beim Drücken scheinbar komplett wirkungslos
+  bleiben (kein "…", kein "✗", einfach nichts). Ursache: Schlug die anfängliche Sende-Anfrage an
+  den Server fehl (z. B. direkt nach dem Entsperren, während gerade ein Token erneuert wurde),
+  wurde der Fehlschlag intern zwar als "abgelehnt" vermerkt, aber die zugehörige Befehls-ID nie
+  an das Widget zurückgegeben - das Widget konnte den Fehlschlag dadurch nie anzeigen und blieb
+  einfach im alten Zustand hängen.
+
 ## [0.0.49] - master, Testbuild
 
 Echten, live gefundenen Fehlalarm behoben: Schalter-Widget zeigte "fehlgeschlagen" für einen

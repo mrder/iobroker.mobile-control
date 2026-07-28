@@ -79,7 +79,14 @@ class CommandRepositoryImpl @Inject constructor(
             // generic failure, and so it isn't silently retried like a TIMEOUT would be.
             val status = if (it is ApiException && it.errorCode == ApiErrorCode.LOCAL_ONLY) CommandStatus.BLOCKED else CommandStatus.REJECTED
             _commandStates.value = _commandStates.value + (publicCommandId to status)
-            return Result.failure(it)
+            notifyCommandFailure(status)
+            // Returning Result.success (not failure) here is deliberate: the id above is already a
+            // valid, terminal entry in commandStates. If this returned Result.failure, the caller's
+            // objectId->commandId map (pendingCommandByObjectId) would never learn this id - live-
+            // confirmed as the cause of a switch press appearing to do nothing at all (no pending
+            // "...", no failure mark, just silently stuck on the old state) whenever the initial POST
+            // failed, e.g. right after unlocking while a token refresh was still in flight.
+            return Result.success(publicCommandId)
         }
 
         scope.launch { watchForTimeout(publicCommandId, objectId, value, confirmed, isRetry = false) }

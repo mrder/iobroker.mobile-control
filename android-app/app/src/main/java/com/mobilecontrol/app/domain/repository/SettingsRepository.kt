@@ -30,6 +30,14 @@ interface SettingsRepository {
     suspend fun getPinHash(): String?
     suspend fun hasPin(): Boolean
 
+    /** Epoch millis until which PIN entry is locked out (0 = not locked), and the current count
+     *  of consecutive wrong attempts since the last successful/reset verification. Persisted
+     *  (not in-memory) so a force-close/reopen can't be used to bypass the lockout. */
+    suspend fun getFailedPinAttempts(): Int
+    suspend fun setFailedPinAttempts(count: Int)
+    suspend fun getPinLockoutUntil(): Long
+    suspend fun setPinLockoutUntil(epochMillis: Long)
+
     suspend fun clearCache()
 
     fun observeLastConnectionAt(): Flow<Long?>

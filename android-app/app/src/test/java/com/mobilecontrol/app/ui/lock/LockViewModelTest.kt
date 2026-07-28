@@ -27,6 +27,8 @@ private class FakeSettingsRepository : SettingsRepository {
 
     var pinHash: String? = null
     var clearCacheCalled = false
+    var failedPinAttempts = 0
+    var pinLockoutUntil = 0L
 
     override fun observeDeviceProfile(): Flow<DeviceProfile?> = _deviceProfile
     override suspend fun saveDeviceProfile(profile: DeviceProfile) {
@@ -51,6 +53,15 @@ private class FakeSettingsRepository : SettingsRepository {
     }
     override suspend fun getPinHash(): String? = pinHash
     override suspend fun hasPin(): Boolean = pinHash != null
+
+    override suspend fun getFailedPinAttempts(): Int = failedPinAttempts
+    override suspend fun setFailedPinAttempts(count: Int) {
+        failedPinAttempts = count
+    }
+    override suspend fun getPinLockoutUntil(): Long = pinLockoutUntil
+    override suspend fun setPinLockoutUntil(epochMillis: Long) {
+        pinLockoutUntil = epochMillis
+    }
 
     override suspend fun clearCache() {
         clearCacheCalled = true
@@ -94,7 +105,7 @@ class LockViewModelTest {
     }
 
     @Test
-    fun `verifyPin with the correct pin unlocks and clears wrongPin`() = runTest {
+    fun `verifyPin with the correct pin unlocks, clears wrongPin, and returns true`() = runTest {
         val repo = FakeSettingsRepository()
         val lockManager = AppLockManager()
         val viewModel = LockViewModel(repo, lockManager)
@@ -102,14 +113,15 @@ class LockViewModelTest {
         viewModel.setupPin("1234")
         lockManager.lock() // simulate re-lock (e.g. app backgrounded) before verifying
 
-        viewModel.verifyPin("1234")
+        val result = viewModel.verifyPin("1234")
 
+        assertTrue(result)
         assertFalse(lockManager.isLocked.value)
         assertFalse(viewModel.wrongPin.value)
     }
 
     @Test
-    fun `verifyPin with an incorrect pin sets wrongPin and stays locked`() = runTest {
+    fun `verifyPin with an incorrect pin sets wrongPin, stays locked, and returns false`() = runTest {
         val repo = FakeSettingsRepository()
         val lockManager = AppLockManager()
         val viewModel = LockViewModel(repo, lockManager)
@@ -117,8 +129,9 @@ class LockViewModelTest {
         viewModel.setupPin("1234")
         lockManager.lock()
 
-        viewModel.verifyPin("0000")
+        val result = viewModel.verifyPin("0000")
 
+        assertFalse(result)
         assertTrue(lockManager.isLocked.value)
         assertTrue(viewModel.wrongPin.value)
     }
@@ -129,11 +142,55 @@ class LockViewModelTest {
         val lockManager = AppLockManager()
         val viewModel = LockViewModel(repo, lockManager)
 
-        viewModel.verifyPin("1234")
+        val result = viewModel.verifyPin("1234")
 
+        assertFalse(result)
         assertNull(repo.pinHash)
         assertTrue(viewModel.wrongPin.value)
         assertTrue(lockManager.isLocked.value)
+    }
+
+    @Test
+    fun `verifyPin locks out for 10 minutes after 3 consecutive wrong attempts`() = runTest {
+        val repo = FakeSettingsRepository()
+        val viewModel = LockViewModel(repo, AppLockManager())
+        viewModel.setupPin("1234")
+
+        viewModel.verifyPin("0000")
+        viewModel.verifyPin("0000")
+        assertEquals(0L, repo.pinLockoutUntil) // not locked out yet after 2 attempts
+
+        val thirdResult = viewModel.verifyPin("0000")
+
+        assertFalse(thirdResult)
+        assertTrue(repo.pinLockoutUntil > System.currentTimeMillis())
+        assertTrue(repo.pinLockoutUntil <= System.currentTimeMillis() + 10 * 60_000L)
+    }
+
+    @Test
+    fun `verifyPin rejects even the correct pin while locked out, without resetting the lockout`() = runTest {
+        val repo = FakeSettingsRepository()
+        val viewModel = LockViewModel(repo, AppLockManager())
+        viewModel.setupPin("1234")
+        val lockoutUntil = System.currentTimeMillis() + 5 * 60_000L
+        repo.pinLockoutUntil = lockoutUntil
+
+        val result = viewModel.verifyPin("1234") // correct pin, but still within the lockout window
+
+        assertFalse(result)
+        assertEquals(lockoutUntil, repo.pinLockoutUntil)
+    }
+
+    @Test
+    fun `a fresh LockViewModel instance honors a lockout persisted before it was created`() = runTest {
+        val repo = FakeSettingsRepository()
+        val lockoutUntil = System.currentTimeMillis() + 5 * 60_000L
+        repo.pinLockoutUntil = lockoutUntil
+
+        val viewModel = LockViewModel(repo, AppLockManager())
+        advanceUntilIdle() // let the init block's load of the persisted lockout complete
+
+        assertEquals(lockoutUntil, viewModel.lockoutUntil.value)
     }
 
     @Test

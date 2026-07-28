@@ -1,5 +1,8 @@
 package com.mobilecontrol.app.ui.start
 
+import android.app.Activity
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.List
@@ -12,8 +15,12 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -27,6 +34,11 @@ import com.mobilecontrol.app.ui.navigation.Routes
 import com.mobilecontrol.app.ui.notifications.NotificationsScreen
 import com.mobilecontrol.app.ui.objects.ObjectBrowserScreen
 import com.mobilecontrol.app.ui.settings.SettingsScreen
+
+// StartScreen is the top-level nav graph's root destination (reached via popUpTo(0) after
+// login/unlock), so this is the one place a back press would otherwise exit immediately - hence
+// the confirm-with-a-second-press guard the user asked for, rather than a plain finish().
+private const val EXIT_CONFIRM_WINDOW_MS = 2_000L
 
 private data class StartTab(val route: String, val labelRes: Int, val icon: androidx.compose.ui.graphics.vector.ImageVector)
 
@@ -43,6 +55,18 @@ fun StartScreen(
     onLoggedOut: () -> Unit,
 ) {
     val tabNavController = rememberNavController()
+    val context = LocalContext.current
+    var lastBackPressAt by remember { mutableStateOf(0L) }
+
+    BackHandler {
+        val now = System.currentTimeMillis()
+        if (now - lastBackPressAt <= EXIT_CONFIRM_WINDOW_MS) {
+            (context as? Activity)?.finish()
+        } else {
+            lastBackPressAt = now
+            Toast.makeText(context, context.getString(R.string.start_press_back_again_to_exit), Toast.LENGTH_SHORT).show()
+        }
+    }
 
     Scaffold(
         bottomBar = {
