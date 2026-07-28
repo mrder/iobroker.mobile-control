@@ -64,13 +64,30 @@ class RealtimeWebSocketClient @Inject constructor(
      *  opening the socket, sent as the required auth message once [onOpen] fires. See [openSocket]. */
     private var connectingToken: String? = null
 
+    /** True from the moment [connect] is called until [disconnect] is explicitly called - NOT
+     *  reset on a plain disconnect/reconnect cycle, since [scheduleReconnect] handling that is
+     *  still "connect() was asked for and is being honored". Guards against a real, live-confirmed
+     *  bug: connect() is called from several places (after PIN unlock, on cold start, from the
+     *  alarm push foreground service) with no coordination between them - without this guard, each
+     *  call unconditionally opened a brand new WebSocket without closing any existing one, leaking
+     *  multiple concurrent connections to the server. Only the most-recently-opened one was ever
+     *  referenced by [webSocket] again, so subscribe()/send() calls went to that one while an
+     *  earlier, now-orphaned-but-still-open connection could easily be the one the server actually
+     *  had a subscription recorded against - live values and command confirmations then silently
+     *  never arrived, even though the visible connection state looked fine. */
+    private val isActive = AtomicBoolean(false)
+
     fun connect() {
         userRequestedDisconnect.set(false)
+        if (!isActive.compareAndSet(false, true)) {
+            return // already connected, or a connect/reconnect cycle is already in flight
+        }
         scope.launch { openSocket() }
     }
 
     fun disconnect() {
         userRequestedDisconnect.set(true)
+        isActive.set(false)
         heartbeatWatchdog?.cancel()
         webSocket?.close(NORMAL_CLOSURE, "client disconnect")
         webSocket = null
@@ -93,14 +110,19 @@ class RealtimeWebSocketClient @Inject constructor(
     }
 
     private suspend fun openSocket() {
-        val restBase = serverConfigHolder.baseUrl ?: return
-        val token = tokenStore.getAccessToken() ?: return
+        val restBase = serverConfigHolder.baseUrl ?: run { isActive.set(false); return }
+        val token = tokenStore.getAccessToken() ?: run { isActive.set(false); return }
         connectingToken = token
+
+        // Defensive: never leave a previous raw socket dangling before opening a new one, even if
+        // some future caller ever manages to reach here without going through connect()'s isActive
+        // guard - see that field's own doc for the live-confirmed connection-leak this prevents.
+        webSocket?.cancel()
 
         // OkHttp's HttpUrl only accepts http/https schemes (it rejects ws/wss outright) - this is
         // intentional on OkHttp's part: newWebSocket() performs the protocol upgrade internally
         // over a plain http(s) URL, there is no separate ws(s) scheme to build here.
-        val wsUrl = restBase.resolve("ws/v1") ?: return
+        val wsUrl = restBase.resolve("ws/v1") ?: run { isActive.set(false); return }
 
         val request = Request.Builder().url(wsUrl).build()
         webSocket = okHttpClient.newWebSocket(request, listener)

@@ -8,6 +8,25 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.55] - master, Testbuild
+
+Echten, live bestätigten Fehler behoben: ein Verbindungs-Speicherleck bei der Live-Verbindung,
+gefunden über die Logs auf dem Tablet während eines echten Schalter-Tests.
+
+- **Symptom**: Schalter blieb nach dem Drücken dauerhaft bei „…" hängen, obwohl der Befehl
+  tatsächlich funktioniert hatte (nach Neuladen der Seite korrekt sichtbar).
+- **Ursache**: `connectRealtime()` wird von mehreren Stellen aus aufgerufen (nach PIN-Entsperrung,
+  beim Kaltstart, vom Hintergrunddienst für Alarm-Benachrichtigungen) - ohne jede Sperre gegen
+  doppelte Aufrufe. Jeder Aufruf hat bedingungslos eine komplett neue WebSocket-Verbindung
+  geöffnet, ohne eine bestehende zu schließen. Im Log zeigte sich das als fast gleichzeitige,
+  doppelte Verbindungsaufbauten. Nur die zuletzt geöffnete Verbindung wurde von der App noch
+  referenziert - Live-Abonnements und Befehlsbestätigungen konnten dadurch an eine frühere,
+  verwaiste Verbindung gebunden bleiben, die serverseitig zwar noch offen war, aber von der App
+  nicht mehr beachtet wurde.
+- **Fix**: `connect()` ist jetzt gegen Mehrfachaufrufe abgesichert (kein Effekt, wenn bereits eine
+  Verbindung aktiv ist oder gerade neu aufgebaut wird), und eine übrig gebliebene Verbindung wird
+  vor dem Öffnen einer neuen ausdrücklich geschlossen.
+
 ## [0.0.54] - master, Testbuild
 
 Echten Fehler behoben, live direkt nach dem Signatur-Update gefunden (aus den echten Daten auf
