@@ -21,8 +21,13 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase =
+        // No fallbackToDestructiveMigration(): this used to silently wipe every cached dashboard
+        // and catalog entry on any schema version bump, which live-confirmed as a real problem the
+        // moment there was an actively-used install with real user data in it (a v2->v3 bump for
+        // FolderNameEntity emptied a live tablet's local dashboards/objects). Any future schema
+        // change now needs a real Migration below - Room throws IllegalStateException on a missing
+        // one, which is the correct failure mode (loud and caught in testing) over a silent wipe.
         Room.databaseBuilder(context, AppDatabase::class.java, "mobile_control.db")
-            .fallbackToDestructiveMigration()
             .build()
 
     @Provides

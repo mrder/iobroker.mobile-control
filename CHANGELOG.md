@@ -8,6 +8,29 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.52] - master, Testbuild
+
+Echte Ursache dafür gefunden, warum die App nach einer Weile Inaktivität komplett tot wirkte
+(leere Dashboards, leere Objektliste, keine Fehlermeldung) - live per Logcat bestätigt.
+
+- **Kernfehler**: `GET /dashboards` → 401, danach `POST /auth/refresh` → ebenfalls 401. Der
+  Zugriffs-Token war abgelaufen, und der Erneuerungs-Token wurde vom Server auch abgelehnt. Die
+  App hat daraufhin einfach stillschweigend aufgegeben - für immer, ohne jede Möglichkeit zur
+  Selbstheilung. Neu: Wird die Erneuerung abgelehnt, versucht die App jetzt automatisch eine
+  vollständige Neuanmeldung mit dem bereits vorhandenen Sicherheitsschlüssel des Geräts (derselbe
+  Mechanismus wie am Ende der Kopplung, nur ohne erneutes QR-Scannen). Ist das Gerät weiterhin
+  berechtigt, erholt sich die Sitzung dadurch von selbst. Nur wenn auch das fehlschlägt, wird
+  jetzt korrekt zur erneuten Kopplung aufgefordert.
+- **Wahrscheinliche Ursache behoben**: Erneuerungsversuche liefen bisher unsynchronisiert - zwei
+  etwa gleichzeitig fehlschlagende Anfragen konnten unabhängig voneinander mit demselben, noch
+  nicht erneuerten Token erneuern wollen. Der eigene Wiederverwendungsschutz des Servers wertet
+  das korrekterweise als gestohlenen Token und sperrt die ganze Sitzung dafür - vermutlich genau
+  das, was hier passiert ist. Erneuerungsversuche laufen jetzt nacheinander ab.
+- **Nebeneffekt behoben**: Die Datenbank-Änderung des letzten Updates (v0.0.51) hat den
+  Dashboard-/Objekt-Zwischenspeicher auf dem Gerät gelöscht (Daten waren nie auf dem Server weg,
+  nur die lokale Kopie). Die App löscht bei zukünftigen Updates keine lokalen Daten mehr
+  automatisch - künftige Datenbankänderungen brauchen eine echte Migration.
+
 ## [0.0.51] - master, Testbuild
 
 Echte Ursache hinter "nichts geht" / "Adapter nicht verbunden" / "Objektnamen fehlen" gefunden:
