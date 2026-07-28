@@ -2,6 +2,7 @@ import { strict as assert } from 'node:assert';
 import http from 'node:http';
 import { EventEmitter } from 'node:events';
 import { RealtimeGateway } from '../src/realtime';
+import { ReplayGuard } from '../src/security/replayGuard';
 import { createFakeAdapter } from './helpers/fakeAdapter';
 
 describe('RealtimeGateway', () => {
@@ -32,6 +33,7 @@ describe('RealtimeGateway', () => {
             undefined as unknown as import('../src/devices').DevicesService,
             undefined as unknown as import('../src/catalog').CatalogService,
             new EventEmitter() as unknown as import('../src/commands').CommandsService,
+            new ReplayGuard(),
         );
 
         try {

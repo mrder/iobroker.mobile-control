@@ -6,6 +6,15 @@ import type { DevicesService } from '../devices';
 import type { CatalogService } from '../catalog';
 import type { CommandsService, CommandResultEvent } from '../commands';
 import type { AuthContext } from '../authorization';
+import type { ReplayGuard } from '../security/replayGuard';
+import { verifyRequestSignature } from '../security/requestSignature';
+
+/** Sentinel "method"/"path" pair for the WS auth message's signature - there's only one WS
+ *  endpoint, so unlike REST requests there's no real method/path to sign; these constants just
+ *  keep it going through the exact same verifyRequestSignature codepath as everything else,
+ *  rather than a parallel, separately-maintained implementation. */
+const WS_AUTH_SIGNATURE_METHOD = 'WS';
+const WS_AUTH_SIGNATURE_PATH = '/ws/v1';
 
 const HEARTBEAT_INTERVAL_MS = 30_000;
 const AUTH_TIMEOUT_MS = 5_000;
@@ -44,6 +53,7 @@ export class RealtimeGateway {
         private readonly devices: DevicesService,
         private readonly catalog: CatalogService,
         private readonly commands: CommandsService,
+        private readonly signatureReplayGuard: ReplayGuard,
     ) {
         this.wss = new WebSocketServer({ server, path: '/ws/v1' });
         // The ws library forwards the underlying http.Server's 'error' event onto this
@@ -108,7 +118,7 @@ export class RealtimeGateway {
         }
 
         if (msg.type === 'auth') {
-            await this.handleAuth(connection, msg.accessToken);
+            await this.handleAuth(connection, msg.accessToken, msg.timestamp, msg.nonce, msg.signature);
             return;
         }
 
@@ -126,8 +136,19 @@ export class RealtimeGateway {
         }
     }
 
-    private async handleAuth(connection: Connection, accessToken: unknown): Promise<void> {
-        if (typeof accessToken !== 'string') {
+    private async handleAuth(
+        connection: Connection,
+        accessToken: unknown,
+        timestamp: unknown,
+        nonce: unknown,
+        signature: unknown,
+    ): Promise<void> {
+        if (
+            typeof accessToken !== 'string' ||
+            typeof timestamp !== 'string' ||
+            typeof nonce !== 'string' ||
+            typeof signature !== 'string'
+        ) {
             this.send(connection, { type: 'error', code: 'AUTH_REQUIRED' });
             connection.ws.close();
             return;
@@ -138,6 +159,25 @@ export class RealtimeGateway {
             const device = this.devices.require(payload.deviceId);
             if (!this.devices.isUsable(device)) {
                 throw new Error('device not usable');
+            }
+
+            // Same per-request signature requirement as every REST call (see
+            // createSignatureMiddleware) - a stolen access token alone must not be enough to open
+            // an authenticated realtime connection either.
+            const signatureValid = verifyRequestSignature({
+                method: WS_AUTH_SIGNATURE_METHOD,
+                path: WS_AUTH_SIGNATURE_PATH,
+                timestamp,
+                nonce,
+                bodyBytes: Buffer.from(accessToken, 'utf8'),
+                signatureBase64: signature,
+                devicePublicKeyBase64: device.publicKey,
+            });
+            if (!signatureValid) {
+                throw new Error('signature invalid');
+            }
+            if (!this.signatureReplayGuard.checkAndRemember(`sig:${device.id}:${nonce}`)) {
+                throw new Error('signature replayed');
             }
 
             connection.ctx = { userId: payload.sub, deviceId: payload.deviceId, roleId: payload.roleId };

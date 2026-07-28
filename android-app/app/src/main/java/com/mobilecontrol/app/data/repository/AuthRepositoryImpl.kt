@@ -48,6 +48,7 @@ class AuthRepositoryImpl @Inject constructor(
         serverConfigHolder.deviceId = profile.deviceId
         serverConfigHolder.instanceId = profile.instanceId
         serverConfigHolder.serverFingerprint = profile.serverFingerprint
+        serverConfigHolder.certificatePin = profile.certificatePin
         serverConfigHolder.setServerUrl(profile.serverUrl)
 
         val access = tokenStore.getAccessToken() ?: return

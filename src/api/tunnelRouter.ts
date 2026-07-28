@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import express from 'express';
 import { ApiError } from '../lib/errors';
-import { sendError, createAuthMiddleware, type AuthenticatedRequest } from './middleware';
+import { sendError, createAuthMiddleware, createSignatureMiddleware, type AuthenticatedRequest } from './middleware';
 import { forwardTunnelRequest } from '../tunnel/forward';
 import type { AuthService } from '../auth';
 import type { SessionsService } from '../sessions';
@@ -9,6 +9,7 @@ import type { DevicesService } from '../devices';
 import type { TunnelService } from '../tunnel';
 import type { AuditService } from '../audit';
 import type { RateLimiter } from '../security/rateLimiter';
+import type { ReplayGuard } from '../security/replayGuard';
 
 export interface TunnelRouterServices {
     adapter: ioBroker.Adapter;
@@ -21,6 +22,7 @@ export interface TunnelRouterServices {
      *  generous than the general API rate limiter: a single page load easily bursts dozens of
      *  sub-resource requests (HTML, CSS, JS, images) within a second or two. */
     tunnelRateLimiter: RateLimiter;
+    signatureReplayGuard: ReplayGuard;
 }
 
 const TUNNEL_TOKEN_HEADER = 'x-tunnel-token';
@@ -39,8 +41,9 @@ const TUNNEL_PATH_HEADER = 'x-tunnel-path';
 export function createTunnelRouter(services: TunnelRouterServices): Router {
     const router = Router();
     const requireAuth = createAuthMiddleware(services.auth, services.sessions, services.devices);
+    const requireSignature = createSignatureMiddleware(services.devices, services.signatureReplayGuard);
 
-    router.post('/tunnel-token/:embedId', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+    router.post('/tunnel-token/:embedId', requireAuth, requireSignature, async (req: AuthenticatedRequest, res: Response) => {
         try {
             const { token, expiresAt } = services.tunnel.issue(req.params.embedId, req.ctx!);
             await services.audit.log({

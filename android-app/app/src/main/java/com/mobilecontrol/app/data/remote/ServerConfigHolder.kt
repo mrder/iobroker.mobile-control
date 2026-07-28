@@ -27,6 +27,12 @@ class ServerConfigHolder @Inject constructor() {
     @Volatile
     var instanceId: String? = null
 
+    /** SPKI SHA-256 pin of the server's TLS certificate, captured live during pairing - see
+     *  CertificatePinningInterceptor. Null means "not yet captured" or "plain-http deployment,
+     *  nothing to pin" - both are legitimate, unenforced states, not a security regression. */
+    @Volatile
+    var certificatePin: String? = null
+
     fun setServerUrl(rawUrl: String): Boolean {
         val parsed = rawUrl.toHttpUrlOrNull() ?: return false
         baseUrl = if (parsed.encodedPath.endsWith("/")) parsed else parsed.newBuilder().addPathSegment("").build()

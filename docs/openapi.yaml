@@ -8,6 +8,18 @@ info:
     ioBroker object tree or arbitrary state ids - only public object UUIDs from the
     filtered catalog. WebSocket contract (`/ws/v1`) is documented separately in
     `docs/API-VERTRAG.md` §8, since OpenAPI does not model WebSocket message flows.
+
+    **Every `bearerAuth`-protected endpoint additionally requires a per-request signature**
+    (see `src/security/requestSignature.ts`), on top of the bearer token - not modeled as a
+    second OpenAPI security scheme since it isn't a simple header value but a computed
+    signature over the request. Required headers:
+    - `X-Signature-Timestamp`: current epoch milliseconds
+    - `X-Signature-Nonce`: random, single-use per request
+    - `X-Signature`: base64 DER-encoded ECDSA/SHA-256 signature (device Keystore key) over
+      `METHOD\nPATH\nTIMESTAMP\nNONCE\nSHA256(body)`, where `PATH` starts at (and includes)
+      `/api/v1` regardless of any external reverse-proxy prefix, and the body hash is of the
+      exact raw request bytes (empty body -> hash of zero bytes). Missing or invalid headers
+      return `SIGNATURE_INVALID` (401); a reused nonce returns `REPLAY_DETECTED` (409).
 servers:
   - url: /api/v1
 

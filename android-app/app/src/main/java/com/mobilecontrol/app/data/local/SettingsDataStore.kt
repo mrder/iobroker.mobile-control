@@ -28,6 +28,7 @@ class SettingsDataStore @Inject constructor(
         val SERVER_URL = stringPreferencesKey("server_url")
         val SERVER_FINGERPRINT = stringPreferencesKey("server_fingerprint")
         val PAIRED_AT = longPreferencesKey("paired_at")
+        val CERTIFICATE_PIN = stringPreferencesKey("certificate_pin")
 
         val APP_LOCK_ENABLED = booleanPreferencesKey("app_lock_enabled")
         val BIOMETRIC_ENABLED = booleanPreferencesKey("biometric_enabled")
@@ -47,6 +48,7 @@ class SettingsDataStore @Inject constructor(
             serverUrl = prefs[Keys.SERVER_URL].orEmpty(),
             serverFingerprint = prefs[Keys.SERVER_FINGERPRINT].orEmpty(),
             pairedAt = prefs[Keys.PAIRED_AT] ?: 0L,
+            certificatePin = prefs[Keys.CERTIFICATE_PIN],
         )
     }
 
@@ -58,6 +60,11 @@ class SettingsDataStore @Inject constructor(
             prefs[Keys.SERVER_URL] = profile.serverUrl
             prefs[Keys.SERVER_FINGERPRINT] = profile.serverFingerprint
             prefs[Keys.PAIRED_AT] = profile.pairedAt
+            if (profile.certificatePin != null) {
+                prefs[Keys.CERTIFICATE_PIN] = profile.certificatePin
+            } else {
+                prefs.remove(Keys.CERTIFICATE_PIN)
+            }
         }
     }
 
@@ -69,6 +76,7 @@ class SettingsDataStore @Inject constructor(
             prefs.remove(Keys.SERVER_URL)
             prefs.remove(Keys.SERVER_FINGERPRINT)
             prefs.remove(Keys.PAIRED_AT)
+            prefs.remove(Keys.CERTIFICATE_PIN)
             prefs.remove(Keys.START_DASHBOARD_ID)
         }
     }

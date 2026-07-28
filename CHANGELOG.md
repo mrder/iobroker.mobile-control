@@ -8,6 +8,29 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.53] - master, Testbuild
+
+Große Sicherheitshärtung, live angefragt aus Sorge um Heimautomatisierungs-Sicherheit: Selbst mit
+einem gestohlenen Zugriffs-Token sollte niemand einen Befehl per curl/Postman wiederholen oder
+fälschen können.
+
+- **Signatur pro Anfrage**: Jede authentifizierte Anfrage (REST und die WebSocket-Verbindung)
+  erfordert jetzt zusätzlich eine Signatur mit dem hardwaregestützten Keystore-Schlüssel des
+  Geräts. Ein gestohlener Bearer-Token allein reicht nicht mehr aus - jede Signatur ist außerdem
+  nur einmal gültig (Zeitstempel + Einmal-Nummer + serverseitiger Wiederholungsschutz), eine
+  mitgeschnittene Anfrage kann also nicht später erneut abgeschickt werden.
+- **TLS-Zertifikats-Pinning**: Die App merkt sich beim Koppeln live das tatsächliche
+  Server-Zertifikat und vertraut ab dann nur noch genau diesem - schließt die Lücke, die reines
+  HTTPS nicht abdeckt (ein technisch vertrauenswürdiges, aber untergeschobenes Zertifikat). Siehe
+  DEPLOYMENT.md-Abschnitt "Zertifikats-Pinning" für die nötige Reverse-Proxy-Einrichtung
+  (`certbot --reuse-key`, sonst bricht die Kopplung bei jeder Zertifikatserneuerung).
+- **Kompatibilität**: Bereits gekoppelte Geräte funktionieren bei der Signaturpflicht sofort
+  weiter (ihr öffentlicher Schlüssel ist dem Server schon bekannt). Das Zertifikats-Pinning greift
+  für ein bestehendes Gerät erst nach der nächsten Neu-Kopplung - bis dahin einfach inaktiv, keine
+  bestehende Kopplung wird dadurch kaputt gemacht.
+- **Wichtig**: Backend und App müssen zusammen aktualisiert werden. Eine alte App-Version gegen
+  dieses Backend (oder umgekehrt) schlägt bei jeder authentifizierten Anfrage fehl.
+
 ## [0.0.52] - master, Testbuild
 
 Echte Ursache dafür gefunden, warum die App nach einer Weile Inaktivität komplett tot wirkte

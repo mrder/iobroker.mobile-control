@@ -6,6 +6,7 @@ import com.mobilecontrol.app.data.crypto.FingerprintCheckResult
 import com.mobilecontrol.app.data.crypto.KeystoreManager
 import com.mobilecontrol.app.data.crypto.ServerFingerprintChecker
 import com.mobilecontrol.app.data.local.DeviceNameProvider
+import com.mobilecontrol.app.data.remote.ServerConfigHolder
 import com.mobilecontrol.app.domain.model.ApiErrorCode
 import com.mobilecontrol.app.domain.model.ApiException
 import com.mobilecontrol.app.domain.model.DeviceProfile
@@ -46,6 +47,7 @@ class OnboardingViewModel @Inject constructor(
     private val fingerprintChecker: ServerFingerprintChecker,
     private val authRepository: AuthRepository,
     private val settingsRepository: SettingsRepository,
+    private val serverConfigHolder: ServerConfigHolder,
     deviceNameProvider: DeviceNameProvider,
 ) : ViewModel() {
 
@@ -171,6 +173,7 @@ class OnboardingViewModel @Inject constructor(
                 serverUrl = payload.serverUrl,
                 serverFingerprint = payload.serverFingerprint,
                 pairedAt = System.currentTimeMillis(),
+                certificatePin = serverConfigHolder.certificatePin,
             ),
         )
 

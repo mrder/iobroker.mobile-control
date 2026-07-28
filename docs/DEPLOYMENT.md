@@ -79,6 +79,34 @@ home.example.net {
 
 Caddy reicht WebSocket-Upgrades standardmäßig durch, keine Sonderkonfiguration nötig.
 
+### Zertifikats-Pinning (App)
+
+Seit v0.0.5x prüft die Android-App bei jeder Verbindung, ob das TLS-Zertifikat des Servers
+(Reverse Proxy) denselben öffentlichen Schlüssel verwendet wie beim allerersten Koppeln live
+gesehen ("Trust on First Use", ähnlich wie SSH-Host-Keys) - Schutz gegen ein untergeschobenes,
+fälschlich vertrauenswürdiges Zertifikat, zusätzlich zur normalen TLS-Prüfung durchs Betriebssystem.
+
+**Wichtig für den Betrieb**: Let's Encrypt vergibt bei jeder Erneuerung (alle ~90 Tage)
+standardmäßig einen **neuen** privaten Schlüssel - damit würde der gepinnte Wert nicht mehr passen
+und die App könnte sich nicht mehr verbinden, bis neu gekoppelt wird. Der Schlüssel muss deshalb
+über Erneuerungen hinweg stabil bleiben:
+
+```bash
+# certbot: denselben Schlüssel bei jeder Erneuerung weiterverwenden
+certbot renew --reuse-key
+# oder direkt bei der Erstausstellung festlegen:
+certbot certonly --reuse-key -d home.example.net
+```
+
+Bei Caddy mit automatischem TLS ist das Verhalten anders (Caddy behält den Schlüssel eines
+Zertifikats über dessen eigene Erneuerungen hinweg standardmäßig bei) - i.d.R. keine
+Zusatzkonfiguration nötig, im Zweifel aber vor dem produktiven Einsatz einmal die tatsächliche
+Erneuerung beobachten (z. B. `openssl s_client` vor/nach einer erzwungenen Erneuerung vergleichen).
+
+Ändert sich der Schlüssel doch einmal absichtlich (z. B. neuer Reverse Proxy, Zertifikat manuell
+neu ausgestellt), muss jedes gekoppelte Gerät einmalig neu gekoppelt werden, um den neuen Schlüssel
+zu übernehmen.
+
 ### Rate Limiting auf Proxy-Ebene
 
 Der Adapter hat bereits ein eigenes Rate-Limit pro Gerät für Kommandos (`rateLimitPerMinute` in

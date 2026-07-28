@@ -7,11 +7,17 @@ import kotlinx.serialization.json.JsonElement
 
 /** Must be the first message sent after the socket opens - the server (RealtimeGateway.handleAuth)
  *  does not read any query parameter on the upgrade request, only this message; it force-closes the
- *  connection after AUTH_TIMEOUT_MS (5s) if it never arrives. */
+ *  connection after AUTH_TIMEOUT_MS (5s) if it never arrives. timestamp/nonce/signature mirror the
+ *  same per-request signature every REST call carries (see RequestSigningInterceptor) - signature
+ *  is over "WS\n/ws/v1\nTIMESTAMP\nNONCE\nSHA256(accessToken)", verified against this device's
+ *  Keystore public key just like a REST request's body. */
 @Serializable
 data class WsAuthDto(
     val type: String = "auth",
     val accessToken: String,
+    val timestamp: String,
+    val nonce: String,
+    val signature: String,
 )
 
 @Serializable

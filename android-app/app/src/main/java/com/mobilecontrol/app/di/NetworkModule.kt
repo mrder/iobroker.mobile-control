@@ -4,7 +4,9 @@ import com.mobilecontrol.app.BuildConfig
 import com.mobilecontrol.app.data.remote.ApiService
 import com.mobilecontrol.app.data.remote.AppInfoInterceptor
 import com.mobilecontrol.app.data.remote.AuthHeaderInterceptor
+import com.mobilecontrol.app.data.remote.CertificatePinningInterceptor
 import com.mobilecontrol.app.data.remote.DynamicBaseUrlInterceptor
+import com.mobilecontrol.app.data.remote.RequestSigningInterceptor
 import com.mobilecontrol.app.data.remote.ServerConfigHolder
 import com.mobilecontrol.app.data.remote.TokenAuthenticator
 import dagger.Module
@@ -46,6 +48,8 @@ object NetworkModule {
     fun provideOkHttpClient(
         appInfoInterceptor: AppInfoInterceptor,
         authHeaderInterceptor: AuthHeaderInterceptor,
+        requestSigningInterceptor: RequestSigningInterceptor,
+        certificatePinningInterceptor: CertificatePinningInterceptor,
         dynamicBaseUrlInterceptor: DynamicBaseUrlInterceptor,
         tokenAuthenticator: TokenAuthenticator,
     ): OkHttpClient {
@@ -58,6 +62,8 @@ object NetworkModule {
             .addInterceptor(dynamicBaseUrlInterceptor)
             .addInterceptor(appInfoInterceptor)
             .addInterceptor(authHeaderInterceptor)
+            .addInterceptor(requestSigningInterceptor)
+            .addInterceptor(certificatePinningInterceptor)
             .addInterceptor(logging)
             .authenticator(tokenAuthenticator)
             .connectTimeout(15, TimeUnit.SECONDS)
@@ -84,6 +90,7 @@ object NetworkModule {
     fun provideAuthRefreshOkHttpClient(
         appInfoInterceptor: AppInfoInterceptor,
         dynamicBaseUrlInterceptor: DynamicBaseUrlInterceptor,
+        certificatePinningInterceptor: CertificatePinningInterceptor,
     ): OkHttpClient {
         val logging = HttpLoggingInterceptor().apply {
             level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BASIC else HttpLoggingInterceptor.Level.NONE
@@ -91,6 +98,7 @@ object NetworkModule {
         return OkHttpClient.Builder()
             .addInterceptor(dynamicBaseUrlInterceptor)
             .addInterceptor(appInfoInterceptor)
+            .addInterceptor(certificatePinningInterceptor)
             .addInterceptor(logging)
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)

@@ -7,6 +7,10 @@ data class DeviceProfile(
     val serverUrl: String,
     val serverFingerprint: String,
     val pairedAt: Long,
+    /** SPKI SHA-256 pin ("sha256/base64...") of the TLS certificate observed live during pairing -
+     *  null for a plain-http deployment (VPN-only, nothing to pin) or if pairing happened to
+     *  capture no handshake. See CertificatePinningInterceptor. */
+    val certificatePin: String? = null,
 )
 
 enum class PairingStatus {

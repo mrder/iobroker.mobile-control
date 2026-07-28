@@ -220,6 +220,25 @@ Dashboard:
 
 ## 8. WebSocket-Nachrichten
 
+Client, muss die erste Nachricht nach Verbindungsaufbau sein (der Server verwirft keine
+Query-Parameter am Upgrade, sondern erwartet ausschließlich diese Nachricht innerhalb von 5s,
+sonst wird die Verbindung geschlossen):
+
+```json
+{
+  "type": "auth",
+  "accessToken": "token",
+  "timestamp": "1700000000000",
+  "nonce": "zufällig, einmalig",
+  "signature": "base64, DER-kodierte ECDSA/SHA-256-Signatur über \"WS\\n/ws/v1\\nTIMESTAMP\\nNONCE\\nSHA256(accessToken)\""
+}
+```
+
+Server antwortet mit `{"type": "auth_ok"}` oder `{"type": "error", "code": "AUTH_REQUIRED"}`
+(gefolgt vom Verbindungsabbruch). Dieselbe Signaturpflicht wie bei jeder `bearerAuth`-REST-Anfrage
+(siehe `docs/openapi.yaml`), nur dass hier der Zugriffs-Token selbst (statt eines Bodys) signiert
+wird.
+
 Client:
 
 ```json

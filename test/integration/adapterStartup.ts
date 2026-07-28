@@ -14,7 +14,7 @@
  * before requiring src/main. Running it as a plain ts-node script sidesteps that entirely.
  */
 const assert = require('node:assert').strict;
-const { generateKeyPairSync, sign: cryptoSign } = require('node:crypto');
+const { generateKeyPairSync, sign: cryptoSign, randomBytes, createHash } = require('node:crypto');
 const http = require('node:http');
 const { MockDatabase } = require('@iobroker/testing');
 const { mockAdapterCore } = require('@iobroker/testing/build/tests/unit/mocks/mockAdapterCore');
@@ -43,6 +43,22 @@ async function step(name: string, fn: () => Promise<void>): Promise<void> {
         console.error(`  FAIL - ${name}`);
         throw err;
     }
+}
+
+/** Mirrors createSignatureMiddleware/verifyRequestSignature's exact canonical string, real EC
+ *  P-256 signature and all - every requireSignature-protected endpoint hit below needs this. */
+function signRequest(method: string, path: string, body: string | undefined, privateKey: unknown): Record<string, string> {
+    const timestamp = String(Date.now());
+    const nonce = randomBytes(16).toString('hex');
+    const bodyBytes = body ? Buffer.from(body, 'utf8') : Buffer.alloc(0);
+    const bodyHash = createHash('sha256').update(bodyBytes).digest('hex');
+    const canonical = `${method.toUpperCase()}\n${path}\n${timestamp}\n${nonce}\n${bodyHash}`;
+    const signature = cryptoSign('sha256', Buffer.from(canonical, 'utf8'), privateKey).toString('base64');
+    return {
+        'x-signature-timestamp': timestamp,
+        'x-signature-nonce': nonce,
+        'x-signature': signature,
+    };
 }
 
 async function main(): Promise<void> {
@@ -129,6 +145,7 @@ async function main(): Promise<void> {
     });
 
     let firstDeviceStatus!: { status: string; deviceId: string; accessToken: string; refreshToken: string };
+    let firstDevicePrivateKey!: unknown;
 
     await step('full pairing -> approval -> token flow issues working tokens', async () => {
         const user = await callAdmin<{ id: string }>('createUser', { name: 'Integration Test User', roleId: 'viewer' });
@@ -148,8 +165,9 @@ async function main(): Promise<void> {
             'GET /api/v1/server/info must return exactly the fingerprint embedded in QR invites, so the app can verify a scanned QR against it',
         );
 
-        const { publicKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+        const { publicKey, privateKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' });
         const publicKeyBase64 = publicKey.export({ type: 'spki', format: 'der' }).toString('base64');
+        firstDevicePrivateKey = privateKey;
 
         const claimRes = await fetch(`${BASE_URL}/api/v1/pairing/claim`, {
             method: 'POST',
@@ -188,7 +206,10 @@ async function main(): Promise<void> {
 
     await step('the issued access token authenticates a real catalog request', async () => {
         const res = await fetch(`${BASE_URL}/api/v1/catalog`, {
-            headers: { authorization: `Bearer ${firstDeviceStatus.accessToken}` },
+            headers: {
+                authorization: `Bearer ${firstDeviceStatus.accessToken}`,
+                ...signRequest('GET', '/api/v1/catalog', undefined, firstDevicePrivateKey),
+            },
         });
         assert.equal(res.status, 200);
         const catalog = (await res.json()) as { version: number; objects: unknown[] };
@@ -196,7 +217,12 @@ async function main(): Promise<void> {
 
         // delta support: passing the same version back must short-circuit to "unchanged"
         const deltaRes = await fetch(`${BASE_URL}/api/v1/catalog?version=${catalog.version}`, {
-            headers: { authorization: `Bearer ${firstDeviceStatus.accessToken}` },
+            headers: {
+                authorization: `Bearer ${firstDeviceStatus.accessToken}`,
+                // Query string is deliberately NOT part of the signed path (see
+                // requestSignature.ts) - signing "/api/v1/catalog" covers this call too.
+                ...signRequest('GET', '/api/v1/catalog', undefined, firstDevicePrivateKey),
+            },
         });
         assert.equal(deltaRes.status, 200);
         const delta = (await deltaRes.json()) as { version: number; unchanged?: boolean; objects?: unknown[] };
@@ -205,7 +231,10 @@ async function main(): Promise<void> {
 
         // a stale/wrong version must fall back to the full catalog
         const staleRes = await fetch(`${BASE_URL}/api/v1/catalog?version=999999999`, {
-            headers: { authorization: `Bearer ${firstDeviceStatus.accessToken}` },
+            headers: {
+                authorization: `Bearer ${firstDeviceStatus.accessToken}`,
+                ...signRequest('GET', '/api/v1/catalog', undefined, firstDevicePrivateKey),
+            },
         });
         const stale = (await staleRes.json()) as { objects?: unknown[] };
         assert.ok(Array.isArray(stale.objects));
@@ -350,7 +379,7 @@ async function main(): Promise<void> {
                 userId: user.id,
                 roleId: 'viewer',
             });
-            const { publicKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+            const { publicKey, privateKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' });
             const publicKeyBase64 = publicKey.export({ type: 'spki', format: 'der' }).toString('base64');
             const claimRes = await fetch(`${BASE_URL}/api/v1/pairing/claim`, {
                 method: 'POST',
@@ -383,7 +412,10 @@ async function main(): Promise<void> {
 
             const tokenRes = await fetch(`${BASE_URL}/api/v1/tunnel-token/${embed.id}`, {
                 method: 'POST',
-                headers: { authorization: `Bearer ${status.accessToken}` },
+                headers: {
+                    authorization: `Bearer ${status.accessToken}`,
+                    ...signRequest('POST', `/api/v1/tunnel-token/${embed.id}`, undefined, privateKey),
+                },
             });
             assert.equal(tokenRes.status, 200);
             const { token } = (await tokenRes.json()) as { token: string };

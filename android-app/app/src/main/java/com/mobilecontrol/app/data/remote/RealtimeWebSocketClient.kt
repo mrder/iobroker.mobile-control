@@ -1,5 +1,6 @@
 package com.mobilecontrol.app.data.remote
 
+import com.mobilecontrol.app.data.crypto.KeystoreManager
 import com.mobilecontrol.app.data.local.TokenStore
 import com.mobilecontrol.app.data.remote.dto.WsAuthDto
 import com.mobilecontrol.app.data.remote.dto.WsEnvelopeDto
@@ -22,17 +23,30 @@ import okhttp3.Request
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okio.ByteString
+import android.util.Base64
+import java.security.MessageDigest
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.min
 import kotlin.math.pow
 
+/** Sentinel "method"/"path" pair for the WS auth message's signature - mirrors
+ *  RealtimeGateway.WS_AUTH_SIGNATURE_METHOD/PATH on the backend exactly (see that file's doc for
+ *  why: there's only one WS endpoint, so this just keeps it going through the same signed-request
+ *  shape as every REST call rather than a parallel format). */
+private const val WS_AUTH_SIGNATURE_METHOD = "WS"
+private const val WS_AUTH_SIGNATURE_PATH = "/ws/v1"
+
+private fun ByteArray.toHexString(): String = joinToString("") { "%02x".format(it) }
+
 @Singleton
 class RealtimeWebSocketClient @Inject constructor(
     private val okHttpClient: OkHttpClient,
     private val serverConfigHolder: ServerConfigHolder,
     private val tokenStore: TokenStore,
+    private val keystoreManager: KeystoreManager,
 ) {
     private val json = Json { ignoreUnknownKeys = true }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -92,6 +106,24 @@ class RealtimeWebSocketClient @Inject constructor(
         webSocket = okHttpClient.newWebSocket(request, listener)
     }
 
+    /** Signs the access token with the device Keystore key - see WsAuthDto's own doc for the exact
+     *  canonical string, mirroring every REST request's signature (RequestSigningInterceptor). */
+    private suspend fun sendAuthMessage(webSocket: WebSocket, token: String) {
+        val timestamp = System.currentTimeMillis().toString()
+        val nonce = UUID.randomUUID().toString()
+        val bodyHashHex = MessageDigest.getInstance("SHA-256").digest(token.toByteArray(Charsets.UTF_8)).toHexString()
+        val canonical = "$WS_AUTH_SIGNATURE_METHOD\n$WS_AUTH_SIGNATURE_PATH\n$timestamp\n$nonce\n$bodyHashHex"
+        val signatureBytes = keystoreManager.sign(canonical.toByteArray(Charsets.UTF_8))
+        val signatureBase64 = Base64.encodeToString(signatureBytes, Base64.NO_WRAP)
+
+        webSocket.send(
+            json.encodeToString(
+                WsAuthDto.serializer(),
+                WsAuthDto(accessToken = token, timestamp = timestamp, nonce = nonce, signature = signatureBase64),
+            ),
+        )
+    }
+
     private val listener = object : WebSocketListener() {
         override fun onOpen(webSocket: WebSocket, response: okhttp3.Response) {
             // The raw socket is open, but NOT yet authenticated: the server (RealtimeGateway) never
@@ -105,7 +137,7 @@ class RealtimeWebSocketClient @Inject constructor(
                 webSocket.close(NORMAL_CLOSURE, "no token")
                 return
             }
-            webSocket.send(json.encodeToString(WsAuthDto.serializer(), WsAuthDto(accessToken = token)))
+            scope.launch { sendAuthMessage(webSocket, token) }
         }
 
         override fun onMessage(webSocket: WebSocket, text: String) {

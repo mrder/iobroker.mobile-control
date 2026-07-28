@@ -9,10 +9,17 @@ import java.io.IOException
 
 private val errorJson = Json { ignoreUnknownKeys = true }
 
-/** Runs a Retrofit call and maps HTTP/network failures onto the typed [ApiErrorCode] contract. */
-suspend fun <T> safeApiCall(block: suspend () -> Response<T>): Result<T> {
+/**
+ * Runs a Retrofit call and maps HTTP/network failures onto the typed [ApiErrorCode] contract.
+ * [onRawResponse] is an escape hatch for callers that need something off the raw okhttp3.Response
+ * this would otherwise discard (e.g. PairingRepositoryImpl reading the TLS handshake to capture a
+ * certificate pin) - invoked for both successful and unsuccessful HTTP responses, never for a
+ * thrown network exception.
+ */
+suspend fun <T> safeApiCall(onRawResponse: (Response<T>) -> Unit = {}, block: suspend () -> Response<T>): Result<T> {
     return try {
         val response = block()
+        onRawResponse(response)
         if (response.isSuccessful) {
             val body = response.body()
             if (body != null) {

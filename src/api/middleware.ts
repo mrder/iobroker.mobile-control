@@ -6,13 +6,23 @@ import type { DevicesService } from '../devices';
 import type { AuthContext } from '../authorization';
 import type { RateLimiter } from '../security/rateLimiter';
 import type { AbuseGuard } from '../security/abuseGuard';
+import type { ReplayGuard } from '../security/replayGuard';
+import { verifyRequestSignature } from '../security/requestSignature';
 import { isPrivateIp } from './localNetwork';
 
 export interface AuthenticatedRequest extends Request {
     ctx?: AuthContext;
     sessionId?: string;
     isLocalNetwork?: boolean;
+    /** Raw request body bytes, captured by express.json()'s verify hook in main.ts - needed
+     *  because signature verification must hash exactly what the client sent, not a re-serialized
+     *  version of the parsed body (key order/whitespace would differ and break every signature). */
+    rawBody?: Buffer;
 }
+
+const SIGNATURE_TIMESTAMP_HEADER = 'x-signature-timestamp';
+const SIGNATURE_NONCE_HEADER = 'x-signature-nonce';
+const SIGNATURE_HEADER = 'x-signature';
 
 export function sendError(res: Response, err: unknown): void {
     if (err instanceof ApiError) {
@@ -84,6 +94,64 @@ export function createAuthMiddleware(auth: AuthService, sessions: SessionsServic
             next();
         } catch (err) {
             sendError(res, err instanceof ApiError ? err : new ApiError('AUTH_REQUIRED'));
+        }
+    };
+}
+
+/**
+ * Requires a per-request signature from the paired device's Keystore key on top of the bearer
+ * token - closes the gap where a stolen/leaked access token alone would be enough to replay a
+ * request via curl. Must run AFTER createAuthMiddleware (needs req.ctx.deviceId already set).
+ *
+ * The signed payload is method + path + timestamp + nonce + body hash (see
+ * buildSignedCanonicalString) - path is anchored at "/api/v1" specifically because a reverse
+ * proxy in front of the adapter may add or strip its own prefix (see DEPLOYMENT.md), so
+ * req.originalUrl (which always starts at "/api/v1" - that's this router's own mount point,
+ * unaffected by whatever prefix a proxy added/removed before the request got here) is the one
+ * value both this adapter and the app can agree on regardless of deployment topology.
+ */
+export function createSignatureMiddleware(devices: DevicesService, replayGuard: ReplayGuard) {
+    return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
+        const deviceId = req.ctx?.deviceId;
+        if (!deviceId) {
+            // Defensive only - createAuthMiddleware must always run first in every route chain.
+            sendError(res, new ApiError('AUTH_REQUIRED'));
+            return;
+        }
+
+        const timestamp = req.header(SIGNATURE_TIMESTAMP_HEADER);
+        const nonce = req.header(SIGNATURE_NONCE_HEADER);
+        const signature = req.header(SIGNATURE_HEADER);
+        if (!timestamp || !nonce || !signature) {
+            sendError(res, new ApiError('SIGNATURE_INVALID', 'missing signature headers'));
+            return;
+        }
+
+        try {
+            const device = devices.require(deviceId);
+            const path = req.originalUrl.split('?')[0];
+            const valid = verifyRequestSignature({
+                method: req.method,
+                path,
+                timestamp,
+                nonce,
+                bodyBytes: req.rawBody ?? Buffer.alloc(0),
+                signatureBase64: signature,
+                devicePublicKeyBase64: device.publicKey,
+            });
+            if (!valid) {
+                sendError(res, new ApiError('SIGNATURE_INVALID'));
+                return;
+            }
+            // Only consumed once the signature itself checks out, so a garbage/forged signature
+            // attempt can't burn a nonce a legitimate request might still want to use.
+            if (!replayGuard.checkAndRemember(`sig:${deviceId}:${nonce}`)) {
+                sendError(res, new ApiError('REPLAY_DETECTED'));
+                return;
+            }
+            next();
+        } catch (err) {
+            sendError(res, err instanceof ApiError ? err : new ApiError('SIGNATURE_INVALID'));
         }
     };
 }

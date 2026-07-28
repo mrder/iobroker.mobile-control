@@ -6,7 +6,10 @@ import okhttp3.Interceptor
 import okhttp3.Response
 import javax.inject.Inject
 
-private val UNAUTHENTICATED_PATHS = listOf(
+/** Also used by RequestSigningInterceptor - these endpoints precede any device signature too,
+ *  same reasoning as the bearer token: nothing to sign with yet, or (auth/refresh) not required
+ *  server-side either, see createSignatureMiddleware's route wiring in router.ts. */
+val UNAUTHENTICATED_PATHS = listOf(
     "pairing/claim",
     "pairing/status",
     "auth/challenge",

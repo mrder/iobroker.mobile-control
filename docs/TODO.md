@@ -210,6 +210,7 @@
 - [x] lokal
 - [ ] VPN (nicht konfiguriert/getestet - Infrastrukturaufgabe beim Deployment)
 - [ ] Reverse Proxy (nicht konfiguriert/getestet)
+- [ ] **Reverse-Proxy-Zertifikat mit stabilem Schlüssel einrichten** (live besprochen, 2026-07-28): Die App pinnt seit v0.0.5x den beim Koppeln live gesehenen TLS-Schlüssel des Reverse-Proxys/Servers (Schutz gegen untergeschobene Zertifikate). Bei Let's-Encrypt-Erneuerung (alle ~90 Tage) bekäme certbot standardmäßig einen NEUEN Schlüssel, wodurch die App den Server nicht mehr erreichen und neu gekoppelt werden müsste. Admin-seitige Infrastrukturaufgabe: certbot mit `--reuse-key` betreiben (oder das Äquivalent im jeweiligen Reverse-Proxy/ACME-Client), damit der Schlüssel über Erneuerungen hinweg stabil bleibt. Siehe DEPLOYMENT.md-Abschnitt "Zertifikats-Pinning".
 - [ ] TLS (Adapter terminiert selbst kein TLS, siehe Code-Kommentar in main.ts)
 - [ ] WebSocket Proxy
 - [ ] Sicherheitsprüfung (interner Review-Durchgang fand & fixte 3 echte Lücken, siehe DEPLOYMENT.md; kein externes Review)

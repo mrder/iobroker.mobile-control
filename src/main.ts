@@ -47,6 +47,7 @@ import { ReplayGuard } from './security/replayGuard';
 import { RealtimeGateway } from './realtime';
 import { createApiRouter } from './api/router';
 import { createTunnelRouter } from './api/tunnelRouter';
+import type { AuthenticatedRequest } from './api/middleware';
 import { runMigrations } from './migrations';
 
 interface AdapterNativeConfig {
@@ -75,6 +76,10 @@ const STATUS_INTERVAL_MS = 15_000;
  *  for info.connection - see DevicesService.hasRecentlyActiveDevice's own docs for why this isn't
  *  just "does a WebSocket happen to be open right now". */
 const RECENT_ACTIVITY_WINDOW_MS = 5 * 60_000;
+/** Must stay >= requestSignature.ts's SIGNATURE_MAX_CLOCK_SKEW_MS - the timestamp check already
+ *  rejects anything outside that window on its own, so the nonce only needs to outlive it to make
+ *  replay detection airtight for the request's entire acceptance window. A bit of extra margin. */
+const SIGNATURE_REPLAY_GUARD_TTL_MS = 10 * 60_000;
 
 /** Non-internal IPv4 addresses of this host - shown in the admin tab so the user knows exactly
  * what to point a reverse proxy or VPN config at (see docs/DEPLOYMENT.md). */
@@ -265,6 +270,10 @@ class MobileControlAdapter extends utils.Adapter {
         // cannot spoof their own IP via that header; only an already-trusted local hop can forward
         // one.
         app.set('trust proxy', 'loopback, linklocal, uniquelocal');
+        // Shared by both routers below - per-request signatures (createSignatureMiddleware) use
+        // the "sig:" key prefix, distinct from CommandsService's own ReplayGuard for command
+        // nonces, so one instance safely covers every signed endpoint across both routers.
+        const signatureReplayGuard = new ReplayGuard(SIGNATURE_REPLAY_GUARD_TTL_MS);
         // Mounted BEFORE express.json() below, deliberately: /tunnel/proxy needs the request body
         // as untouched raw bytes regardless of content-type (see createTunnelRouter's own docs -
         // a JSON-parse-then-reserialize round trip would corrupt whatever the tunneled page sent).
@@ -279,9 +288,20 @@ class MobileControlAdapter extends utils.Adapter {
                 tunnel: this.tunnelService,
                 audit: this.auditService,
                 tunnelRateLimiter: new RateLimiter(300),
+                signatureReplayGuard,
             }),
         );
-        app.use(express.json({ limit: '256kb' }));
+        app.use(
+            express.json({
+                limit: '256kb',
+                // Signature verification (createSignatureMiddleware) must hash exactly the bytes
+                // the client sent, not a re-serialized version of the parsed body - captured here
+                // once, globally, rather than in every route handler.
+                verify: (req, _res, buf) => {
+                    (req as AuthenticatedRequest).rawBody = buf;
+                },
+            }),
+        );
         app.use(
             '/api/v1',
             createApiRouter({
@@ -302,6 +322,7 @@ class MobileControlAdapter extends utils.Adapter {
                 refreshTokenTtlDays: config.refreshTokenTtlDays,
                 authRateLimiter: new RateLimiter(config.authRateLimitPerMinute),
                 abuseGuard: this.abuseGuard,
+                signatureReplayGuard,
             }),
         );
 
@@ -315,6 +336,7 @@ class MobileControlAdapter extends utils.Adapter {
             this.devicesService,
             this.catalogService,
             this.commandsService,
+            signatureReplayGuard,
         );
 
         await this.listenWithRetry(server, config);

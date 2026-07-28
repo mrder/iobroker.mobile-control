@@ -5,6 +5,7 @@ import {
     createAuthMiddleware,
     createRateLimitMiddleware,
     createAbuseGuardMiddleware,
+    createSignatureMiddleware,
     type AuthenticatedRequest,
 } from './middleware';
 import type { AuthService } from '../auth';
@@ -22,6 +23,7 @@ import type { UrlEmbedsService } from '../urlEmbeds';
 import type { AlarmEventsService } from '../alarms';
 import type { RateLimiter } from '../security/rateLimiter';
 import type { AbuseGuard } from '../security/abuseGuard';
+import type { ReplayGuard } from '../security/replayGuard';
 import type { DashboardLayout } from '../lib/types';
 
 export interface ApiServices {
@@ -42,6 +44,9 @@ export interface ApiServices {
     refreshTokenTtlDays: number;
     authRateLimiter: RateLimiter;
     abuseGuard: AbuseGuard;
+    /** Separate from the command-replay ReplayGuard in CommandsService - different key namespace
+     *  (prefixed "sig:") and a much shorter, purely-anti-replay TTL, so give it its own instance. */
+    signatureReplayGuard: ReplayGuard;
 }
 
 /** Records a failed attempt and, the moment it crosses the threshold and triggers a new
@@ -83,6 +88,7 @@ async function issueSessionAndTokens(
 export function createApiRouter(services: ApiServices): Router {
     const router = Router();
     const requireAuth = createAuthMiddleware(services.auth, services.sessions, services.devices);
+    const requireSignature = createSignatureMiddleware(services.devices, services.signatureReplayGuard);
     const rateLimitByIp = createRateLimitMiddleware(services.authRateLimiter);
     const blockIfAbusive = createAbuseGuardMiddleware(services.abuseGuard);
 
@@ -269,7 +275,7 @@ export function createApiRouter(services: ApiServices): Router {
     });
 
     // ---- Catalog / States --------------------------------------------------
-    router.get('/catalog', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+    router.get('/catalog', requireAuth, requireSignature, async (req: AuthenticatedRequest, res: Response) => {
         try {
             // Delta support: if the client already has this exact version cached, skip the full
             // (relatively expensive) object-tree walk and just confirm nothing changed.
@@ -285,7 +291,7 @@ export function createApiRouter(services: ApiServices): Router {
         }
     });
 
-    router.get('/states', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+    router.get('/states', requireAuth, requireSignature, async (req: AuthenticatedRequest, res: Response) => {
         try {
             const idsParam = typeof req.query.ids === 'string' ? req.query.ids : '';
             const ids = idsParam
@@ -316,7 +322,7 @@ export function createApiRouter(services: ApiServices): Router {
         }
     });
 
-    router.get('/history', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+    router.get('/history', requireAuth, requireSignature, async (req: AuthenticatedRequest, res: Response) => {
         try {
             const id = typeof req.query.id === 'string' ? req.query.id : '';
             if (!id) {
@@ -348,7 +354,7 @@ export function createApiRouter(services: ApiServices): Router {
     // ---- Camera --------------------------------------------------------------
     // Proxied through this adapter (not a direct link to the camera/its adapter) so the app only
     // ever needs to reach mobile-control's own auth boundary - see CameraService for why.
-    router.get('/objects/:id/snapshot', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+    router.get('/objects/:id/snapshot', requireAuth, requireSignature, async (req: AuthenticatedRequest, res: Response) => {
         try {
             const { stateId } = services.catalog.resolveAuthorized(req.params.id, req.ctx!, 'read');
             const snapshot = await services.camera.fetchSnapshot(stateId);
@@ -365,11 +371,11 @@ export function createApiRouter(services: ApiServices): Router {
     // here, never a raw URL, and every fetch/resolve below happens by that id. Which embeds a
     // device even gets to see is itself access-controlled per role/user/device (see
     // UrlEmbedsService.canAccess), same default-deny-unless-granted model as object exposure.
-    router.get('/url-embeds', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    router.get('/url-embeds', requireAuth, requireSignature, (req: AuthenticatedRequest, res: Response) => {
         res.json({ embeds: services.urlEmbeds.listAccessible(req.ctx!).map((e) => ({ id: e.id, name: e.name })) });
     });
 
-    router.get('/url-embeds/:id/content', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+    router.get('/url-embeds/:id/content', requireAuth, requireSignature, async (req: AuthenticatedRequest, res: Response) => {
         try {
             if (!services.urlEmbeds.canAccess(req.params.id, req.ctx!)) {
                 throw new ApiError('READ_FORBIDDEN');
@@ -383,7 +389,7 @@ export function createApiRouter(services: ApiServices): Router {
         }
     });
 
-    router.get('/url-embeds/:id/resolve', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    router.get('/url-embeds/:id/resolve', requireAuth, requireSignature, (req: AuthenticatedRequest, res: Response) => {
         try {
             if (!services.urlEmbeds.canAccess(req.params.id, req.ctx!)) {
                 throw new ApiError('READ_FORBIDDEN');
@@ -398,7 +404,7 @@ export function createApiRouter(services: ApiServices): Router {
     // "Catch up on what I missed" for a client that was closed/backgrounded when an alarm fired -
     // see AlarmEventsService's own docs. Authorization is checked per-event here (not at
     // collection time), same pattern as the rest of this router.
-    router.get('/alarm-events', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+    router.get('/alarm-events', requireAuth, requireSignature, async (req: AuthenticatedRequest, res: Response) => {
         try {
             const since = typeof req.query.since === 'string' ? Number(req.query.since) : 0;
             const sinceMs = Number.isFinite(since) ? since : 0;
@@ -417,7 +423,7 @@ export function createApiRouter(services: ApiServices): Router {
     });
 
     // ---- Commands -----------------------------------------------------------
-    router.post('/commands', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+    router.post('/commands', requireAuth, requireSignature, async (req: AuthenticatedRequest, res: Response) => {
         try {
             const { commandId, objectId, value, timestamp, nonce, confirmed } = req.body ?? {};
             if (!commandId || !objectId || timestamp === undefined || !nonce) {
@@ -434,11 +440,11 @@ export function createApiRouter(services: ApiServices): Router {
     });
 
     // ---- Dashboards -----------------------------------------------------------
-    router.get('/dashboards', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    router.get('/dashboards', requireAuth, requireSignature, (req: AuthenticatedRequest, res: Response) => {
         res.json({ dashboards: services.dashboards.listForUser(req.ctx!.userId) });
     });
 
-    router.post('/dashboards', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+    router.post('/dashboards', requireAuth, requireSignature, async (req: AuthenticatedRequest, res: Response) => {
         try {
             const { name } = req.body ?? {};
             if (!name) {
@@ -451,7 +457,7 @@ export function createApiRouter(services: ApiServices): Router {
         }
     });
 
-    router.put('/dashboards/:id', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+    router.put('/dashboards/:id', requireAuth, requireSignature, async (req: AuthenticatedRequest, res: Response) => {
         try {
             const { name, layouts, isStartDashboard, revision } = req.body ?? {};
             if (typeof revision !== 'number') {
@@ -475,7 +481,7 @@ export function createApiRouter(services: ApiServices): Router {
         }
     });
 
-    router.delete('/dashboards/:id', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+    router.delete('/dashboards/:id', requireAuth, requireSignature, async (req: AuthenticatedRequest, res: Response) => {
         try {
             await services.dashboards.delete(req.ctx!.userId, req.params.id);
             res.status(204).send();
