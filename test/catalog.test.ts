@@ -179,6 +179,30 @@ describe('CatalogService', () => {
         assert.equal(folderNames['zigbee.0.living_room'], 'Wohnzimmer');
     });
 
+    it('effectiveCatalog never turns a container (folder/device) into a leaf object, even when a device-scoped rule also grants it read', async () => {
+        // Regression test for a real bug found live: a device-scoped exposure rule (grants the
+        // whole device sub-tree, e.g. "zigbee.0.living_room" and everything under it) also
+        // matches the container's OWN id, not just its children (see matchesScope's 'device'
+        // case: `stateId === rule.target || stateId.startsWith(...)`). Without the container-kind
+        // skip in effectiveCatalog(), that container then fell through the same leaf-object path
+        // as an actual state, with `path.slice(0, -1)` stripping its own id segment off - so it
+        // appeared as a loose flat item in ITS OWN PARENT folder, not as a device folder itself,
+        // visually mixed in with unrelated devices' real datapoints one level down.
+        const { exposureStore, catalog } = await setup();
+        await exposureStore.put(
+            baseRule({ scope: 'device', target: 'zigbee.0.living_room', roleId: 'viewer', read: true }),
+        );
+
+        const { objects } = await catalog.effectiveCatalog(CTX);
+        assert.equal(objects.length, 1, 'only the real leaf state should appear, not the container too');
+        assert.equal(objects[0].name, 'Wohnzimmer Temperatur');
+        assert.deepEqual(objects[0].path, ['zigbee', '0', 'living_room']);
+        assert.ok(
+            !objects.some((o) => o.name === 'Wohnzimmer'),
+            'the container itself (common.name "Wohnzimmer") must not appear as a catalog object',
+        );
+    });
+
     it('effectiveCatalog never leaks a folder name for a folder with no visible object beneath it', async () => {
         const { catalog } = await setup();
 

@@ -127,6 +127,20 @@ export class CatalogService {
 
         const objects: CatalogObject[] = [];
         for (const entry of entries) {
+            // Containers (folder/channel/device/adapter/instance) exist in `entries` purely to
+            // populate containerNames/folderNames above - they are not leaf datapoints and must
+            // never become a CatalogObject themselves. Live-confirmed real bug: without this
+            // skip, a zigbee device's own container object (e.g. "zigbee.0.00124b0024510164",
+            // common.name "SNZB-03 Bewegungsmelder Briefkasten") fell through to the same
+            // `path: entry.path.slice(0, -1)` leaf logic below, which strips a leaf's own id
+            // segment off its path - correct for an actual state, but for a container that
+            // strips the container's OWN identifying segment, leaving only its PARENT folder's
+            // path. The device then appeared as a loose, flat item directly inside its parent
+            // folder (e.g. "zigbee.0") instead of being recognized as its own device folder,
+            // visually mixed in with unrelated devices' actual datapoints one level down.
+            if (entry.kind === 'container') {
+                continue;
+            }
             // Same isolation principle as ExposureService.browseObjectTree(): one entry whose
             // permission resolution or mapping throws must not wipe every other category out of
             // the catalog for this client - skip and log it instead.

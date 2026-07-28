@@ -8,6 +8,24 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.54] - master, Testbuild
+
+Echten Fehler behoben, live direkt nach dem Signatur-Update gefunden (aus den echten Daten auf
+dem Tablet bestätigt): Geräte-Ordner im Objektbaum landeten als lose Einzelelemente im falschen
+übergeordneten Ordner.
+
+- **Symptom**: Unter Ordnern wie „zigbee" tauchten einzelne Einträge auf (z. B. der Gerätename
+  eines Bewegungsmelders), die eigentlich als eigener Geräte-Ordner erscheinen sollten - optisch
+  vermischt mit den echten Messwerten anderer Geräte eine Ebene tiefer.
+- **Ursache**: `effectiveCatalog()` im Backend hat Container-Objekte (Ordner/Geräte/Kanäle) zwar
+  genutzt, um Ordnernamen aufzulösen, sie aber nie aus der Liste der echten Datenpunkte
+  ausgeschlossen. Griff eine geräteweite Freigaberegel (die eigentlich nur die Kind-Objekte
+  freigeben soll) zufällig auch auf das Container-Objekt selbst, lief dieses über denselben Pfad
+  wie ein echter Messwert und verlor dabei sein eigenes ID-Segment aus dem Pfad.
+- **Fix**: Container-Objekte werden jetzt explizit aus der Liste der Katalog-Objekte
+  ausgeschlossen - sie dienen ausschließlich der Namens-Auflösung für `folderNames`.
+- Neuer Regressionstest in `test/catalog.test.ts`, der genau dieses Freigabe-Szenario nachbildet.
+
 ## [0.0.53] - master, Testbuild
 
 Große Sicherheitshärtung, live angefragt aus Sorge um Heimautomatisierungs-Sicherheit: Selbst mit
