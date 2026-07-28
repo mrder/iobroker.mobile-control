@@ -5,6 +5,15 @@ import kotlinx.serialization.json.JsonElement
 
 // Outgoing
 
+/** Must be the first message sent after the socket opens - the server (RealtimeGateway.handleAuth)
+ *  does not read any query parameter on the upgrade request, only this message; it force-closes the
+ *  connection after AUTH_TIMEOUT_MS (5s) if it never arrives. */
+@Serializable
+data class WsAuthDto(
+    val type: String = "auth",
+    val accessToken: String,
+)
+
 @Serializable
 data class WsSubscribeDto(
     val type: String = "subscribe",

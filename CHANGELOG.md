@@ -8,6 +8,28 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.51] - master, Testbuild
+
+Echte Ursache hinter "nichts geht" / "Adapter nicht verbunden" / "Objektnamen fehlen" gefunden:
+ein Protokollfehler zwischen App und Backend, keine wacklige Verbindung.
+
+- **Kernfehler**: Die Live-Verbindung (WebSocket) der App hat sich über den Token als
+  URL-Parameter angemeldet - das Backend liest diesen Parameter aber nie. Es erwartet
+  stattdessen eine bestimmte Nachricht direkt nach Verbindungsaufbau und trennt die Verbindung
+  zwangsweise, wenn sie nicht innerhalb von 5 Sekunden ankommt. Die App hat diese Nachricht nie
+  gesendet - die Verbindung wirkte "offen", war aber nie wirklich authentifiziert. Dadurch wurden
+  Live-Wert-Updates, Befehlsbestätigungen und Abonnierungen die ganze Zeit vom Server
+  stillschweigend abgelehnt, und die Verbindungsanzeige des Adapters sprang deshalb immer wieder
+  auf "nicht verbunden" zurück (sie zählt nur echt authentifizierte Verbindungen). Die App sendet
+  jetzt die korrekte Anmelde-Nachricht und wartet auf die Bestätigung des Servers, bevor sie die
+  Verbindung als bereit behandelt.
+- **Verwandter Fehler**: Ordnernamen im Objektbaum wurden nur im Arbeitsspeicher gehalten und bei
+  jedem App-Neustart geleert - ein einziger fehlgeschlagener Katalog-Abruf (z.B. wegen genau
+  dieses Verbindungsproblems) hat sie für den Rest der Sitzung gelöscht. Das sah exakt wie ein
+  Rückfall der bereits behobenen Objektbaum-Namen aus, obwohl die Lösung selbst nie kaputt war.
+  Ordnernamen werden jetzt wie der Rest des Katalogs zwischengespeichert (neue Room-Tabelle) und
+  überstehen einen fehlgeschlagenen Abruf.
+
 ## [0.0.50] - master, Testbuild
 
 Sicherheitsfehler bei der PIN-Prüfung behoben, Sperre nach Fehlversuchen ergänzt, doppeltes

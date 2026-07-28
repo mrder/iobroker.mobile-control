@@ -8,10 +8,12 @@ interface ObjectCatalogRepository {
     fun observeCatalog(): Flow<List<ObjectCatalogItem>>
 
     /** Folder id (dot-joined path prefix) -> display name, for building a readable object tree
-     *  (see buildObjectTree). Deliberately in-memory only, not part of the Room cache: it's a
-     *  cosmetic label, not data anyone needs offline, and adding a whole second persisted table
-     *  (with its own migration) for it isn't worth it - offline/before-first-refresh simply falls
-     *  back to the raw id segment, same as before this existed. */
+     *  (see buildObjectTree). Backed by Room (FolderNameEntity), same as [observeCatalog] - it used
+     *  to be in-memory only, which live-confirmed as a real problem: it reset to empty on every
+     *  process start and stayed empty for the whole session if the very next refresh happened to
+     *  fail (e.g. a connectivity hiccup), making a correctly-working name-resolution feature look
+     *  like it had regressed back to raw ids. Persisting it means a failed refresh just keeps
+     *  showing the last known names, consistent with how the rest of the catalog behaves offline. */
     fun observeFolderNames(): Flow<Map<String, String>>
 
     /** Refreshes from network and updates the Room cache. */

@@ -1,7 +1,9 @@
 package com.mobilecontrol.app.data.repository
 
 import com.mobilecontrol.app.data.local.dao.CatalogDao
+import com.mobilecontrol.app.data.local.dao.FolderNameDao
 import com.mobilecontrol.app.data.local.entity.CatalogObjectEntity
+import com.mobilecontrol.app.data.local.entity.FolderNameEntity
 import com.mobilecontrol.app.data.remote.ApiService
 import com.mobilecontrol.app.data.remote.dto.ObjectDto
 import com.mobilecontrol.app.data.remote.safeApiCall
@@ -10,30 +12,26 @@ import com.mobilecontrol.app.domain.model.ObjectCatalogItem
 import com.mobilecontrol.app.domain.model.ValueType
 import com.mobilecontrol.app.domain.repository.ObjectCatalogRepository
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
 class ObjectCatalogRepositoryImpl @Inject constructor(
     private val apiService: ApiService,
     private val catalogDao: CatalogDao,
+    private val folderNameDao: FolderNameDao,
 ) : ObjectCatalogRepository {
-
-    // In-memory only - see ObjectCatalogRepository.observeFolderNames doc for why this
-    // deliberately isn't part of the Room cache.
-    private val folderNames = MutableStateFlow<Map<String, String>>(emptyMap())
 
     override fun observeCatalog(): Flow<List<ObjectCatalogItem>> =
         catalogDao.observeAll().map { entities -> entities.map { it.toDomain() } }
 
-    override fun observeFolderNames(): Flow<Map<String, String>> = folderNames.asStateFlow()
+    override fun observeFolderNames(): Flow<Map<String, String>> =
+        folderNameDao.observeAll().map { entities -> entities.associate { it.id to it.name } }
 
     override suspend fun refreshCatalog(): Result<Unit> {
         val result = safeApiCall { apiService.getCatalog() }
         val body = result.getOrElse { return Result.failure(it) }
         catalogDao.replaceAll(body.objects.map { it.toEntity() })
-        folderNames.value = body.folderNames
+        folderNameDao.replaceAll(body.folderNames.map { (id, name) -> FolderNameEntity(id, name) })
         return Result.success(Unit)
     }
 }

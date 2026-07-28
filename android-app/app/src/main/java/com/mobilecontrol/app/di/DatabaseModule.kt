@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.mobilecontrol.app.data.local.AppDatabase
 import com.mobilecontrol.app.data.local.dao.CatalogDao
 import com.mobilecontrol.app.data.local.dao.DashboardDao
+import com.mobilecontrol.app.data.local.dao.FolderNameDao
 import com.mobilecontrol.app.data.local.dao.StateCacheDao
 import dagger.Module
 import dagger.Provides
@@ -32,4 +33,7 @@ object DatabaseModule {
 
     @Provides
     fun provideStateCacheDao(db: AppDatabase): StateCacheDao = db.stateCacheDao()
+
+    @Provides
+    fun provideFolderNameDao(db: AppDatabase): FolderNameDao = db.folderNameDao()
 }

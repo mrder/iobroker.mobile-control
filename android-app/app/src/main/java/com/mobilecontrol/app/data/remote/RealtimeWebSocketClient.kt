@@ -1,6 +1,7 @@
 package com.mobilecontrol.app.data.remote
 
 import com.mobilecontrol.app.data.local.TokenStore
+import com.mobilecontrol.app.data.remote.dto.WsAuthDto
 import com.mobilecontrol.app.data.remote.dto.WsEnvelopeDto
 import com.mobilecontrol.app.data.remote.dto.WsCommandResultDto
 import com.mobilecontrol.app.data.remote.dto.WsSessionRevokedDto
@@ -45,6 +46,10 @@ class RealtimeWebSocketClient @Inject constructor(
     private var reconnectAttempt = 0
     private val pendingSubscriptions = mutableSetOf<String>()
 
+    /** Token this connection attempt authenticated (or is authenticating) with - set right before
+     *  opening the socket, sent as the required auth message once [onOpen] fires. See [openSocket]. */
+    private var connectingToken: String? = null
+
     fun connect() {
         userRequestedDisconnect.set(false)
         scope.launch { openSocket() }
@@ -76,13 +81,12 @@ class RealtimeWebSocketClient @Inject constructor(
     private suspend fun openSocket() {
         val restBase = serverConfigHolder.baseUrl ?: return
         val token = tokenStore.getAccessToken() ?: return
+        connectingToken = token
 
         // OkHttp's HttpUrl only accepts http/https schemes (it rejects ws/wss outright) - this is
         // intentional on OkHttp's part: newWebSocket() performs the protocol upgrade internally
         // over a plain http(s) URL, there is no separate ws(s) scheme to build here.
-        val wsUrl = restBase.resolve("ws/v1")?.newBuilder()
-            ?.addQueryParameter("access_token", token)
-            ?.build() ?: return
+        val wsUrl = restBase.resolve("ws/v1") ?: return
 
         val request = Request.Builder().url(wsUrl).build()
         webSocket = okHttpClient.newWebSocket(request, listener)
@@ -90,12 +94,18 @@ class RealtimeWebSocketClient @Inject constructor(
 
     private val listener = object : WebSocketListener() {
         override fun onOpen(webSocket: WebSocket, response: okhttp3.Response) {
-            reconnectAttempt = 0
-            scope.launch { _events.emit(WsEvent.Connected) }
-            if (pendingSubscriptions.isNotEmpty()) {
-                subscribe(pendingSubscriptions.toSet())
+            // The raw socket is open, but NOT yet authenticated: the server (RealtimeGateway) never
+            // reads a query-param token on the upgrade request - it requires this explicit message
+            // as the first thing sent, and force-closes the connection after 5s (AUTH_TIMEOUT_MS) if
+            // it never arrives. Everything that depends on being truly connected (WsEvent.Connected,
+            // flushing pendingSubscriptions, the heartbeat watchdog) waits for the server's "auth_ok"
+            // reply in handleMessage below instead of firing here.
+            val token = connectingToken
+            if (token == null) {
+                webSocket.close(NORMAL_CLOSURE, "no token")
+                return
             }
-            startHeartbeatWatchdog()
+            webSocket.send(json.encodeToString(WsAuthDto.serializer(), WsAuthDto(accessToken = token)))
         }
 
         override fun onMessage(webSocket: WebSocket, text: String) {
@@ -123,6 +133,15 @@ class RealtimeWebSocketClient @Inject constructor(
 
     private fun handleMessage(text: String) {
         val type = runCatching { json.decodeFromString(WsEnvelopeDto.serializer(), text).type }.getOrNull() ?: return
+
+        // The server's reply to our WsAuthDto - not a WsEvent itself, it's what actually flips this
+        // connection from "socket open" to "usable" (see the comment in onOpen above).
+        if (type == "auth_ok") {
+            onAuthenticated()
+            heartbeatReceivedAt = System.currentTimeMillis()
+            return
+        }
+
         val event: WsEvent? = when (type) {
             "state_update" -> runCatching { json.decodeFromString(WsStateUpdateDto.serializer(), text) }.getOrNull()
                 ?.let { WsEvent.StateUpdate(it.objectId, it.value, it.timestamp, it.lastChange, it.ack) }
@@ -138,10 +157,21 @@ class RealtimeWebSocketClient @Inject constructor(
 
             "heartbeat", "ping" -> WsEvent.Heartbeat
 
-            else -> null // unknown message types are ignored defensively rather than crashing the pipe
+            // "error" (e.g. AUTH_REQUIRED) is always followed by the server closing the socket, so
+            // onClosed's own reconnect handling already covers it - nothing extra to do here.
+            else -> null // unknown/unhandled message types are ignored defensively rather than crashing the pipe
         }
         heartbeatReceivedAt = System.currentTimeMillis()
         event?.let { scope.launch { _events.emit(it) } }
+    }
+
+    private fun onAuthenticated() {
+        reconnectAttempt = 0
+        scope.launch { _events.emit(WsEvent.Connected) }
+        if (pendingSubscriptions.isNotEmpty()) {
+            subscribe(pendingSubscriptions.toSet())
+        }
+        startHeartbeatWatchdog()
     }
 
     @Volatile private var heartbeatReceivedAt: Long = System.currentTimeMillis()
