@@ -8,6 +8,24 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.57] - master, Testbuild
+
+Nächster, live bestätigter Rückschritt behoben: die Verbindung baute sich zwar jedes Mal
+erfolgreich auf, brach dann aber alle 15-20 Sekunden wieder ab und neu, dauerhaft in Dauerschleife.
+
+- **Symptom**: Im Protokoll erfolgreiche Verbindungsaufbauten im Sekundentakt (~15-20s), die
+  Anmeldung klappte jedes Mal, trotzdem kein stabiler Live-Betrieb - Schalterstatus blieb weiter
+  unzuverlässig, „letzte Verbindung" sprang nie auf „gerade eben".
+- **Ursache**: Zusätzlich zum eigenen, bereits funktionierenden Herzschlag-Mechanismus (JSON-
+  Nachricht alle 30s) hatte der zugrunde liegende Netzwerk-Client noch eine eigene, niedrigstufige
+  automatische Ping/Pong-Prüfung alle 20 Sekunden aktiv. Kam darauf keine rechtzeitige Antwort
+  zurück (z. B. weil Mobilfunknetz/Router diese Kontrollpakete nicht zuverlässig durchreichen),
+  hat der Netzwerk-Client die Verbindung selbst als gestört eingestuft und sofort gekappt - unab-
+  hängig vom eigenen, tatsächlich funktionierenden Herzschlag.
+- **Fix**: Die zusätzliche automatische Ping/Pong-Prüfung entfernt. Die App verlässt sich jetzt
+  ausschließlich auf ihren eigenen, bereits bewährten Herzschlag-Mechanismus zur Erkennung toter
+  Verbindungen.
+
 ## [0.0.56] - master, Testbuild
 
 Echten, live bestätigten Rückschritt aus v0.0.55 behoben, plus die App-Versionsnummer endlich

@@ -68,7 +68,17 @@ object NetworkModule {
             .authenticator(tokenAuthenticator)
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
-            .pingInterval(20, TimeUnit.SECONDS)
+            // Deliberately NOT using OkHttp's own pingInterval() for WebSocket keep-alive - live-
+            // confirmed as a real problem: the realtime connection was reconnecting every ~15-20s
+            // even though it authenticated successfully every single time, closely matching this
+            // 20s interval. RealtimeGateway/RealtimeWebSocketClient already have their own, fully
+            // independent, already-proven-working liveness mechanism (server sends a {"type":
+            // "heartbeat"} JSON message every 30s, client force-reconnects if none arrives within
+            // 45s) - running OkHttp's own low-level ping/pong on top of that was redundant, and
+            // whatever made it fail this fast (most likely a reverse proxy or the mobile network's
+            // own NAT/idle handling not passing raw WS ping/pong frames through as promptly as
+            // OkHttp expects) was actively breaking the connection our own mechanism never had a
+            // problem with.
             .build()
     }
 
