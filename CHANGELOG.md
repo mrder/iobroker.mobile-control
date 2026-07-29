@@ -8,6 +8,16 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.59] - master, Testbuild
+
+Nur Adapter-Änderung, weiter im Rahmen der laufenden Live-Verbindungs-Untersuchung: Die neue
+Log-Zeile aus v0.0.58 (genauer Ablehnungsgrund im try/catch) wurde nie ausgelöst - das
+Anmeldeversuch wird also schon vorher, bei einer einfachen Typprüfung der eingehenden Felder,
+abgewiesen, bevor der eigentliche Prüfcode überhaupt läuft. Neue, gezieltere Log-Zeile direkt beim
+Empfang der Anmeldenachricht ergänzt, die für jedes erwartete Feld (Zugriffstoken, Zeitstempel,
+Nonce, Signatur) protokolliert, ob es überhaupt ankommt und welchen Typ es hat - ohne die
+eigentlichen Werte preiszugeben.
+
 ## [0.0.58] - master, Testbuild
 
 Noch nicht der finale Fix - Zwischenstand der laufenden Untersuchung, warum die Live-Verbindung

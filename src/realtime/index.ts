@@ -118,6 +118,16 @@ export class RealtimeGateway {
         }
 
         if (msg.type === 'auth') {
+            // TEMPORARY - remove once the "WS auth always fails, REST with the same token/signature
+            // works fine" investigation is closed out. Deliberately logs field TYPES/PRESENCE only,
+            // never the actual accessToken/signature values.
+            this.adapter.log.warn(
+                `mobile-control: WS auth message received - accessToken=${typeof msg.accessToken}(len=${
+                    typeof msg.accessToken === 'string' ? msg.accessToken.length : 'n/a'
+                }) timestamp=${typeof msg.timestamp}(${msg.timestamp}) nonce=${typeof msg.nonce}(${msg.nonce}) signature=${typeof msg.signature}(len=${
+                    typeof msg.signature === 'string' ? msg.signature.length : 'n/a'
+                })`,
+            );
             await this.handleAuth(connection, msg.accessToken, msg.timestamp, msg.nonce, msg.signature);
             return;
         }
