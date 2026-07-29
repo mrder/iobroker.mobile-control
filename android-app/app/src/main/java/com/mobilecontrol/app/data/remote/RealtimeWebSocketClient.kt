@@ -56,6 +56,7 @@ class RealtimeWebSocketClient @Inject constructor(
 
     private var webSocket: WebSocket? = null
     private var heartbeatWatchdog: Job? = null
+    private var authTimeoutJob: Job? = null
     private val userRequestedDisconnect = AtomicBoolean(false)
     private var reconnectAttempt = 0
     private val pendingSubscriptions = mutableSetOf<String>()
@@ -89,6 +90,7 @@ class RealtimeWebSocketClient @Inject constructor(
         userRequestedDisconnect.set(true)
         isActive.set(false)
         heartbeatWatchdog?.cancel()
+        authTimeoutJob?.cancel()
         webSocket?.close(NORMAL_CLOSURE, "client disconnect")
         webSocket = null
     }
@@ -160,6 +162,7 @@ class RealtimeWebSocketClient @Inject constructor(
                 return
             }
             scope.launch { sendAuthMessage(webSocket, token) }
+            startAuthTimeoutWatchdog(webSocket)
         }
 
         override fun onMessage(webSocket: WebSocket, text: String) {
@@ -172,6 +175,7 @@ class RealtimeWebSocketClient @Inject constructor(
 
         override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
             heartbeatWatchdog?.cancel()
+            authTimeoutJob?.cancel()
             val willReconnect = !userRequestedDisconnect.get()
             scope.launch { _events.emit(WsEvent.Disconnected(willReconnect)) }
             if (willReconnect) scheduleReconnect()
@@ -179,6 +183,7 @@ class RealtimeWebSocketClient @Inject constructor(
 
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: okhttp3.Response?) {
             heartbeatWatchdog?.cancel()
+            authTimeoutJob?.cancel()
             val willReconnect = !userRequestedDisconnect.get()
             scope.launch { _events.emit(WsEvent.Disconnected(willReconnect)) }
             if (willReconnect) scheduleReconnect()
@@ -220,12 +225,40 @@ class RealtimeWebSocketClient @Inject constructor(
     }
 
     private fun onAuthenticated() {
+        authTimeoutJob?.cancel()
         reconnectAttempt = 0
         scope.launch { _events.emit(WsEvent.Connected) }
         if (pendingSubscriptions.isNotEmpty()) {
             subscribe(pendingSubscriptions.toSet())
         }
         startHeartbeatWatchdog()
+    }
+
+    /**
+     * Guards the "socket opened, auth message sent, but the server never replies at all - neither
+     * auth_ok nor an error+close" case. Live-confirmed as a real, severe bug: nothing else was
+     * watching this state (startHeartbeatWatchdog only ever starts AFTER onAuthenticated fires),
+     * so a connection stuck here just sat open forever, doing nothing. Before the isActive guard
+     * above existed, this was accidentally papered over - some other uncoordinated connect() call
+     * from elsewhere in the app would eventually spawn a fresh, unstuck connection alongside it.
+     * Once isActive started correctly refusing those duplicate attempts, a connection landing in
+     * this exact stuck state had no way to ever recover on its own again (confirmed live: "letzte
+     * Verbindung" stuck 6 hours in the past, Diagnose log showing repeated
+     * "disconnected(willReconnect=true)" that never actually reconnects afterward).
+     */
+    private fun startAuthTimeoutWatchdog(openedSocket: WebSocket) {
+        authTimeoutJob?.cancel()
+        authTimeoutJob = scope.launch {
+            delay(AUTH_ACK_TIMEOUT_MS)
+            openedSocket.cancel()
+            if (webSocket === openedSocket) {
+                webSocket = null
+            }
+            if (!userRequestedDisconnect.get()) {
+                _events.emit(WsEvent.Disconnected(true))
+                scheduleReconnect()
+            }
+        }
     }
 
     @Volatile private var heartbeatReceivedAt: Long = System.currentTimeMillis()
@@ -266,5 +299,9 @@ class RealtimeWebSocketClient @Inject constructor(
         const val HEARTBEAT_TIMEOUT_MS = 45_000L
         const val BASE_BACKOFF_MS = 1_000L
         const val MAX_BACKOFF_MS = 30_000L
+        // Comfortably above the server's own 5s AUTH_TIMEOUT_MS (RealtimeGateway) plus margin for
+        // the Keystore signing operation and network latency, but short enough that a truly stuck
+        // connection (server never replies at all) doesn't sit unusable for long before recovering.
+        const val AUTH_ACK_TIMEOUT_MS = 10_000L
     }
 }

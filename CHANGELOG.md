@@ -8,6 +8,28 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.56] - master, Testbuild
+
+Echten, live bestätigten Rückschritt aus v0.0.55 behoben, plus die App-Versionsnummer endlich
+sichtbar mitgeführt.
+
+- **Symptom**: Nach dem Speicherleck-Fix aus v0.0.55 blieb die Live-Verbindung irgendwann
+  dauerhaft tot hängen - „letzte Verbindung" in den Einstellungen stand 6 Stunden in der
+  Vergangenheit, das Protokoll zeigte wiederholt „disconnected(willReconnect=true)", ohne dass
+  sich je wieder etwas tat.
+- **Ursache**: Öffnet sich eine Verbindung, bekommt aber nie irgendeine Antwort auf ihre
+  Anmeldung (weder „auth_ok" noch einen Fehler), gab es dafür keine Zeitüberschreitung - nichts
+  hat das je bemerkt. Vor dem Speicherleck-Fix wurde das zufällig überdeckt: Ein anderer,
+  unkoordinierter `connect()`-Aufruf hat irgendwann eine zweite, funktionierende Verbindung
+  daneben aufgebaut. Durch die neue Sperre gegen doppelte Verbindungen (v0.0.55) konnte das nicht
+  mehr passieren - die Lücke wurde dadurch erst sichtbar.
+- **Fix**: Neue 10-Sekunden-Zeitüberschreitung fürs Anmelden nach dem Verbindungsaufbau - bleibt
+  die Antwort aus, gibt die App den Versuch auf und startet automatisch neu, genau wie bei jeder
+  anderen Verbindungsstörung.
+- **Außerdem**: Die App-Versionsnummer in den Einstellungen stand immer auf „0.1.0-debug", egal
+  welcher Build installiert war - wird jetzt bei jedem Release mit der Adapter-Version
+  mitgeführt.
+
 ## [0.0.55] - master, Testbuild
 
 Echten, live bestätigten Fehler behoben: ein Verbindungs-Speicherleck bei der Live-Verbindung,

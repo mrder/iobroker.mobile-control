@@ -20,8 +20,13 @@ android {
         // down to API 26. compileSdk/targetSdk stay at the current release per the concept.
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0"
+        // Kept in sync with the adapter's own package.json/io-package.json version on every
+        // release from now on (live-requested, 2026-07-29: this was never bumped before, so
+        // Einstellungen always showed the same "0.1.0-debug" no matter which build was actually
+        // installed, making it impossible to visually confirm which version was running).
+        // versionCode just needs to strictly increase - bump by 1 each release alongside versionName.
+        versionCode = 2
+        versionName = "0.0.56"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
