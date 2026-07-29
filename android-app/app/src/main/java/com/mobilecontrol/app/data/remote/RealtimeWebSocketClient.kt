@@ -25,7 +25,6 @@ import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okio.ByteString
 import android.util.Base64
-import android.util.Log
 import java.security.MessageDigest
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
@@ -50,8 +49,16 @@ class RealtimeWebSocketClient @Inject constructor(
     private val tokenStore: TokenStore,
     private val keystoreManager: KeystoreManager,
     private val authRepository: AuthRepository,
+    // Deliberately the shared DI instance (NetworkModule.provideJson), NOT a locally-built Json -
+    // live-confirmed as the actual root cause of the whole "auth_ok never arrives" investigation:
+    // a local `Json { ignoreUnknownKeys = true }` here defaults encodeDefaults to false, which
+    // silently OMITS WsAuthDto's `type` field from the outgoing JSON entirely, since it's always
+    // equal to its own default value "auth" and kotlinx.serialization only encodes a field with a
+    // default value when encodeDefaults is explicitly true. The server never saw a "type" field at
+    // all, so `msg.type === 'auth'` was always false - the auth message was never even recognized
+    // as an auth message, let alone verified, no matter how valid the token/signature were.
+    private val json: Json,
 ) {
-    private val json = Json { ignoreUnknownKeys = true }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val _events = MutableSharedFlow<WsEvent>(extraBufferCapacity = 64)
@@ -127,11 +134,8 @@ class RealtimeWebSocketClient @Inject constructor(
         // never recovered (no equivalent of TokenAuthenticator exists on the WS path).
         val expiresAt = tokenStore.getAccessTokenExpiresAt()
         val msUntilExpiry = expiresAt - System.currentTimeMillis()
-        Log.d(DEBUG_TAG, "openSocket: cached access token expires in ${msUntilExpiry}ms")
         if (msUntilExpiry < TOKEN_REFRESH_SAFETY_MARGIN_MS) {
-            Log.d(DEBUG_TAG, "openSocket: token near/past expiry, refreshing before connecting")
-            val refreshed = authRepository.refresh()
-            Log.d(DEBUG_TAG, "openSocket: refresh result=${refreshed.isSuccess}")
+            authRepository.refresh()
         }
 
         val token = tokenStore.getAccessToken() ?: run { isActive.set(false); return }
@@ -162,15 +166,15 @@ class RealtimeWebSocketClient @Inject constructor(
             val signatureBytes = keystoreManager.sign(canonical.toByteArray(Charsets.UTF_8))
             val signatureBase64 = Base64.encodeToString(signatureBytes, Base64.NO_WRAP)
 
-            val queued = webSocket.send(
+            webSocket.send(
                 json.encodeToString(
                     WsAuthDto.serializer(),
                     WsAuthDto(accessToken = token, timestamp = timestamp, nonce = nonce, signature = signatureBase64),
                 ),
             )
-            Log.d(DEBUG_TAG, "sendAuthMessage: queued=$queued timestamp=$timestamp nonce=$nonce")
-        } catch (t: Throwable) {
-            Log.e(DEBUG_TAG, "sendAuthMessage: FAILED to build/send auth message: ${t::class.simpleName}: ${t.message}", t)
+        } catch (_: Throwable) {
+            // Swallow: a failed auth send just leaves the socket unauthenticated, and
+            // startAuthTimeoutWatchdog already covers "no auth_ok in time" for any reason.
         }
     }
 
@@ -187,23 +191,19 @@ class RealtimeWebSocketClient @Inject constructor(
                 webSocket.close(NORMAL_CLOSURE, "no token")
                 return
             }
-            Log.d(DEBUG_TAG, "onOpen: socket open, dispatching auth message")
             scope.launch { sendAuthMessage(webSocket, token) }
             startAuthTimeoutWatchdog(webSocket)
         }
 
         override fun onMessage(webSocket: WebSocket, text: String) {
-            Log.d(DEBUG_TAG, "onMessage(text): ${text.take(200)}")
             handleMessage(text)
         }
 
         override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
-            Log.d(DEBUG_TAG, "onMessage(bytes): ${bytes.utf8().take(200)}")
             handleMessage(bytes.utf8())
         }
 
         override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-            Log.d(DEBUG_TAG, "onClosed: code=$code reason=$reason")
             heartbeatWatchdog?.cancel()
             authTimeoutJob?.cancel()
             val willReconnect = !userRequestedDisconnect.get()
@@ -212,7 +212,6 @@ class RealtimeWebSocketClient @Inject constructor(
         }
 
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: okhttp3.Response?) {
-            Log.d(DEBUG_TAG, "onFailure: ${t::class.simpleName}: ${t.message}, responseCode=${response?.code}")
             heartbeatWatchdog?.cancel()
             authTimeoutJob?.cancel()
             val willReconnect = !userRequestedDisconnect.get()
@@ -281,7 +280,6 @@ class RealtimeWebSocketClient @Inject constructor(
         authTimeoutJob?.cancel()
         authTimeoutJob = scope.launch {
             delay(AUTH_ACK_TIMEOUT_MS)
-            Log.w(DEBUG_TAG, "startAuthTimeoutWatchdog: no auth_ok within ${AUTH_ACK_TIMEOUT_MS}ms, cancelling socket")
             openedSocket.cancel()
             if (webSocket === openedSocket) {
                 webSocket = null
@@ -326,8 +324,6 @@ class RealtimeWebSocketClient @Inject constructor(
     }
 
     private companion object {
-        // TEMPORARY - remove once the "auth_ok never arrives" investigation is closed out.
-        const val DEBUG_TAG = "MC-WS-DEBUG"
         const val NORMAL_CLOSURE = 1000
         const val HEARTBEAT_CHECK_INTERVAL_MS = 5_000L
         const val HEARTBEAT_TIMEOUT_MS = 45_000L

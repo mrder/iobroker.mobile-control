@@ -37,6 +37,13 @@ export interface CommandResultEvent {
 // comfortably above this value, so the backend's own timeout/confirmed result always has time to
 // arrive over the websocket before the app gives up locally and retries.
 const CONFIRMATION_TIMEOUT_MS = 25_000;
+// How long after an initial "timeout" to check once more whether the actuator caught up on its
+// own - see timeoutCommand's own doc for why this exists (a live-confirmed real Zigbee actuator
+// case). Deliberately NOT extending CONFIRMATION_TIMEOUT_MS itself: the app should still get its
+// prompt "timeout" feedback at 25s rather than waiting even longer in the normal (rare) case
+// where the device really is unresponsive; this only quietly upgrades that result afterward if it
+// turns out to have been a false alarm.
+const GRACE_RECHECK_DELAY_MS = 20_000;
 
 interface PendingConfirmation {
     commandId: string;
@@ -284,6 +291,43 @@ export class CommandsService extends EventEmitter {
             result: 'failure',
         });
         this.emit('commandResult', { deviceId: record.deviceId, commandId: record.id, status: 'timeout' } satisfies CommandResultEvent);
+
+        // Live-requested behavior: rather than leaving a command permanently marked "timeout" the
+        // moment CONFIRMATION_TIMEOUT_MS elapses, take one more look at the actuator's actual
+        // current value a bit later - a mesh device (e.g. Zigbee) can still be mid-retry on its own
+        // radio hop well past that window and genuinely succeed a few seconds after we gave up
+        // waiting. If it has caught up by then, upgrade the already-reported "timeout" to
+        // "confirmed" instead of leaving a stale, misleading failure marker on a command that
+        // actually worked.
+        setTimeout(() => {
+            this.recheckAfterTimeout(stateId, timedOut.id, timedOut.value).catch((err: unknown) =>
+                this.adapter.log.error(`mobile-control: recheckAfterTimeout failed: ${(err as Error).message}`),
+            );
+        }, GRACE_RECHECK_DELAY_MS);
+    }
+
+    private async recheckAfterTimeout(stateId: string, commandId: string, expectedValue: unknown): Promise<void> {
+        // Only act if this exact command is still sitting at "timeout" - if anything else already
+        // resolved it (a newer command to the same actuator, for instance), leave it alone.
+        const record = this.store.get(commandId);
+        if (!record || record.status !== 'timeout') {
+            return;
+        }
+        const state = await this.adapter.getForeignStateAsync(stateId);
+        if (state?.val !== expectedValue) {
+            return; // genuinely still not there - leave the timeout result as-is
+        }
+        const confirmed: CommandRecord = { ...record, status: 'confirmed', updatedAt: Date.now() };
+        await this.store.put(confirmed);
+        await this.audit.log({
+            action: 'command.confirmed',
+            actorUserId: record.userId,
+            actorDeviceId: record.deviceId,
+            objectId: record.objectId,
+            result: 'success',
+            detail: 'confirmed late via grace-period recheck after an initial timeout',
+        });
+        this.emit('commandResult', { deviceId: record.deviceId, commandId: record.id, status: 'confirmed' } satisfies CommandResultEvent);
     }
 
     private async logRejection(ctx: CommandExecutionContext, objectId: string, code: string, detail?: string): Promise<void> {

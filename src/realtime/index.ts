@@ -118,16 +118,6 @@ export class RealtimeGateway {
         }
 
         if (msg.type === 'auth') {
-            // TEMPORARY - remove once the "WS auth always fails, REST with the same token/signature
-            // works fine" investigation is closed out. Deliberately logs field TYPES/PRESENCE only,
-            // never the actual accessToken/signature values.
-            this.adapter.log.warn(
-                `mobile-control: WS auth message received - accessToken=${typeof msg.accessToken}(len=${
-                    typeof msg.accessToken === 'string' ? msg.accessToken.length : 'n/a'
-                }) timestamp=${typeof msg.timestamp}(${msg.timestamp}) nonce=${typeof msg.nonce}(${msg.nonce}) signature=${typeof msg.signature}(len=${
-                    typeof msg.signature === 'string' ? msg.signature.length : 'n/a'
-                })`,
-            );
             await this.handleAuth(connection, msg.accessToken, msg.timestamp, msg.nonce, msg.signature);
             return;
         }
@@ -195,11 +185,9 @@ export class RealtimeGateway {
             connection.authenticated = true;
             this.send(connection, { type: 'auth_ok' });
         } catch (err) {
-            // TEMPORARY - remove once the "WS auth always fails, REST with the same token/signature
-            // works fine" investigation is closed out. The original bare `catch` swallowed the exact
-            // reason (expired/invalid token, revoked session/device, bad signature, or replay) and
-            // always reported the same generic AUTH_REQUIRED, making this impossible to diagnose
-            // from the server side.
+            // Logged (reason only, never the token/signature itself) so a real future auth problem
+            // - an expired token, a revoked device, a bad signature - is diagnosable from the
+            // adapter's own log instead of just a generic AUTH_REQUIRED with no further detail.
             this.adapter.log.warn(`mobile-control: WS auth failed: ${(err as Error)?.message ?? err}`);
             this.send(connection, { type: 'error', code: 'AUTH_REQUIRED' });
             connection.ws.close();

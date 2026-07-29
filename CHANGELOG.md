@@ -8,6 +8,30 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.60] - master, Testbuild
+
+Der eigentliche Fix. Live bestätigt: Die Live-Verbindung meldet sich jetzt erfolgreich an,
+bleibt stabil, und Schalter-Bestätigungen kommen sofort per Push an.
+
+- **Ursache gefunden**: Die Live-Verbindung hat für ihre Nachrichten (Anmeldung, Abonnieren,
+  Abbestellen) eine eigene, lokal erzeugte JSON-Verarbeitung benutzt statt der einheitlichen,
+  app-weiten - und die hat ein Feld (`"type"`, z.B. `"auth"`) beim Senden stillschweigend
+  weggelassen, weil es zufällig seinem Standardwert entsprach. Der Server hat diese Nachrichten
+  dadurch nie als Anmeldung/Abo erkannt, egal wie gültig Token und Signatur waren - er hat einfach
+  sofort mit "nicht angemeldet" geantwortet, ohne dass das je in irgendeinem Log auftauchte (der
+  eigentliche Prüfcode wurde ja nie erreicht). Das erklärt praktisch die gesamte, in den letzten
+  Versionen untersuchte Verbindungsproblematik in einem Rutsch.
+- **Fix**: Die Live-Verbindung nutzt jetzt dieselbe JSON-Konfiguration wie der Rest der App.
+- Aufräumarbeiten: die temporären Diagnose-Log-Zeilen aus den letzten Versionen (App und Adapter)
+  wieder entfernt, bis auf eine dauerhaft sinnvolle Log-Zeile im Adapter für echte künftige
+  Anmeldefehler (abgelaufener Token, gesperrtes Gerät, ungültige Signatur).
+- **Schalter-Bestätigung nachgebessert** (wie live vorgeschlagen): Meldet sich ein Aktor nicht
+  innerhalb von 25s zurück, prüft der Adapter jetzt 20s später noch einmal den tatsächlichen
+  Gerätestatus nach, statt den Befehl endgültig als fehlgeschlagen stehen zu lassen - langsame
+  Mesh-Geräte (z.B. Zigbee mit eigenem Funk-Retry) können den Befehl auch nach Ablauf des
+  Bestätigungsfensters noch erfolgreich nachliefern; stimmt der Status dann, wird die Anzeige in
+  der App nachträglich auf "bestätigt" korrigiert statt beim "x" hängen zu bleiben.
+
 ## [0.0.59] - master, Testbuild
 
 Nur Adapter-Änderung, weiter im Rahmen der laufenden Live-Verbindungs-Untersuchung: Die neue
