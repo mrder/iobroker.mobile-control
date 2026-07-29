@@ -2,6 +2,7 @@ package com.mobilecontrol.app.data.remote
 
 import com.mobilecontrol.app.data.crypto.KeystoreManager
 import com.mobilecontrol.app.data.local.TokenStore
+import com.mobilecontrol.app.domain.repository.AuthRepository
 import com.mobilecontrol.app.data.remote.dto.WsAuthDto
 import com.mobilecontrol.app.data.remote.dto.WsEnvelopeDto
 import com.mobilecontrol.app.data.remote.dto.WsCommandResultDto
@@ -24,6 +25,7 @@ import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okio.ByteString
 import android.util.Base64
+import android.util.Log
 import java.security.MessageDigest
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
@@ -47,6 +49,7 @@ class RealtimeWebSocketClient @Inject constructor(
     private val serverConfigHolder: ServerConfigHolder,
     private val tokenStore: TokenStore,
     private val keystoreManager: KeystoreManager,
+    private val authRepository: AuthRepository,
 ) {
     private val json = Json { ignoreUnknownKeys = true }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -113,6 +116,24 @@ class RealtimeWebSocketClient @Inject constructor(
 
     private suspend fun openSocket() {
         val restBase = serverConfigHolder.baseUrl ?: run { isActive.set(false); return }
+
+        // Proactively refresh a stale/expired access token before even attempting the handshake.
+        // Live-confirmed as the actual root cause behind auth_ok never arriving: unlike every REST
+        // call (which transparently gets a fresh token from TokenAuthenticator the moment the
+        // server returns 401), this WS client used to just read whatever was currently cached in
+        // TokenStore and send it as-is - if the app had been idle past the access token's lifetime
+        // with no REST call having happened yet to trigger a refresh, every single WS auth attempt
+        // kept sending that same stale token, got an immediate AUTH_REQUIRED from the server, and
+        // never recovered (no equivalent of TokenAuthenticator exists on the WS path).
+        val expiresAt = tokenStore.getAccessTokenExpiresAt()
+        val msUntilExpiry = expiresAt - System.currentTimeMillis()
+        Log.d(DEBUG_TAG, "openSocket: cached access token expires in ${msUntilExpiry}ms")
+        if (msUntilExpiry < TOKEN_REFRESH_SAFETY_MARGIN_MS) {
+            Log.d(DEBUG_TAG, "openSocket: token near/past expiry, refreshing before connecting")
+            val refreshed = authRepository.refresh()
+            Log.d(DEBUG_TAG, "openSocket: refresh result=${refreshed.isSuccess}")
+        }
+
         val token = tokenStore.getAccessToken() ?: run { isActive.set(false); return }
         connectingToken = token
 
@@ -133,19 +154,24 @@ class RealtimeWebSocketClient @Inject constructor(
     /** Signs the access token with the device Keystore key - see WsAuthDto's own doc for the exact
      *  canonical string, mirroring every REST request's signature (RequestSigningInterceptor). */
     private suspend fun sendAuthMessage(webSocket: WebSocket, token: String) {
-        val timestamp = System.currentTimeMillis().toString()
-        val nonce = UUID.randomUUID().toString()
-        val bodyHashHex = MessageDigest.getInstance("SHA-256").digest(token.toByteArray(Charsets.UTF_8)).toHexString()
-        val canonical = "$WS_AUTH_SIGNATURE_METHOD\n$WS_AUTH_SIGNATURE_PATH\n$timestamp\n$nonce\n$bodyHashHex"
-        val signatureBytes = keystoreManager.sign(canonical.toByteArray(Charsets.UTF_8))
-        val signatureBase64 = Base64.encodeToString(signatureBytes, Base64.NO_WRAP)
+        try {
+            val timestamp = System.currentTimeMillis().toString()
+            val nonce = UUID.randomUUID().toString()
+            val bodyHashHex = MessageDigest.getInstance("SHA-256").digest(token.toByteArray(Charsets.UTF_8)).toHexString()
+            val canonical = "$WS_AUTH_SIGNATURE_METHOD\n$WS_AUTH_SIGNATURE_PATH\n$timestamp\n$nonce\n$bodyHashHex"
+            val signatureBytes = keystoreManager.sign(canonical.toByteArray(Charsets.UTF_8))
+            val signatureBase64 = Base64.encodeToString(signatureBytes, Base64.NO_WRAP)
 
-        webSocket.send(
-            json.encodeToString(
-                WsAuthDto.serializer(),
-                WsAuthDto(accessToken = token, timestamp = timestamp, nonce = nonce, signature = signatureBase64),
-            ),
-        )
+            val queued = webSocket.send(
+                json.encodeToString(
+                    WsAuthDto.serializer(),
+                    WsAuthDto(accessToken = token, timestamp = timestamp, nonce = nonce, signature = signatureBase64),
+                ),
+            )
+            Log.d(DEBUG_TAG, "sendAuthMessage: queued=$queued timestamp=$timestamp nonce=$nonce")
+        } catch (t: Throwable) {
+            Log.e(DEBUG_TAG, "sendAuthMessage: FAILED to build/send auth message: ${t::class.simpleName}: ${t.message}", t)
+        }
     }
 
     private val listener = object : WebSocketListener() {
@@ -161,19 +187,23 @@ class RealtimeWebSocketClient @Inject constructor(
                 webSocket.close(NORMAL_CLOSURE, "no token")
                 return
             }
+            Log.d(DEBUG_TAG, "onOpen: socket open, dispatching auth message")
             scope.launch { sendAuthMessage(webSocket, token) }
             startAuthTimeoutWatchdog(webSocket)
         }
 
         override fun onMessage(webSocket: WebSocket, text: String) {
+            Log.d(DEBUG_TAG, "onMessage(text): ${text.take(200)}")
             handleMessage(text)
         }
 
         override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
+            Log.d(DEBUG_TAG, "onMessage(bytes): ${bytes.utf8().take(200)}")
             handleMessage(bytes.utf8())
         }
 
         override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+            Log.d(DEBUG_TAG, "onClosed: code=$code reason=$reason")
             heartbeatWatchdog?.cancel()
             authTimeoutJob?.cancel()
             val willReconnect = !userRequestedDisconnect.get()
@@ -182,6 +212,7 @@ class RealtimeWebSocketClient @Inject constructor(
         }
 
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: okhttp3.Response?) {
+            Log.d(DEBUG_TAG, "onFailure: ${t::class.simpleName}: ${t.message}, responseCode=${response?.code}")
             heartbeatWatchdog?.cancel()
             authTimeoutJob?.cancel()
             val willReconnect = !userRequestedDisconnect.get()
@@ -250,6 +281,7 @@ class RealtimeWebSocketClient @Inject constructor(
         authTimeoutJob?.cancel()
         authTimeoutJob = scope.launch {
             delay(AUTH_ACK_TIMEOUT_MS)
+            Log.w(DEBUG_TAG, "startAuthTimeoutWatchdog: no auth_ok within ${AUTH_ACK_TIMEOUT_MS}ms, cancelling socket")
             openedSocket.cancel()
             if (webSocket === openedSocket) {
                 webSocket = null
@@ -294,6 +326,8 @@ class RealtimeWebSocketClient @Inject constructor(
     }
 
     private companion object {
+        // TEMPORARY - remove once the "auth_ok never arrives" investigation is closed out.
+        const val DEBUG_TAG = "MC-WS-DEBUG"
         const val NORMAL_CLOSURE = 1000
         const val HEARTBEAT_CHECK_INTERVAL_MS = 5_000L
         const val HEARTBEAT_TIMEOUT_MS = 45_000L
@@ -303,5 +337,9 @@ class RealtimeWebSocketClient @Inject constructor(
         // the Keystore signing operation and network latency, but short enough that a truly stuck
         // connection (server never replies at all) doesn't sit unusable for long before recovering.
         const val AUTH_ACK_TIMEOUT_MS = 10_000L
+        // Refresh proactively if the cached access token has less than this long left - comfortably
+        // covers the time a refresh call + the WS handshake + signing takes, so the token we
+        // actually send is never the one that was already stale when openSocket() started.
+        const val TOKEN_REFRESH_SAFETY_MARGIN_MS = 30_000L
     }
 }

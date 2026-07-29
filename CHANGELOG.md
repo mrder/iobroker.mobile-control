@@ -8,6 +8,28 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.58] - master, Testbuild
+
+Noch nicht der finale Fix - Zwischenstand der laufenden Untersuchung, warum die Live-Verbindung
+sich zwar erfolgreich verbindet, sich aber nie erfolgreich anmeldet.
+
+- **Live bestätigt per Diagnose-Log**: Die WebSocket-Verbindung meldet sich zwar bei jedem Versuch
+  sauber an (der Server bestätigt sofort mit einer expliziten Ablehnung "AUTH_REQUIRED"), aber
+  nicht mit Erfolg - und zwar mit einem nachweislich gültigen, noch ~9 Minuten haltbaren
+  Zugriffstoken, während zeitgleich normale Anfragen (Dashboard, Schalterbefehle) mit demselben
+  Token und derselben Signaturmethode anstandslos funktionieren. Eine erste Theorie (abgelaufener
+  Token wird für die Live-Verbindung nie erneuert, anders als bei normalen Anfragen) wurde damit
+  live widerlegt.
+- **Trotzdem sinnvoll behoben**: Die Live-Verbindung erneuert jetzt trotzdem vorsorglich einen bald
+  ablaufenden Zugriffstoken, bevor sie sich verbindet - fehlte bisher komplett und wäre früher oder
+  später ohnehin zum echten Problem geworden.
+- **Echter Anzeigefehler behoben**: Der Protokoll-Dialog in den Einstellungen konnte bei vielen
+  Einträgen nicht scrollen und lief einfach über den sichtbaren Bereich hinaus - je nach Anzahl der
+  Einträge konnte das wie eine leere Liste aussehen.
+- **Für die weitere Fehlersuche**: Der Adapter protokolliert jetzt den genauen Ablehnungsgrund für
+  jede gescheiterte Anmeldung ins ioBroker-Log (vorher wurde er verworfen, jeder Fall zeigte nur
+  dieselbe generische Meldung).
+
 ## [0.0.57] - master, Testbuild
 
 Nächster, live bestätigter Rückschritt behoben: die Verbindung baute sich zwar jedes Mal

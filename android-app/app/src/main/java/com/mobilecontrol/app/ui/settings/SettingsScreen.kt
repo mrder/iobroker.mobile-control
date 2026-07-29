@@ -7,6 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -190,11 +191,17 @@ fun SettingsScreen(
             onDismissRequest = { showLogs = false },
             title = { Text(stringResource(R.string.settings_logs)) },
             text = {
-                Column {
-                    state.logs.takeLast(30).reversed().forEach { entry ->
-                        Text("[${entry.level}] ${entry.message}", style = MaterialTheme.typography.bodySmall)
+                // Plain Column here previously overflowed the dialog's bounded height with no way to
+                // scroll - with ~30 multi-line entries that meant most of the log was simply invisible
+                // (live-confirmed: user saw an empty-looking dialog). LazyColumn scrolls properly.
+                if (state.logs.isEmpty()) {
+                    Text("Keine Einträge")
+                } else {
+                    LazyColumn(modifier = Modifier.heightIn(max = 400.dp)) {
+                        items(state.logs.takeLast(30).reversed()) { entry ->
+                            Text("[${entry.level}] ${entry.message}", style = MaterialTheme.typography.bodySmall)
+                        }
                     }
-                    if (state.logs.isEmpty()) Text("Keine Einträge")
                 }
             },
             confirmButton = { TextButton(onClick = { showLogs = false }) { Text(stringResource(R.string.common_ok)) } },

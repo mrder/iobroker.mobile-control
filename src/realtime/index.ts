@@ -184,7 +184,13 @@ export class RealtimeGateway {
             connection.sessionId = session.id;
             connection.authenticated = true;
             this.send(connection, { type: 'auth_ok' });
-        } catch {
+        } catch (err) {
+            // TEMPORARY - remove once the "WS auth always fails, REST with the same token/signature
+            // works fine" investigation is closed out. The original bare `catch` swallowed the exact
+            // reason (expired/invalid token, revoked session/device, bad signature, or replay) and
+            // always reported the same generic AUTH_REQUIRED, making this impossible to diagnose
+            // from the server side.
+            this.adapter.log.warn(`mobile-control: WS auth failed: ${(err as Error)?.message ?? err}`);
             this.send(connection, { type: 'error', code: 'AUTH_REQUIRED' });
             connection.ws.close();
         }
