@@ -9,6 +9,7 @@ import ProfilesTab from './tabs/ProfilesTab';
 import SessionsTab from './tabs/SessionsTab';
 import AuditTab from './tabs/AuditTab';
 import UrlEmbedsTab from './tabs/UrlEmbedsTab';
+import InfoTab from './tabs/InfoTab';
 
 const TAB_LABELS = [
     'Übersicht',
@@ -19,6 +20,7 @@ const TAB_LABELS = [
     'URL-Einbettungen',
     'Sessions',
     'Audit',
+    'App & Info',
 ];
 
 export default function App(): JSX.Element {
@@ -80,6 +82,7 @@ export default function App(): JSX.Element {
                         {tab === 5 && <UrlEmbedsTab />}
                         {tab === 6 && <SessionsTab />}
                         {tab === 7 && <AuditTab />}
+                        {tab === 8 && <InfoTab />}
                     </>
                 )}
             </Box>

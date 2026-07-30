@@ -24,7 +24,13 @@ export interface AppDistributionServices {
 const DEFAULT_APK_PATH = path.join(__dirname, '..', '..', 'app', 'mobile-control.apk');
 const PACKAGE_JSON_PATH = path.join(__dirname, '..', '..', 'package.json');
 
-function readAdapterVersion(): string {
+/** Exported so main.ts's getAppInfo admin message can check availability/build the same QR code
+ *  the /app page itself shows, without duplicating the path-resolution logic. */
+export function getDefaultApkPath(): string {
+    return DEFAULT_APK_PATH;
+}
+
+export function readAdapterVersion(): string {
     try {
         const raw = fs.readFileSync(PACKAGE_JSON_PATH, 'utf8');
         return (JSON.parse(raw) as { version?: string }).version ?? 'unbekannt';
@@ -70,9 +76,12 @@ der ioBroker-Adapterkonfiguration koppeln.</p>
 }
 
 /**
- * Unauthenticated by design - a brand-new, not-yet-paired device has no token yet and needs to
- * get the app itself before any pairing can happen (same trust level as an app store: the binary
- * itself carries no per-user secrets, it's identical for everyone). Rate-limited by IP purely to
+ * No device-level auth of its own (a brand-new, not-yet-paired device has no token yet and needs
+ * to get the app itself before any pairing can happen - same trust level as an app store: the
+ * binary itself carries no per-user secrets, it's identical for everyone). Since the portal-key
+ * gate (see createPortalGateMiddleware) is mounted ahead of every route including this one, the
+ * portal key is still required first - see main.ts's getAppInfo admin message / the "App-
+ * Installation" admin tab for a QR code that already has it embedded. Rate-limited by IP purely to
  * stop the ~15-25MB file from being a cheap bandwidth-abuse target, not because the content itself
  * is sensitive.
  */

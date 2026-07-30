@@ -1,8 +1,10 @@
 import { randomBytes, createHash } from 'node:crypto';
+import * as fs from 'node:fs';
 import * as http from 'node:http';
 import * as os from 'node:os';
 import * as utils from '@iobroker/adapter-core';
 import express from 'express';
+import * as QRCode from 'qrcode';
 
 import { CollectionStore } from './lib/store';
 import type {
@@ -47,7 +49,7 @@ import { ReplayGuard } from './security/replayGuard';
 import { RealtimeGateway } from './realtime';
 import { createApiRouter } from './api/router';
 import { createTunnelRouter } from './api/tunnelRouter';
-import { createAppDistributionRouter } from './api/appDistributionRouter';
+import { createAppDistributionRouter, getDefaultApkPath, readAdapterVersion } from './api/appDistributionRouter';
 import { createPortalGateMiddleware } from './api/portalGate';
 import type { AuthenticatedRequest } from './api/middleware';
 import { runMigrations } from './migrations';
@@ -810,6 +812,29 @@ class MobileControlAdapter extends utils.Adapter {
                         localAddresses: getLocalAddresses(),
                         portalKey: this.portalKey,
                     });
+                    break;
+                }
+
+                // Live-requested (2026-07-30): the admin couldn't find the app-install QR code
+                // anywhere in the adapter UI - it only ever existed on the /app page itself, which
+                // needs the portal key to even open. This surfaces the same info directly in the
+                // admin tab, with the portal key already embedded as Basic-Auth userinfo in the QR
+                // payload so scanning it needs no manual key entry - acceptable here since this
+                // code only ever renders inside the already-authenticated ioBroker admin UI, same
+                // trust boundary as the plaintext portal key field shown right next to it.
+                case 'getAppInfo': {
+                    const netConfig = this.config as unknown as AdapterNativeConfig;
+                    const publicUrl = (netConfig.publicUrl || `http://${os.hostname()}:${netConfig.port}`).replace(/\/$/, '');
+                    const installUrl = `${publicUrl}/app`;
+                    const available = fs.existsSync(getDefaultApkPath());
+                    let qrDataUrl: string | null = null;
+                    if (available) {
+                        const authedUrl = new URL(installUrl);
+                        authedUrl.username = 'device';
+                        authedUrl.password = this.portalKey;
+                        qrDataUrl = await QRCode.toDataURL(authedUrl.toString());
+                    }
+                    respond({ available, installUrl, qrDataUrl, version: readAdapterVersion() });
                     break;
                 }
 

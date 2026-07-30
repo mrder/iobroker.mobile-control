@@ -8,6 +8,17 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.65] - master, Testbuild
+
+Live-Wunsch: Der QR-Code zur App-Installation war nirgendwo auffindbar - er existierte bisher nur
+auf der `/app`-Seite selbst, die wie alles andere seit dem Portal-Schlüssel erst geöffnet werden
+kann.
+
+- Neuer Admin-Tab „App & Info" zeigt den QR-Code direkt an, mit bereits enthaltenem Portal-Schlüssel
+  (keine manuelle Eingabe beim Scannen nötig), dazu die Installations-URL und einen Link zum Öffnen
+  der Installationsseite.
+- Außerdem: GitHub-Link zum Quellcode und ein Copyright-/Lizenzhinweis (MIT, © mrder).
+
 ## [0.0.64] - master, Testbuild
 
 Live-Wunsch, Korrektur zu v0.0.63: Die neuen Raster-Regler verkleinern die Zellen zwar korrekt,

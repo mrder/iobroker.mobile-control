@@ -121,6 +121,13 @@ export interface ConnectionInfo {
     portalKey: string;
 }
 
+export interface AppInfo {
+    available: boolean;
+    installUrl: string;
+    qrDataUrl: string | null;
+    version: string;
+}
+
 export interface UrlEmbed {
     id: string;
     name: string;
