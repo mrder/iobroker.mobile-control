@@ -36,7 +36,7 @@ class DashboardListViewModel @Inject constructor(
                 id = UUID.randomUUID().toString(),
                 name = name,
                 revision = 0,
-                layouts = SizeClass.entries.map { DashboardLayout(it, it.defaultColumns, emptyList()) },
+                layouts = SizeClass.entries.map { DashboardLayout(it, it.defaultColumns, Dashboard.DEFAULT_ROW_HEIGHT_DP, emptyList()) },
             )
             dashboardRepository.createDashboard(newDashboard).onSuccess { onCreated(it.id) }
         }

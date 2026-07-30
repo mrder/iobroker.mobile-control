@@ -191,6 +191,25 @@ class DashboardEditorViewModel @Inject constructor(
         }
     }
 
+    /**
+     * User-adjustable grid density (live-requested, 2026-07-30) - previously columns/row height
+     * were either a fixed constant (row height) or only reachable via the once-per-load
+     * narrow-dashboard migration (columns, see MIN_GRID_COLUMNS). Existing widgets are left
+     * exactly as they are; DashboardGrid's own rendering already clamps each widget's position/
+     * size defensively against whatever the current column count is, so shrinking the grid can't
+     * crash or corrupt data, only visually overlap widgets that no longer fit - acceptable since
+     * the user is making this change deliberately, while looking at the live result, and can
+     * immediately undo it like any other edit.
+     */
+    fun updateGridSize(columns: Int, rowHeight: Int) {
+        updateLayout(local.value.sizeClass) { layout ->
+            layout.copy(
+                columns = columns.coerceIn(MIN_GRID_COLUMNS, MAX_GRID_COLUMNS),
+                rowHeight = rowHeight.coerceIn(MIN_ROW_HEIGHT_DP, MAX_ROW_HEIGHT_DP),
+            )
+        }
+    }
+
     private inline fun updateLayout(sizeClass: SizeClass, transform: (DashboardLayout) -> DashboardLayout) {
         local.update { state ->
             val dashboard = state.dashboard ?: return@update state
@@ -304,7 +323,14 @@ class DashboardEditorViewModel @Inject constructor(
          * row than before, and can be resized wider), and the wider value is persisted back on the
          * next save.
          */
-        private const val MIN_GRID_COLUMNS = 12
+        const val MIN_GRID_COLUMNS = 12
+        /** Upper bound for the columns slider - a cell narrower than this on a phone-width screen
+         *  stops being a usable touch target. */
+        const val MAX_GRID_COLUMNS = 24
+        /** Row-height slider bounds, in dp - floor keeps a widget's icon/title/value legible,
+         *  ceiling is just "wider than anyone would realistically want". */
+        const val MIN_ROW_HEIGHT_DP = 40
+        const val MAX_ROW_HEIGHT_DP = 140
 
         private fun withWidenedColumns(dashboard: Dashboard): Dashboard =
             dashboard.copy(

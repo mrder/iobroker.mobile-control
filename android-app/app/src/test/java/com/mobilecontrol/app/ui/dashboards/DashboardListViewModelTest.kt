@@ -19,7 +19,7 @@ private fun testDashboard(id: String, name: String, revision: Long = 0): Dashboa
     id = id,
     name = name,
     revision = revision,
-    layouts = SizeClass.entries.map { DashboardLayout(it, it.defaultColumns, emptyList()) },
+    layouts = SizeClass.entries.map { DashboardLayout(it, it.defaultColumns, Dashboard.DEFAULT_ROW_HEIGHT_DP, emptyList()) },
 )
 
 private class FakeDashboardListRepository(seed: List<Dashboard> = emptyList()) : DashboardRepository {

@@ -14,6 +14,9 @@ data class DashboardDto(
 data class DashboardLayoutDto(
     val sizeClass: String,
     val columns: Int,
+    /** Default only for defensive deserialization of an older/unexpected response - the app's own
+     *  `Json` has encodeDefaults=true (see NetworkModule), so this is always sent regardless. */
+    val rowHeight: Int = 72,
     val widgets: List<WidgetDto>,
 )
 

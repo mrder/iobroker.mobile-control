@@ -18,8 +18,8 @@ class DashboardTest {
 
     @Test
     fun `layoutFor returns the matching layout when present`() {
-        val compact = DashboardLayout(SizeClass.COMPACT, columns = 4, widgets = emptyList())
-        val medium = DashboardLayout(SizeClass.MEDIUM, columns = 8, widgets = emptyList())
+        val compact = DashboardLayout(SizeClass.COMPACT, columns = 4, rowHeight = Dashboard.DEFAULT_ROW_HEIGHT_DP, widgets = emptyList())
+        val medium = DashboardLayout(SizeClass.MEDIUM, columns = 8, rowHeight = Dashboard.DEFAULT_ROW_HEIGHT_DP, widgets = emptyList())
         val dashboard = Dashboard(id = "d1", name = "Test", revision = 1, layouts = listOf(compact, medium))
 
         assertSame(medium, dashboard.layoutFor(SizeClass.MEDIUM))
@@ -27,7 +27,7 @@ class DashboardTest {
 
     @Test
     fun `layoutFor falls back to the first layout when the requested size class is missing`() {
-        val compact = DashboardLayout(SizeClass.COMPACT, columns = 4, widgets = emptyList())
+        val compact = DashboardLayout(SizeClass.COMPACT, columns = 4, rowHeight = Dashboard.DEFAULT_ROW_HEIGHT_DP, widgets = emptyList())
         val dashboard = Dashboard(id = "d1", name = "Test", revision = 1, layouts = listOf(compact))
 
         assertSame(compact, dashboard.layoutFor(SizeClass.EXPANDED))
@@ -47,8 +47,8 @@ class DashboardTest {
     @Test
     fun `widgetCount sums widgets across all layouts`() {
         val w = Widget(id = "w", objectId = null, type = WidgetType.TEXT_VALUE, title = "w", x = 0, y = 0, w = 1, h = 1)
-        val compact = DashboardLayout(SizeClass.COMPACT, columns = 4, widgets = listOf(w, w))
-        val medium = DashboardLayout(SizeClass.MEDIUM, columns = 8, widgets = listOf(w))
+        val compact = DashboardLayout(SizeClass.COMPACT, columns = 4, rowHeight = Dashboard.DEFAULT_ROW_HEIGHT_DP, widgets = listOf(w, w))
+        val medium = DashboardLayout(SizeClass.MEDIUM, columns = 8, rowHeight = Dashboard.DEFAULT_ROW_HEIGHT_DP, widgets = listOf(w))
         val dashboard = Dashboard(id = "d1", name = "Test", revision = 1, layouts = listOf(compact, medium))
 
         assertEquals(3, dashboard.widgetCount)

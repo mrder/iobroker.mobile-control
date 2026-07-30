@@ -43,7 +43,7 @@ private fun testDashboard(id: String = "dash-1", revision: Long = 0, widgets: Li
     name = "Test-Dashboard",
     revision = revision,
     layouts = SizeClass.entries.map { sizeClass ->
-        DashboardLayout(sizeClass, sizeClass.defaultColumns, if (sizeClass == SizeClass.COMPACT) widgets else emptyList())
+        DashboardLayout(sizeClass, sizeClass.defaultColumns, Dashboard.DEFAULT_ROW_HEIGHT_DP, if (sizeClass == SizeClass.COMPACT) widgets else emptyList())
     },
 )
 
@@ -255,6 +255,44 @@ class DashboardEditorViewModelTest {
     }
 
     @Test
+    fun `updateGridSize sets columns and row height, clamped to the declared min-max range`() = runTest {
+        val dashboard = testDashboard(widgets = listOf(widget("a")))
+        val viewModel = buildViewModel(dashboard)
+        collectUiState(viewModel)
+        advanceUntilIdle()
+
+        viewModel.updateGridSize(columns = 18, rowHeight = 100)
+        val layout = viewModel.uiState.value.currentLayout!!
+        assertEquals(18, layout.columns)
+        assertEquals(100, layout.rowHeight)
+
+        viewModel.updateGridSize(columns = 999, rowHeight = 999)
+        val clamped = viewModel.uiState.value.currentLayout!!
+        assertEquals(DashboardEditorViewModel.MAX_GRID_COLUMNS, clamped.columns)
+        assertEquals(DashboardEditorViewModel.MAX_ROW_HEIGHT_DP, clamped.rowHeight)
+
+        viewModel.updateGridSize(columns = 0, rowHeight = 0)
+        val flooredValue = viewModel.uiState.value.currentLayout!!
+        assertEquals(DashboardEditorViewModel.MIN_GRID_COLUMNS, flooredValue.columns)
+        assertEquals(DashboardEditorViewModel.MIN_ROW_HEIGHT_DP, flooredValue.rowHeight)
+    }
+
+    @Test
+    fun `updateGridSize is undoable like any other edit`() = runTest {
+        val dashboard = testDashboard(widgets = listOf(widget("a")))
+        val viewModel = buildViewModel(dashboard)
+        collectUiState(viewModel)
+        advanceUntilIdle()
+        val originalColumns = viewModel.uiState.value.currentLayout!!.columns
+
+        viewModel.updateGridSize(columns = 20, rowHeight = 90)
+        assertEquals(20, viewModel.uiState.value.currentLayout!!.columns)
+
+        viewModel.undo()
+        assertEquals(originalColumns, viewModel.uiState.value.currentLayout!!.columns)
+    }
+
+    @Test
     fun `a new edit after undo clears the redo stack`() = runTest {
         val dashboard = testDashboard(widgets = listOf(widget("a"), widget("b", x = 2)))
         val viewModel = buildViewModel(dashboard)
@@ -299,7 +337,7 @@ class DashboardEditorViewModelTest {
 
     @Test
     fun `init widens a dashboard still stuck on an old, narrower column count to the new minimum`() = runTest {
-        val narrowLayout = DashboardLayout(SizeClass.COMPACT, columns = 4, widgets = listOf(widget("w1")))
+        val narrowLayout = DashboardLayout(SizeClass.COMPACT, columns = 4, rowHeight = Dashboard.DEFAULT_ROW_HEIGHT_DP, widgets = listOf(widget("w1")))
         val dashboard = Dashboard(id = "dash-1", name = "Alt", revision = 0, layouts = listOf(narrowLayout))
         val viewModel = buildViewModel(dashboard)
         collectUiState(viewModel)

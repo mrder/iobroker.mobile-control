@@ -13,12 +13,24 @@ data class Dashboard(
     fun layoutFor(sizeClass: SizeClass): DashboardLayout =
         layouts.firstOrNull { it.sizeClass == sizeClass }
             ?: layouts.firstOrNull()
-            ?: DashboardLayout(sizeClass = sizeClass, columns = sizeClass.defaultColumns, widgets = emptyList())
+            ?: DashboardLayout(
+                sizeClass = sizeClass,
+                columns = sizeClass.defaultColumns,
+                rowHeight = DEFAULT_ROW_HEIGHT_DP,
+                widgets = emptyList(),
+            )
+
+    companion object {
+        /** Default grid row height in dp for a brand-new layout - user-adjustable per dashboard
+         *  from there on (live-requested, 2026-07-30), see DashboardEditorViewModel.updateGridSize. */
+        const val DEFAULT_ROW_HEIGHT_DP = 72
+    }
 }
 
 data class DashboardLayout(
     val sizeClass: SizeClass,
     val columns: Int,
+    val rowHeight: Int,
     val widgets: List<Widget>,
 )
 

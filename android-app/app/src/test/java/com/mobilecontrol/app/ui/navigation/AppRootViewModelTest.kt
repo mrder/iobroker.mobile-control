@@ -32,7 +32,7 @@ private fun testDashboard(id: String): Dashboard = Dashboard(
     id = id,
     name = id,
     revision = 0,
-    layouts = SizeClass.entries.map { DashboardLayout(it, it.defaultColumns, emptyList()) },
+    layouts = SizeClass.entries.map { DashboardLayout(it, it.defaultColumns, Dashboard.DEFAULT_ROW_HEIGHT_DP, emptyList()) },
 )
 
 private class FakeSettingsRepository : SettingsRepository {

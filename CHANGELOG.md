@@ -8,6 +8,18 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.63] - master, Testbuild
+
+Live-Wunsch nach der neuen Raster-Auflösung: Statt einer festen Vorgabe im Code kann jetzt jedes
+Dashboard einzeln im Bearbeitungsmodus angepasst werden.
+
+- Neues Symbol in der Werkzeugleiste im Bearbeitungsmodus öffnet einen Dialog mit zwei Reglern:
+  Spaltenzahl (12-24) und Zeilenhöhe (40-140dp) - beide pro Dashboard gespeichert, nicht global.
+  Bestehende Widgets behalten ihre Größe/Position; die Anzeige passt sich sofort an.
+- Wie jede andere Änderung über Rückgängig/Wiederholen korrigierbar.
+- Rastergröße ist jetzt Teil der gespeicherten Dashboard-Daten (`rowHeight`-Feld ergänzt) - synct
+  automatisch über alle Geräte desselben Benutzers.
+
 ## [0.0.62] - master, Testbuild
 
 Live besprochene Sicherheitshärtung: ein gemeinsamer Portal-Schlüssel vor dem gesamten Server,

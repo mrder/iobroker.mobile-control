@@ -1,5 +1,6 @@
 package com.mobilecontrol.app.ui.dashboards
 
+import com.mobilecontrol.app.domain.model.Dashboard
 import com.mobilecontrol.app.domain.model.DashboardLayout
 import com.mobilecontrol.app.domain.model.SizeClass
 import com.mobilecontrol.app.domain.model.Widget
@@ -13,7 +14,7 @@ private fun widget(id: String, x: Int, y: Int, w: Int = 2, h: Int = 1): Widget =
     Widget(id = id, objectId = null, type = WidgetType.TEXT_VALUE, title = id, x = x, y = y, w = w, h = h)
 
 private fun layoutOf(vararg widgets: Widget, columns: Int = 4): DashboardLayout =
-    DashboardLayout(sizeClass = SizeClass.COMPACT, columns = columns, widgets = widgets.toList())
+    DashboardLayout(sizeClass = SizeClass.COMPACT, columns = columns, rowHeight = Dashboard.DEFAULT_ROW_HEIGHT_DP, widgets = widgets.toList())
 
 class GridPlacementTest {
 

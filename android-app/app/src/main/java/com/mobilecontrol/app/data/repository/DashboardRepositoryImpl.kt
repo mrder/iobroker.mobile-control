@@ -96,6 +96,7 @@ class DashboardRepositoryImpl @Inject constructor(
     private fun DashboardLayoutDto.toDomain() = DashboardLayout(
         sizeClass = SizeClass.fromWireName(sizeClass),
         columns = columns,
+        rowHeight = rowHeight,
         widgets = widgets.map { it.toDomain() },
     )
 
@@ -119,6 +120,7 @@ class DashboardRepositoryImpl @Inject constructor(
             DashboardLayoutDto(
                 sizeClass = layout.sizeClass.wireName,
                 columns = layout.columns,
+                rowHeight = layout.rowHeight,
                 widgets = layout.widgets.map { widget ->
                     WidgetDto(
                         id = widget.id,

@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
@@ -46,6 +47,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -84,10 +86,9 @@ import com.mobilecontrol.app.ui.widgets.WidgetHost
 import com.mobilecontrol.app.ui.widgets.WidgetState
 import kotlin.math.roundToInt
 
-// Lowered from the original 120dp (live-requested, 2026-07-30: too coarse - only ~3 widget rows
-// fit on a tablet screen at once). 72dp still comfortably fits a widget's icon/title/value at
-// h=1 while letting noticeably more rows fit in the same space and giving finer resize steps.
-private val GRID_ROW_HEIGHT = 72.dp
+// Was a fixed 72dp constant here until live-requested (2026-07-30) to become a per-dashboard,
+// user-adjustable value instead (see DashboardEditorViewModel.updateGridSize / GridSizeDialog
+// below) - row height now comes from the layout itself, like columns already did.
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -97,6 +98,7 @@ fun DashboardEditorScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val dashboard = state.dashboard
+    var showGridSizeDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -117,6 +119,9 @@ fun DashboardEditorScreen(
                         }
                         IconButton(onClick = { viewModel.showAddWidgetDialog(true) }) {
                             Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.dashboard_editor_add_widget))
+                        }
+                        IconButton(onClick = { showGridSizeDialog = true }) {
+                            Icon(Icons.Filled.GridView, contentDescription = stringResource(R.string.dashboard_editor_grid_size))
                         }
                         IconButton(onClick = { viewModel.save() }) {
                             Icon(Icons.Filled.Save, contentDescription = stringResource(R.string.dashboard_editor_save))
@@ -141,10 +146,14 @@ fun DashboardEditorScreen(
                     Text("Noch keine Widgets in diesem Layout.")
                 }
             } else {
-                // Sanity clamp only - the real column count comes from the layout (see
-                // DashboardEditorViewModel.withWidenedColumns, which bumps every dashboard to at
-                // least 8 on load); this just guards against a corrupt/unexpectedly huge value.
-                val displayColumns = layout.columns.coerceIn(1, 16)
+                // Sanity clamp only - the real column count/row height come from the layout
+                // itself (user-adjustable, see DashboardEditorViewModel.updateGridSize); this just
+                // guards against a corrupt/unexpectedly out-of-range stored value.
+                val displayColumns = layout.columns.coerceIn(1, DashboardEditorViewModel.MAX_GRID_COLUMNS)
+                val displayRowHeight = layout.rowHeight.coerceIn(
+                    DashboardEditorViewModel.MIN_ROW_HEIGHT_DP,
+                    DashboardEditorViewModel.MAX_ROW_HEIGHT_DP,
+                ).dp
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -155,6 +164,7 @@ fun DashboardEditorScreen(
                     DashboardGrid(
                         widgets = layout.widgets,
                         columns = displayColumns,
+                        rowHeight = displayRowHeight,
                         editMode = state.editMode,
                         onMoveWidget = viewModel::moveWidgetTo,
                     ) { widget ->
@@ -187,6 +197,18 @@ fun DashboardEditorScreen(
         )
     }
 
+    if (showGridSizeDialog && dashboard != null) {
+        val currentLayout = state.currentLayout
+        if (currentLayout != null) {
+            GridSizeDialog(
+                columns = currentLayout.columns,
+                rowHeight = currentLayout.rowHeight,
+                onApply = { columns, rowHeight -> viewModel.updateGridSize(columns, rowHeight) },
+                onDismiss = { showGridSizeDialog = false },
+            )
+        }
+    }
+
     if (state.revisionConflict) {
         AlertDialog(
             onDismissRequest = {},
@@ -200,6 +222,54 @@ fun DashboardEditorScreen(
             },
         )
     }
+}
+
+/**
+ * Live-requested (2026-07-30): lets the user tune the whole grid's density - columns (width) and
+ * row height - while editing, instead of a fixed value baked into the app. Sliders snap to whole
+ * dp/columns; the actual clamp to [DashboardEditorViewModel]'s min/max happens again in
+ * [DashboardEditorViewModel.updateGridSize] regardless, this is just so the slider itself can't be
+ * dragged out of its own declared range.
+ */
+@Composable
+private fun GridSizeDialog(
+    columns: Int,
+    rowHeight: Int,
+    onApply: (columns: Int, rowHeight: Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var columnsValue by remember { mutableStateOf(columns.toFloat()) }
+    var rowHeightValue by remember { mutableStateOf(rowHeight.toFloat()) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.dashboard_editor_grid_size)) },
+        text = {
+            Column {
+                Text("Spalten: ${columnsValue.roundToInt()}")
+                Slider(
+                    value = columnsValue,
+                    onValueChange = { columnsValue = it },
+                    valueRange = DashboardEditorViewModel.MIN_GRID_COLUMNS.toFloat()..DashboardEditorViewModel.MAX_GRID_COLUMNS.toFloat(),
+                    steps = DashboardEditorViewModel.MAX_GRID_COLUMNS - DashboardEditorViewModel.MIN_GRID_COLUMNS - 1,
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Zeilenhöhe: ${rowHeightValue.roundToInt()}dp")
+                Slider(
+                    value = rowHeightValue,
+                    onValueChange = { rowHeightValue = it },
+                    valueRange = DashboardEditorViewModel.MIN_ROW_HEIGHT_DP.toFloat()..DashboardEditorViewModel.MAX_ROW_HEIGHT_DP.toFloat(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                onApply(columnsValue.roundToInt(), rowHeightValue.roundToInt())
+                onDismiss()
+            }) { Text(stringResource(R.string.common_ok)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) } },
+    )
 }
 
 @Composable
@@ -226,6 +296,7 @@ private fun OfflineBanner() {
 private fun DashboardGrid(
     widgets: List<Widget>,
     columns: Int,
+    rowHeight: Dp,
     editMode: Boolean,
     onMoveWidget: (widgetId: String, newX: Int, newY: Int) -> Unit,
     cellContent: @Composable (Widget) -> Unit,
@@ -234,10 +305,10 @@ private fun DashboardGrid(
         val density = LocalDensity.current
         val cellWidth: Dp = maxWidth / columns
         val cellWidthPx = with(density) { cellWidth.toPx() }
-        val rowHeightPx = with(density) { GRID_ROW_HEIGHT.toPx() }
+        val rowHeightPx = with(density) { rowHeight.toPx() }
         val rowCount = (widgets.maxOfOrNull { it.y + it.h } ?: 0).coerceAtLeast(1)
 
-        Box(modifier = Modifier.fillMaxWidth().height(GRID_ROW_HEIGHT * rowCount)) {
+        Box(modifier = Modifier.fillMaxWidth().height(rowHeight * rowCount)) {
             widgets.forEach { widget ->
                 key(widget.id) {
                     var dragOffset by remember(widget.id) { mutableStateOf(Offset.Zero) }
@@ -256,7 +327,7 @@ private fun DashboardGrid(
                                     (baseOffsetPx.y + dragOffset.y).roundToInt(),
                                 )
                             }
-                            .size(cellWidth * clampedW, GRID_ROW_HEIGHT * widget.h.coerceAtLeast(1))
+                            .size(cellWidth * clampedW, rowHeight * widget.h.coerceAtLeast(1))
                             .zIndex(if (isDragging) 1f else 0f)
                             .then(
                                 if (editMode) {

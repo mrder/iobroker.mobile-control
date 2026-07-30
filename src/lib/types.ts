@@ -209,6 +209,9 @@ export type SizeClass = 'compact' | 'medium' | 'expanded';
 export interface DashboardLayout {
     sizeClass: SizeClass;
     columns: number;
+    /** Grid row height in dp - user-adjustable in the editor (live-requested, 2026-07-30) on top
+     *  of columns, so the whole grid density is tunable, not just its width. */
+    rowHeight: number;
     widgets: WidgetLayoutEntry[];
 }
 

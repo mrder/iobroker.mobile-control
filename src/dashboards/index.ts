@@ -42,7 +42,7 @@ export class DashboardsService {
             // feedback, twice). Existing dashboards created with a narrower columns value get
             // bumped client-side on load (see DashboardEditorViewModel.MIN_GRID_COLUMNS) since
             // this default only applies to new ones.
-            layouts: [{ sizeClass: 'compact', columns: 12, widgets: [] }],
+            layouts: [{ sizeClass: 'compact', columns: 12, rowHeight: 72, widgets: [] }],
             isStartDashboard: this.listForUser(userId).length === 0,
             createdAt: Date.now(),
             updatedAt: Date.now(),
