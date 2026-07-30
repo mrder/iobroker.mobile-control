@@ -84,6 +84,8 @@
 - [x] Session-Widerruf
 - [ ] Geräteschlüssel-Rotation (Re-Key eines bereits gepaarten Geräts; aktuell kein Endpoint dafür - nur initiales Pairing erzeugt ein Schlüsselpaar, siehe SECURITY.md "Geräteidentität")
 - [ ] Optionales Pairing-Passwort / Vergleichscode (BACKEND-KONZEPT.md/SECURITY.md nennen das als zusätzliche Härtung neben der Admin-Bestätigung; nicht umgesetzt)
+- [x] **Portal-Schlüssel vor dem gesamten Server** (live-requested, 2026-07-30: "kein Fremder soll den Adapter ansprechen können außer meine gekoppelten Geräte" + Sorge um `Cannot GET /...`-Fingerprinting durch Scanner). HTTP-Basic-Auth-Gate vor allem, inkl. Pairing/Login/App-Download; eigener AbuseGuard getrennt vom Pairing/Login-Tracker (siehe SECURITY.md). Automatisch per QR-Code übertragen; ein-malige Selbst-Migration für bereits gekoppelte Geräte über `GET /api/v1/portal-key`.
+- [ ] **In-App-Eingabe für einen manuell rotierten Portal-Schlüssel** (Folge-Item zum obigen Punkt): Neu-Erzeugen im Admin-Tab sperrt aktuell sofort jedes bereits gekoppelte Gerät aus, bis der Admin den neuen Schlüssel von Hand weitergibt - es gibt noch kein Eingabefeld dafür in den App-Einstellungen (nur die automatische QR-Übernahme bei einer neuen Kopplung, und die einmalige Selbst-Migration für Geräte von vor dieser Funktion).
 
 ## Phase 7 – REST und WebSocket
 
@@ -153,7 +155,7 @@
 - [x] Speichern
 - [x] Synchronisieren
 - [x] Konflikte
-- [ ] Rückgängig/Wiederholen im Editor (ANDROID-APP-KONZEPT.md nennt Undo/Redo für den Dashboard-Editor; nicht in `DashboardEditorViewModel` vorhanden)
+- [x] Rückgängig/Wiederholen im Editor (live-requested 2026-07-30: History-Stack in `DashboardEditorViewModel`, Undo/Redo-Buttons in der Toolbar, Historie wird bei erfolgreichem Speichern/Konfliktauflösung geleert)
 
 ## Phase 12 – Widgets
 
@@ -246,7 +248,7 @@
 - [ ] App Staging
 - [ ] interne APK
 - [ ] GitHub Releases (Automatisierung steht via `.github/workflows/release.yml`, aber es wurde noch kein Tag/Release erstellt)
-- [ ] **App-Installationsseite direkt vom Adapter** (Praxis-Idee, live besprochen: "sodass sich der Nutzer z.B mithilfe einer Installationsseite/QR-Code die App direkt über die eingestellte Domain oder über das lokale Netzwerk runterladen könnte"). Aktueller Stand der Debug-APK: **43 MB** (ungeshrinkt/unminifiziert, wie bei jedem Debug-Build üblich - eine echte Release-Build mit R8/ProGuard + Resource-Shrinking läge vermutlich bei 15-25 MB).
+- [x] **App-Installationsseite direkt vom Adapter** (Praxis-Idee, live besprochen: "sodass sich der Nutzer z.B mithilfe einer Installationsseite/QR-Code die App direkt über die eingestellte Domain oder über das lokale Netzwerk runterladen könnte"; 2026-07-30 umgesetzt wie live vorgeschlagen: die shrunk `staging`-APK liegt als `app/mobile-control.apk` direkt im npm-Paket, `GET /app` zeigt eine unauthentifizierte Installationsseite mit QR-Code, `GET /app/download` liefert die Datei aus - beide IP-ratenbegrenzt. Jedes Adapter-Update bringt die passende App-Version automatisch mit; das Aktualisieren von `app/mobile-control.apk` ist noch ein manueller Release-Schritt, siehe README „Release-Prozess"). Kein echtes Release-Signing vorhanden (siehe unten) - die `staging`-Variante nutzt weiterhin das feste Debug-Keystore.
   - **Nicht ins Git-Repo/npm-Paket einbetten**: Bei dieser Größe und der Häufigkeit neuer Versionen würde jede einzelne Version das Repo dauerhaft aufblähen (Git kann Binärdateien nicht diffen, jede neue APK ist ein kompletter neuer Blob in der Historie, für immer).
   - Stattdessen: **GitHub Release als Hosting** - `.github/workflows/release.yml` (läuft schon bei jedem `v*.*.*`-Tag auf `main`) um einen Android-Build-Schritt erweitern, der die APK als Release-Asset anhängt (`softprops/action-gh-release` unterstützt das direkt über `files:`). Kostet das Repo selbst nichts, nutzt GitHubs eigenes Asset-Hosting mit stabiler URL pro Version.
   - **Release-Signing fehlt noch als Voraussetzung**: aktuell existiert nur ein Debug-Build-Pfad (fester, eingecheckter Debug-Keystore seit v0.0.17, nur für `adb install -r`/CI gedacht). Für eine echte "lade dir die App runter"-Seite bräuchte es einen eigenen Release-Build-Flavor mit Release-Keystore (Signing-Key sicher als GitHub-Secret, nicht eingecheckt).

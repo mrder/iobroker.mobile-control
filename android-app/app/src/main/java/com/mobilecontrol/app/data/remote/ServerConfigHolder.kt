@@ -33,6 +33,13 @@ class ServerConfigHolder @Inject constructor() {
     @Volatile
     var certificatePin: String? = null
 
+    /** Shared secret required (via HTTP Basic Auth) on every request to the server - see
+     *  PortalKeyInterceptor. Learned from the pairing QR payload for a new pairing, or fetched
+     *  once via the /portal-key bootstrap endpoint for a device paired before this existed. Null
+     *  means "not yet known" - requests go out without the header and get a 401 until it's set. */
+    @Volatile
+    var portalKey: String? = null
+
     fun setServerUrl(rawUrl: String): Boolean {
         val parsed = rawUrl.toHttpUrlOrNull() ?: return false
         baseUrl = if (parsed.encodedPath.endsWith("/")) parsed else parsed.newBuilder().addPathSegment("").build()

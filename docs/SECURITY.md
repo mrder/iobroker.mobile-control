@@ -70,6 +70,20 @@ Prüfen:
 - temporäre IP-Sperre bei wiederholten Fehlversuchen (AbuseGuard, unabhängig vom reinen Rate-Limit)
 - Größenlimits
 - sichere Fehlertexte
+- **Portal-Schlüssel** (2026-07-30, live-requested): gemeinsames Geheimnis per HTTP Basic Auth vor
+  jeder Anfrage an den Server, noch vor Pairing/Login - ein Angreifer/Scanner ohne diesen Schlüssel
+  bekommt für jeden Pfad dieselbe generische 401-Antwort, keine Unterscheidung zwischen gültigem
+  und ungültigem Pfad möglich. Eigener AbuseGuard (getrennt vom Pairing/Login-Tracker, siehe
+  `portalAbuseGuard` in `main.ts` - ein gemeinsamer Zähler hätte jeden gültigen Portal-Schlüssel-
+  Check die Fehlversuchszählung für Pairing/Login zurücksetzen lassen, live über den
+  Integrationstest gefunden). Wird beim Pairing automatisch per QR-Code übertragen; ein bereits
+  gekoppeltes Gerät ohne Schlüssel holt ihn sich einmalig über den eigens dafür von dieser Sperre
+  ausgenommenen, aber weiterhin normal geräte-authentifizierten Endpunkt `GET /api/v1/portal-key`
+  nach. **Bewusste Einschränkung:** Nach einem manuellen Neu-Erzeugen des Schlüssels im Admin-Tab
+  gibt es keinen automatischen Übergang - jedes bereits gekoppelte Gerät braucht den neuen
+  Schlüssel von Hand (aktuell nur durch den Admin manuell weitergegeben, keine In-App-Eingabe
+  dafür vorhanden). Schützt nur gegen Bruteforce/Scanning auf Anwendungsebene, nicht gegen echtes
+  volumenbasiertes DDoS (braucht Schutz auf Netzwerkebene).
 
 ## Lokale App-Sicherheit
 

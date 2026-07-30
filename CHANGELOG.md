@@ -8,6 +8,52 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.62] - master, Testbuild
+
+Live besprochene Sicherheitshärtung: ein gemeinsamer Portal-Schlüssel vor dem gesamten Server,
+damit kein Fremder den Adapter überhaupt ansprechen kann.
+
+- **Portal-Schlüssel-Gate**: HTTP Basic Auth vor buchstäblich jeder Anfrage - inklusive Pairing,
+  Login und der neuen App-Installationsseite. Ohne korrekten Schlüssel antwortet der Server auf
+  jeden Pfad mit derselben generischen 401-Antwort; ein Scanner von außen kann nicht mehr zwischen
+  gültigem und ungültigem Pfad unterscheiden (behebt nebenbei auch das störende „Cannot GET /..."
+  eines nackt aufgerufenen Servers).
+- Automatisch erzeugt bei der Ersteinrichtung, im Admin-Tab „Übersicht" einsehbar und (bei Bedarf)
+  neu erzeugbar. Neu gekoppelte Geräte lernen ihn automatisch über den Pairing-QR-Code; ein bereits
+  gekoppeltes Gerät ohne Schlüssel holt ihn sich einmalig über einen eigens dafür von der Sperre
+  ausgenommenen, aber weiterhin normal geräte-authentifizierten Endpunkt nach - kein Neu-Koppeln
+  nötig für bestehende Geräte.
+- Eigener, vom Pairing/Login-Fehlversuchszähler getrennter Bruteforce-Schutz (ein gemeinsamer
+  Zähler hätte sich gegenseitig zurückgesetzt - live über den Integrationstest gefunden, bevor es
+  in Produktion hätte auffallen können).
+- Bewusste Einschränkung: Hilft nur gegen Bruteforce/Scanning, nicht gegen echtes volumenbasiertes
+  DDoS (siehe docs/SECURITY.md). Ein manuell neu erzeugter Schlüssel sperrt bereits gekoppelte
+  Geräte sofort aus, bis der neue Schlüssel von Hand weitergegeben wird - noch keine In-App-Eingabe
+  dafür (siehe docs/TODO.md).
+- Nebenbei: Der Bearer-Token des Geräts läuft jetzt auf einem eigenen Header
+  (`X-Device-Authorization`) statt auf `Authorization`, da dieser jetzt dem Portal-Schlüssel
+  gehört - zwei unabhängige Berechtigungsnachweise, zwei getrennte Header.
+
+## [0.0.61] - master, Testbuild
+
+Drei live besprochene Verbesserungen: feineres Dashboard-Raster, Rückgängig/Wiederholen im
+Dashboard-Editor, und die App direkt vom Adapter herunterladbar.
+
+- **Feineres Dashboard-Raster**: Zeilenhöhe von 120dp auf 72dp reduziert und die Mindest-/
+  Standard-Spaltenzahl von 8 auf 12 angehoben (bestehende Dashboards werden beim Öffnen im Editor
+  automatisch migriert, wie schon beim vorherigen 4→8-Schritt) - deutlich mehr Widgets pro Bildschirm
+  und feinere Größenschritte beim Anpassen.
+- **Rückgängig/Wiederholen im Dashboard-Editor**: Jede Änderung (Widget hinzufügen/entfernen/
+  verschieben/anpassen) landet auf einem Verlaufsstapel, zwei neue Symbole in der Werkzeugleiste im
+  Bearbeitungsmodus. Der Verlauf wird beim erfolgreichen Speichern oder Auflösen eines
+  Revisionskonflikts geleert, da beide Fälle eine neue, vom Server bestätigte Ausgangslage setzen.
+- **App direkt vom Adapter herunterladbar**: Die (verkleinerte) App-Version liegt jetzt direkt im
+  Adapter-Paket (`app/mobile-control.apk`) und wird über zwei neue, unauthentifizierte (aber pro IP
+  ratenbegrenzte) Endpunkte bereitgestellt - `GET /app` zeigt eine Installationsseite mit QR-Code,
+  `GET /app/download` liefert die Datei direkt aus. Kein separates Hosten/Verschicken der APK mehr
+  nötig; jedes Adapter-Update bringt die passende App-Version automatisch mit (siehe README
+  „Release-Prozess" für den neuen, noch manuellen Schritt beim Erstellen eines Releases).
+
 ## [0.0.60] - master, Testbuild
 
 Der eigentliche Fix. Live bestätigt: Die Live-Verbindung meldet sich jetzt erfolgreich an,

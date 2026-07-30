@@ -232,14 +232,80 @@ class DashboardEditorViewModelTest {
     }
 
     @Test
-    fun `init widens a dashboard still stuck on the old 4-column layout to the new minimum`() = runTest {
+    fun `undo reverts the last change and redo reapplies it`() = runTest {
+        val dashboard = testDashboard(widgets = listOf(widget("keep"), widget("drop", x = 2)))
+        val viewModel = buildViewModel(dashboard)
+        collectUiState(viewModel)
+        advanceUntilIdle()
+
+        viewModel.removeWidget("drop")
+        assertEquals(listOf("keep"), viewModel.uiState.value.currentLayout!!.widgets.map { it.id })
+        assertTrue(viewModel.uiState.value.canUndo)
+        assertFalse(viewModel.uiState.value.canRedo)
+
+        viewModel.undo()
+        assertEquals(setOf("keep", "drop"), viewModel.uiState.value.currentLayout!!.widgets.map { it.id }.toSet())
+        assertFalse(viewModel.uiState.value.canUndo)
+        assertTrue(viewModel.uiState.value.canRedo)
+
+        viewModel.redo()
+        assertEquals(listOf("keep"), viewModel.uiState.value.currentLayout!!.widgets.map { it.id })
+        assertTrue(viewModel.uiState.value.canUndo)
+        assertFalse(viewModel.uiState.value.canRedo)
+    }
+
+    @Test
+    fun `a new edit after undo clears the redo stack`() = runTest {
+        val dashboard = testDashboard(widgets = listOf(widget("a"), widget("b", x = 2)))
+        val viewModel = buildViewModel(dashboard)
+        collectUiState(viewModel)
+        advanceUntilIdle()
+
+        viewModel.removeWidget("a")
+        viewModel.undo()
+        assertTrue(viewModel.uiState.value.canRedo)
+
+        viewModel.removeWidget("b")
+        assertFalse(viewModel.uiState.value.canRedo)
+    }
+
+    @Test
+    fun `moveWidgetTo rejecting a collision does not push a no-op undo entry`() = runTest {
+        val dashboard = testDashboard(widgets = listOf(widget("a", x = 0, y = 0), widget("b", x = 2, y = 0)))
+        val viewModel = buildViewModel(dashboard)
+        collectUiState(viewModel)
+        advanceUntilIdle()
+
+        viewModel.moveWidgetTo("a", newX = 2, newY = 0) // rejected: would land on "b"
+        assertFalse(viewModel.uiState.value.canUndo)
+    }
+
+    @Test
+    fun `a successful save clears the undo-redo history`() = runTest {
+        val dashboard = testDashboard(widgets = listOf(widget("a")))
+        val dashboardRepo = FakeDashboardRepository(dashboard)
+        val viewModel = buildViewModel(dashboard, dashboardRepo = dashboardRepo)
+        collectUiState(viewModel)
+        advanceUntilIdle()
+
+        viewModel.removeWidget("a")
+        assertTrue(viewModel.uiState.value.canUndo)
+        viewModel.save()
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.canUndo)
+        assertFalse(viewModel.uiState.value.canRedo)
+    }
+
+    @Test
+    fun `init widens a dashboard still stuck on an old, narrower column count to the new minimum`() = runTest {
         val narrowLayout = DashboardLayout(SizeClass.COMPACT, columns = 4, widgets = listOf(widget("w1")))
         val dashboard = Dashboard(id = "dash-1", name = "Alt", revision = 0, layouts = listOf(narrowLayout))
         val viewModel = buildViewModel(dashboard)
         collectUiState(viewModel)
         advanceUntilIdle()
 
-        assertEquals(8, viewModel.uiState.value.currentLayout!!.columns)
+        assertEquals(12, viewModel.uiState.value.currentLayout!!.columns)
     }
 
     @Test

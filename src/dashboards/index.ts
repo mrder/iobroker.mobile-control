@@ -37,11 +37,12 @@ export class DashboardsService {
             userId,
             name,
             revision: 1,
-            // 8 rather than the original 4: the app's resize UI now steps width/height
+            // 12 rather than the original 4, then 8: the app's resize UI steps width/height
             // independently, and a narrower grid made every step feel too coarse (live-test
-            // feedback). Existing dashboards created with columns: 4 get bumped client-side on
-            // load (see DashboardEditorViewModel) since this default only applies to new ones.
-            layouts: [{ sizeClass: 'compact', columns: 8, widgets: [] }],
+            // feedback, twice). Existing dashboards created with a narrower columns value get
+            // bumped client-side on load (see DashboardEditorViewModel.MIN_GRID_COLUMNS) since
+            // this default only applies to new ones.
+            layouts: [{ sizeClass: 'compact', columns: 12, widgets: [] }],
             isStartDashboard: this.listForUser(userId).length === 0,
             createdAt: Date.now(),
             updatedAt: Date.now(),

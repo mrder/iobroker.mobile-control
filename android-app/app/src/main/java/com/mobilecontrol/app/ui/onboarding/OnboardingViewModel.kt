@@ -69,6 +69,9 @@ class OnboardingViewModel @Inject constructor(
             _uiState.update { it.copy(qrError = "Der Pairing-Code ist abgelaufen. Bitte neu scannen.") }
             return
         }
+        // Set as early as possible - checkServer() below makes the very first network call of the
+        // whole pairing flow, and it (like everything else) is behind the portal-key gate now.
+        serverConfigHolder.portalKey = payload.portalKey
         _uiState.update { it.copy(qrPayload = payload, qrError = null) }
     }
 
@@ -76,7 +79,7 @@ class OnboardingViewModel @Inject constructor(
         val payload = _uiState.value.qrPayload ?: return
         viewModelScope.launch {
             _uiState.update { it.copy(fingerprintChecking = true) }
-            val result = fingerprintChecker.check(payload.serverUrl, payload.serverFingerprint)
+            val result = fingerprintChecker.check(payload.serverUrl, payload.serverFingerprint, payload.portalKey)
             _uiState.update { it.copy(fingerprintChecking = false, fingerprintResult = result) }
         }
     }
@@ -174,6 +177,7 @@ class OnboardingViewModel @Inject constructor(
                 serverFingerprint = payload.serverFingerprint,
                 pairedAt = System.currentTimeMillis(),
                 certificatePin = serverConfigHolder.certificatePin,
+                portalKey = serverConfigHolder.portalKey,
             ),
         )
 

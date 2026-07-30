@@ -6,6 +6,7 @@ import com.mobilecontrol.app.data.remote.AppInfoInterceptor
 import com.mobilecontrol.app.data.remote.AuthHeaderInterceptor
 import com.mobilecontrol.app.data.remote.CertificatePinningInterceptor
 import com.mobilecontrol.app.data.remote.DynamicBaseUrlInterceptor
+import com.mobilecontrol.app.data.remote.PortalKeyInterceptor
 import com.mobilecontrol.app.data.remote.RequestSigningInterceptor
 import com.mobilecontrol.app.data.remote.ServerConfigHolder
 import com.mobilecontrol.app.data.remote.TokenAuthenticator
@@ -48,6 +49,7 @@ object NetworkModule {
     fun provideOkHttpClient(
         appInfoInterceptor: AppInfoInterceptor,
         authHeaderInterceptor: AuthHeaderInterceptor,
+        portalKeyInterceptor: PortalKeyInterceptor,
         requestSigningInterceptor: RequestSigningInterceptor,
         certificatePinningInterceptor: CertificatePinningInterceptor,
         dynamicBaseUrlInterceptor: DynamicBaseUrlInterceptor,
@@ -61,6 +63,7 @@ object NetworkModule {
         return OkHttpClient.Builder()
             .addInterceptor(dynamicBaseUrlInterceptor)
             .addInterceptor(appInfoInterceptor)
+            .addInterceptor(portalKeyInterceptor)
             .addInterceptor(authHeaderInterceptor)
             .addInterceptor(requestSigningInterceptor)
             .addInterceptor(certificatePinningInterceptor)
@@ -99,6 +102,7 @@ object NetworkModule {
     @AuthRefresh
     fun provideAuthRefreshOkHttpClient(
         appInfoInterceptor: AppInfoInterceptor,
+        portalKeyInterceptor: PortalKeyInterceptor,
         dynamicBaseUrlInterceptor: DynamicBaseUrlInterceptor,
         certificatePinningInterceptor: CertificatePinningInterceptor,
     ): OkHttpClient {
@@ -108,6 +112,7 @@ object NetworkModule {
         return OkHttpClient.Builder()
             .addInterceptor(dynamicBaseUrlInterceptor)
             .addInterceptor(appInfoInterceptor)
+            .addInterceptor(portalKeyInterceptor)
             .addInterceptor(certificatePinningInterceptor)
             .addInterceptor(logging)
             .connectTimeout(15, TimeUnit.SECONDS)

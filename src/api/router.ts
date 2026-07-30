@@ -47,6 +47,9 @@ export interface ApiServices {
     /** Separate from the command-replay ReplayGuard in CommandsService - different key namespace
      *  (prefixed "sig:") and a much shorter, purely-anti-replay TTL, so give it its own instance. */
     signatureReplayGuard: ReplayGuard;
+    /** Backing the GET /portal-key bootstrap route below - a function (not the raw value) so a
+     *  future admin-triggered key rotation is reflected immediately. */
+    getPortalKey: () => string;
 }
 
 /** Records a failed attempt and, the moment it crosses the threshold and triggers a new
@@ -272,6 +275,17 @@ export function createApiRouter(services: ApiServices): Router {
             });
             sendError(res, err);
         }
+    });
+
+    // Bootstrap route for a device paired BEFORE the portal-key gate existed (see
+    // createPortalGateMiddleware's exemptPaths doc) - exempted from that outer gate specifically,
+    // but still fully gated by the normal device bearer token + request signature below, so it's
+    // no more reachable by an unauthenticated caller than any other protected route. An
+    // already-paired device with no portal key stored yet calls this once (using its still-valid
+    // existing session) to learn the current key, then attaches it to every request afterwards
+    // like any other device.
+    router.get('/portal-key', requireAuth, requireSignature, (_req: AuthenticatedRequest, res: Response) => {
+        res.json({ portalKey: services.getPortalKey() });
     });
 
     // ---- Catalog / States --------------------------------------------------

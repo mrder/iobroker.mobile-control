@@ -23,6 +23,7 @@ async function setup(configOverrides: Partial<PairingConfig> = {}) {
     const devices = new DevicesService(devicesStore);
     const pairing = new PairingService(invitesStore, claimsStore, users, roles, devices, {
         publicUrl: 'https://example.test/mobile-control',
+        portalKey: 'test-portal-key',
         instanceId: 'mobile-control.0',
         serverFingerprint: 'sha256/test-fingerprint',
         inviteTtlMinutes: 10,

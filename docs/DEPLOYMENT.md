@@ -107,6 +107,24 @@ Erneuerung beobachten (z. B. `openssl s_client` vor/nach einer erzwungenen Erneu
 neu ausgestellt), muss jedes gekoppelte Gerät einmalig neu gekoppelt werden, um den neuen Schlüssel
 zu übernehmen.
 
+### Portal-Schlüssel (live-requested, 2026-07-30)
+
+Seit v0.0.61 verlangt der Adapter vor jeder Anfrage - inklusive Pairing, Login und der
+App-Installationsseite `/app` - HTTP Basic Auth mit einem gemeinsamen "Portal-Schlüssel". Wird bei
+der Ersteinrichtung automatisch erzeugt, im Admin-Tab "Übersicht" einsehbar/neu erzeugbar. Neu
+gekoppelte Geräte lernen ihn automatisch über den Pairing-QR-Code; für manuelle Tests (z. B.
+`curl`) muss er von Hand mitgegeben werden:
+
+```bash
+curl -u device:<Portal-Schlüssel> https://smart.example.tld/app
+```
+
+Ohne korrekten Schlüssel antwortet der Server auf jeden Pfad mit derselben generischen 401-Antwort
+- auch das nützliche Nebenprodukt, dass ein Scanner von außen nicht mehr am "Cannot GET /..."
+erkennen kann, dass hier überhaupt ein Express-Server läuft. Ein manuell im Admin-Tab neu erzeugter
+Schlüssel sperrt sofort jedes bereits gekoppelte Gerät aus, bis der neue Schlüssel von Hand
+weitergegeben wird (kein automatischer Übergang, siehe TODO.md).
+
 ### Rate Limiting auf Proxy-Ebene
 
 Der Adapter hat bereits ein eigenes Rate-Limit pro Gerät für Kommandos (`rateLimitPerMinute` in

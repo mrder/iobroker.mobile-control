@@ -12,8 +12,12 @@ import {
     TableRow,
     TableCell,
     TableBody,
+    TextField,
+    InputAdornment,
+    IconButton,
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { callAdapter } from '../connection';
 import type { AbuseSnapshotEntry, ConnectionInfo, Overview } from '../types';
 
@@ -33,6 +37,8 @@ export default function OverviewTab(): JSX.Element {
     const [connection, setConnection] = useState<ConnectionInfo | null>(null);
     const [abuseState, setAbuseState] = useState<AbuseSnapshotEntry[]>([]);
     const [loading, setLoading] = useState(false);
+    const [regenerating, setRegenerating] = useState(false);
+    const [copiedField, setCopiedField] = useState<string | null>(null);
 
     const load = (): void => {
         setLoading(true);
@@ -54,6 +60,23 @@ export default function OverviewTab(): JSX.Element {
         const interval = setInterval(load, 10_000);
         return () => clearInterval(interval);
     }, []);
+
+    const copyToClipboard = (value: string, field: string): void => {
+        navigator.clipboard.writeText(value).then(() => {
+            setCopiedField(field);
+            setTimeout(() => setCopiedField((current) => (current === field ? null : current)), 2000);
+        });
+    };
+
+    const regeneratePortalKey = (): void => {
+        if (!window.confirm('Neuen Portal-Schlüssel erzeugen? Jedes bereits gekoppelte Gerät braucht danach den neuen Schlüssel, um weiter erreichbar zu bleiben.')) {
+            return;
+        }
+        setRegenerating(true);
+        callAdapter<{ portalKey: string }>('regeneratePortalKey')
+            .then(({ portalKey }) => setConnection((current) => (current ? { ...current, portalKey } : current)))
+            .finally(() => setRegenerating(false));
+    };
 
     // Derived straight from the same abuseState the table below already shows - no separate
     // tracking needed. "Fehlversuche (5 Min)" sums every watched IP's current-window failure
@@ -134,6 +157,80 @@ export default function OverviewTab(): JSX.Element {
                             per Portfreigabe am Router ins Internet stellen. Konkrete nginx/Caddy-Beispiele und eine
                             Firewall-Checkliste: <code>docs/DEPLOYMENT.md</code> im Repository.
                         </Alert>
+                    </>
+                )}
+            </Paper>
+
+            <Paper sx={{ p: 2, mt: 3 }}>
+                <Typography variant="h6" gutterBottom>
+                    Portal-Schlüssel
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Wird vor jeder Anfrage an diesen Server geprüft (HTTP Basic Auth, noch vor Kopplung/Login) – ohne
+                    korrekten Schlüssel antwortet der Server auf gar nichts. Neu gekoppelte Geräte lernen ihn
+                    automatisch über den Pairing-QR-Code. Für die App-Installationsseite unten oder für ein bereits
+                    gekoppeltes Gerät, das noch keinen Schlüssel kennt, hier manuell weitergeben.
+                </Typography>
+                {connection && (
+                    <>
+                        <TextField
+                            label="Portal-Schlüssel"
+                            value={connection.portalKey}
+                            size="small"
+                            fullWidth
+                            InputProps={{
+                                readOnly: true,
+                                sx: { fontFamily: 'monospace' },
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <IconButton size="small" onClick={() => copyToClipboard(connection.portalKey, 'portalKey')}>
+                                            <ContentCopyIcon fontSize="small" />
+                                        </IconButton>
+                                    </InputAdornment>
+                                ),
+                            }}
+                            sx={{ mb: 1 }}
+                        />
+                        {copiedField === 'portalKey' && (
+                            <Typography variant="caption" color="success.main" sx={{ display: 'block', mb: 1 }}>
+                                In die Zwischenablage kopiert.
+                            </Typography>
+                        )}
+                        <TextField
+                            label="App-Installationsseite"
+                            value={`${connection.publicUrl || `http://<Server>:${connection.port}`}/app`}
+                            size="small"
+                            fullWidth
+                            InputProps={{
+                                readOnly: true,
+                                sx: { fontFamily: 'monospace' },
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <IconButton
+                                            size="small"
+                                            onClick={() =>
+                                                copyToClipboard(`${connection.publicUrl || `http://<Server>:${connection.port}`}/app`, 'appUrl')
+                                            }
+                                        >
+                                            <ContentCopyIcon fontSize="small" />
+                                        </IconButton>
+                                    </InputAdornment>
+                                ),
+                            }}
+                            sx={{ mb: 1 }}
+                        />
+                        {copiedField === 'appUrl' && (
+                            <Typography variant="caption" color="success.main" sx={{ display: 'block', mb: 1 }}>
+                                In die Zwischenablage kopiert.
+                            </Typography>
+                        )}
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                            Beim Öffnen im Browser fragt dieser einmalig nach Benutzername (beliebig) und Passwort –
+                            als Passwort den Portal-Schlüssel oben eintragen.
+                        </Typography>
+                        <Button size="small" color="warning" onClick={regeneratePortalKey} disabled={regenerating}>
+                            Neuen Schlüssel erzeugen
+                        </Button>
                     </>
                 )}
             </Paper>

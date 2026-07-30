@@ -11,6 +11,9 @@ data class DeviceProfile(
      *  null for a plain-http deployment (VPN-only, nothing to pin) or if pairing happened to
      *  capture no handshake. See CertificatePinningInterceptor. */
     val certificatePin: String? = null,
+    /** Shared portal-gate secret - see ServerConfigHolder.portalKey. Null only for a device
+     *  paired before this existed, until it self-bootstraps one via AuthRepositoryImpl. */
+    val portalKey: String? = null,
 )
 
 enum class PairingStatus {

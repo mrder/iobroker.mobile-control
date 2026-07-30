@@ -23,8 +23,11 @@ data class DashboardLayout(
 )
 
 enum class SizeClass(val wireName: String, val defaultColumns: Int) {
-    COMPACT("compact", 8),
-    MEDIUM("medium", 8),
+    // Kept in sync with DashboardEditorViewModel.MIN_GRID_COLUMNS - a fallback layout built here
+    // (Dashboard.layoutFor's last-resort branch) should already be at the current minimum grid
+    // width, not immediately trigger that same widening the moment it's opened for editing.
+    COMPACT("compact", 12),
+    MEDIUM("medium", 12),
     EXPANDED("expanded", 12),
     ;
 

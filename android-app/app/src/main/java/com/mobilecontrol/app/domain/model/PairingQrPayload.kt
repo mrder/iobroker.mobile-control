@@ -11,6 +11,7 @@ data class PairingQrPayload(
     val expiresAt: String,
     val serverFingerprint: String,
     val instanceId: String,
+    val portalKey: String,
 ) {
     fun isExpired(nowEpochMillis: Long): Boolean {
         val expiry = runCatching { java.time.OffsetDateTime.parse(expiresAt) }.getOrNull()

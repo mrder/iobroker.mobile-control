@@ -49,6 +49,7 @@ class AuthRepositoryImpl @Inject constructor(
         serverConfigHolder.instanceId = profile.instanceId
         serverConfigHolder.serverFingerprint = profile.serverFingerprint
         serverConfigHolder.certificatePin = profile.certificatePin
+        serverConfigHolder.portalKey = profile.portalKey
         serverConfigHolder.setServerUrl(profile.serverUrl)
 
         val access = tokenStore.getAccessToken() ?: return
@@ -61,6 +62,30 @@ class AuthRepositoryImpl @Inject constructor(
             userId = null,
             userName = null,
         )
+
+        if (profile.portalKey == null) {
+            bootstrapPortalKey()
+        }
+    }
+
+    /**
+     * One-time migration for a device paired before the portal-key gate existed (live-requested
+     * hardening, 2026-07-30) - GET /portal-key is the one route exempted from that outer gate, but
+     * still fully protected by this device's own already-valid Bearer token + request signature
+     * (see createPortalGateMiddleware/router.ts on the backend). Once learned, it's persisted and
+     * PortalKeyInterceptor picks it up on every request from then on, same as a freshly-paired
+     * device that got it straight from the pairing QR code.
+     */
+    private suspend fun bootstrapPortalKey() {
+        val result = safeApiCall { apiService.getPortalKey() }
+        result.onSuccess { body ->
+            serverConfigHolder.portalKey = body.portalKey
+            settingsDataStore.setPortalKey(body.portalKey)
+            diagnosticsRepository.log(LogEntry.Level.INFO, "Portal key bootstrapped for a pre-existing pairing")
+        }
+        result.onFailure {
+            diagnosticsRepository.log(LogEntry.Level.ERROR, "Portal key bootstrap failed: ${it.message}")
+        }
     }
 
     override suspend fun login(deviceId: String): Result<Session> {

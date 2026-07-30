@@ -40,6 +40,8 @@ data class DashboardEditorUiState(
     val revisionConflict: Boolean = false,
     val isSaving: Boolean = false,
     val saveError: String? = null,
+    val canUndo: Boolean = false,
+    val canRedo: Boolean = false,
     val liveValues: Map<String, LiveValue> = emptyMap(),
     val commandStates: Map<String, CommandStatus> = emptyMap(),
     /** objectId -> most recently sent commandId, so a widget can look up its own command's status. */
@@ -62,6 +64,12 @@ class DashboardEditorViewModel @Inject constructor(
     private val dashboardId: String = checkNotNull(savedStateHandle.get<String>(Routes.DASHBOARD_EDITOR_ARG))
 
     private val local = MutableStateFlow(DashboardEditorUiState())
+
+    // Undo/redo history - session-local only (not persisted), reset on save and on conflict
+    // resolution since both replace the local dashboard with a new server-confirmed baseline that
+    // older entries no longer apply cleanly against.
+    private val undoStack = ArrayDeque<Dashboard>()
+    private val redoStack = ArrayDeque<Dashboard>()
 
     val uiState: StateFlow<DashboardEditorUiState> = combine(
         local,
@@ -187,7 +195,41 @@ class DashboardEditorViewModel @Inject constructor(
         local.update { state ->
             val dashboard = state.dashboard ?: return@update state
             val updatedLayouts = dashboard.layouts.map { if (it.sizeClass == sizeClass) transform(it) else it }
-            state.copy(dashboard = dashboard.copy(layouts = updatedLayouts))
+            val updated = dashboard.copy(layouts = updatedLayouts)
+            // Some callers (e.g. moveWidgetTo rejecting a collision) legitimately produce an
+            // unchanged layout - nothing to undo there, and pushing it would waste a history slot.
+            if (updated == dashboard) return@update state
+            pushHistory(dashboard)
+            state.copy(dashboard = updated, canUndo = true, canRedo = false)
+        }
+    }
+
+    private fun pushHistory(previous: Dashboard) {
+        undoStack.addLast(previous)
+        if (undoStack.size > MAX_HISTORY_SIZE) undoStack.removeFirst()
+        redoStack.clear()
+    }
+
+    private fun clearHistory() {
+        undoStack.clear()
+        redoStack.clear()
+    }
+
+    fun undo() {
+        local.update { state ->
+            val current = state.dashboard ?: return@update state
+            val previous = undoStack.removeLastOrNull() ?: return@update state
+            redoStack.addLast(current)
+            state.copy(dashboard = previous, canUndo = undoStack.isNotEmpty(), canRedo = true)
+        }
+    }
+
+    fun redo() {
+        local.update { state ->
+            val current = state.dashboard ?: return@update state
+            val next = redoStack.removeLastOrNull() ?: return@update state
+            undoStack.addLast(current)
+            state.copy(dashboard = next, canUndo = true, canRedo = redoStack.isNotEmpty())
         }
     }
 
@@ -205,7 +247,10 @@ class DashboardEditorViewModel @Inject constructor(
             local.update { it.copy(isSaving = true, saveError = null) }
             val result = dashboardRepository.updateDashboard(dashboard)
             result.fold(
-                onSuccess = { saved -> local.update { it.copy(isSaving = false, dashboard = saved, editMode = false) } },
+                onSuccess = { saved ->
+                    clearHistory()
+                    local.update { it.copy(isSaving = false, dashboard = saved, editMode = false, canUndo = false, canRedo = false) }
+                },
                 onFailure = { error ->
                     val isConflict = (error as? ApiException)?.errorCode == ApiErrorCode.REVISION_CONFLICT
                     local.update {
@@ -224,7 +269,10 @@ class DashboardEditorViewModel @Inject constructor(
             val serverCopy = dashboardRepository.getDashboard(dashboard.id)
             val forced = dashboard.copy(revision = (serverCopy?.revision ?: dashboard.revision) + 1)
             dashboardRepository.updateDashboard(forced).fold(
-                onSuccess = { saved -> local.update { it.copy(isSaving = false, dashboard = saved, editMode = false) } },
+                onSuccess = { saved ->
+                    clearHistory()
+                    local.update { it.copy(isSaving = false, dashboard = saved, editMode = false, canUndo = false, canRedo = false) }
+                },
                 onFailure = { error -> local.update { it.copy(isSaving = false, saveError = error.message) } },
             )
         }
@@ -234,7 +282,8 @@ class DashboardEditorViewModel @Inject constructor(
         viewModelScope.launch {
             val dashboard = local.value.dashboard ?: return@launch
             val fresh = dashboardRepository.getDashboard(dashboard.id)?.let(::withWidenedColumns)
-            local.update { it.copy(revisionConflict = false, dashboard = fresh, editMode = false) }
+            clearHistory()
+            local.update { it.copy(revisionConflict = false, dashboard = fresh, editMode = false, canUndo = false, canRedo = false) }
         }
     }
 
@@ -242,15 +291,20 @@ class DashboardEditorViewModel @Inject constructor(
         /** Maximum height of a single widget, in grid rows - see [MIN_GRID_COLUMNS]. */
         const val MAX_WIDGET_ROWS = 8
 
+        /** Caps undo-stack memory for a long editing session - far more than anyone would ever
+         *  realistically want to step back through in one sitting. */
+        private const val MAX_HISTORY_SIZE = 50
+
         /**
-         * Dashboards created before the grid was widened from 4 to 8 columns (live-test feedback:
-         * 4 made every resize step too coarse) still carry `columns: 4` from the server. Rather
-         * than a one-off server-side migration, every dashboard is bumped up to this width the
-         * moment it's loaded into the editor - existing widgets keep their x/y/w/h (they just now
-         * occupy less of the row than before, and can be resized wider), and the wider value is
-         * persisted back on the next save.
+         * Dashboards created before the grid was widened - first 4 to 8 columns, now 8 to 12
+         * (live-test feedback both times: too coarse, not enough widgets fit per row) - still
+         * carry the older, narrower `columns` value from the server. Rather than a one-off
+         * server-side migration, every dashboard is bumped up to this width the moment it's loaded
+         * into the editor - existing widgets keep their x/y/w/h (they just now occupy less of the
+         * row than before, and can be resized wider), and the wider value is persisted back on the
+         * next save.
          */
-        private const val MIN_GRID_COLUMNS = 8
+        private const val MIN_GRID_COLUMNS = 12
 
         private fun withWidenedColumns(dashboard: Dashboard): Dashboard =
             dashboard.copy(

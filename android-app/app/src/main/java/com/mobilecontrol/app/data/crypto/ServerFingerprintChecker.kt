@@ -4,6 +4,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import okhttp3.Credentials
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import javax.inject.Inject
@@ -41,10 +42,14 @@ class ServerFingerprintChecker @Inject constructor() {
     private val client = OkHttpClient.Builder().build()
     private val json = Json { ignoreUnknownKeys = true }
 
-    suspend fun check(serverUrl: String, expectedFingerprint: String): FingerprintCheckResult = withContext(Dispatchers.IO) {
+    suspend fun check(serverUrl: String, expectedFingerprint: String, portalKey: String): FingerprintCheckResult = withContext(Dispatchers.IO) {
         try {
             val infoUrl = serverUrl.trimEnd('/') + "/api/v1/server/info"
-            val request = Request.Builder().url(infoUrl).get().build()
+            // This client is deliberately its own, un-intercepted instance (see the class doc), so
+            // it doesn't automatically pick up PortalKeyInterceptor - attach the same Basic Auth
+            // header by hand instead. Without it this, the very first network call of the pairing
+            // flow, would just 401 at the portal gate before ever reaching /server/info.
+            val request = Request.Builder().url(infoUrl).header("Authorization", Credentials.basic("device", portalKey)).get().build()
             val response = client.newCall(request).execute()
             val body = response.body?.string()
             response.close()

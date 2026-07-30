@@ -47,6 +47,8 @@ import { ReplayGuard } from './security/replayGuard';
 import { RealtimeGateway } from './realtime';
 import { createApiRouter } from './api/router';
 import { createTunnelRouter } from './api/tunnelRouter';
+import { createAppDistributionRouter } from './api/appDistributionRouter';
+import { createPortalGateMiddleware } from './api/portalGate';
 import type { AuthenticatedRequest } from './api/middleware';
 import { runMigrations } from './migrations';
 
@@ -55,6 +57,10 @@ interface AdapterNativeConfig {
     bindAddress: string;
     publicUrl: string;
     jwtSecret: string;
+    /** Shared secret required (via HTTP Basic Auth) on every request to this server, including
+     *  pairing/auth/app-download - see createPortalGateMiddleware's own doc. Same auto-generate-if-
+     *  missing pattern as jwtSecret. */
+    portalKey: string;
     accessTokenTtlMinutes: number;
     refreshTokenTtlDays: number;
     pairingTtlMinutes: number;
@@ -120,6 +126,15 @@ class MobileControlAdapter extends utils.Adapter {
     private tunnelService!: TunnelService;
     private alarmEventsService!: AlarmEventsService;
     private abuseGuard!: AbuseGuard;
+    /** Deliberately SEPARATE from abuseGuard - live-confirmed by the integration test as a real
+     *  bug when this used to share the main instance: recordSuccess() on every valid portal-key
+     *  request kept wiping out the *unrelated* auth/pairing failure count for that same IP before
+     *  it could ever reach the block threshold, silently defeating that existing protection. Two
+     *  independent trackers means a burst of wrong pairing secrets still blocks even from an IP
+     *  that also happens to be sending a perfectly valid portal key on every request (which any
+     *  real attacker would, since it's needed to reach anything at all). */
+    private portalAbuseGuard!: AbuseGuard;
+    private portalKey!: string;
 
     public constructor(options: Partial<utils.AdapterOptions> = {}) {
         super({ ...options, name: 'mobile-control' });
@@ -150,6 +165,15 @@ class MobileControlAdapter extends utils.Adapter {
             jwtSecret = randomBytes(48).toString('base64url');
             await this.extendForeignObjectAsync(`system.adapter.${this.namespace}`, { native: { jwtSecret } });
             this.log.info('mobile-control: generated a new JWT signing secret (stored in adapter config)');
+        }
+
+        this.portalKey = config.portalKey;
+        if (!this.portalKey) {
+            this.portalKey = randomBytes(24).toString('base64url');
+            await this.extendForeignObjectAsync(`system.adapter.${this.namespace}`, { native: { portalKey: this.portalKey } });
+            this.log.info(
+                'mobile-control: generated a new portal key (stored in adapter config) - see the "Übersicht" admin tab to view/share it',
+            );
         }
 
         // NOTE (documented simplification): this MVP does not terminate TLS itself - it expects
@@ -209,6 +233,7 @@ class MobileControlAdapter extends utils.Adapter {
         this.sessionsService = new SessionsService(sessionsStore, this.auditService);
         this.pairingService = new PairingService(invitesStore, claimsStore, this.usersService, this.rolesService, this.devicesService, {
             publicUrl,
+            portalKey: this.portalKey,
             instanceId: this.namespace,
             serverFingerprint,
             inviteTtlMinutes: config.pairingTtlMinutes,
@@ -232,7 +257,7 @@ class MobileControlAdapter extends utils.Adapter {
             .subscribeToAlarmObjects()
             .catch((err: unknown) => this.log.error(`mobile-control: subscribeToAlarmObjects failed: ${(err as Error).message}`));
 
-        await this.startHttpServer(config);
+        await this.startHttpServer(config, publicUrl);
 
         this.subscribeStates('control.*');
         await this.setStateAsync('info.apiStatus', { val: 'running', ack: true });
@@ -247,12 +272,17 @@ class MobileControlAdapter extends utils.Adapter {
         this.updateStatusStates().catch((err: unknown) => this.log.error(`mobile-control: updateStatusStates failed: ${(err as Error).message}`));
     }
 
-    private async startHttpServer(config: AdapterNativeConfig): Promise<void> {
+    private async startHttpServer(config: AdapterNativeConfig, publicUrl: string): Promise<void> {
         // Falls back to sane defaults if missing (e.g. an instance configured before this setting
         // existed) rather than silently disabling blocking (0/undefined would make the
         // ">= maxFailures" check in AbuseGuard never trip). Kept as an instance field (not just a
         // local here) so the 'listAbuseState' admin message handler can read its live snapshot.
         this.abuseGuard = new AbuseGuard({
+            maxFailures: config.abuseBlockThreshold || 10,
+            windowMs: 5 * 60_000,
+            blockMs: (config.abuseBlockMinutes || 30) * 60_000,
+        });
+        this.portalAbuseGuard = new AbuseGuard({
             maxFailures: config.abuseBlockThreshold || 10,
             windowMs: 5 * 60_000,
             blockMs: (config.abuseBlockMinutes || 30) * 60_000,
@@ -270,10 +300,24 @@ class MobileControlAdapter extends utils.Adapter {
         // cannot spoof their own IP via that header; only an already-trusted local hop can forward
         // one.
         app.set('trust proxy', 'loopback, linklocal, uniquelocal');
+        // The outermost layer, mounted before literally everything else (including the app-
+        // distribution and tunnel routers below) - see createPortalGateMiddleware's own doc for
+        // why. `() => this.portalKey` (not the value itself) so a future regeneratePortalKey
+        // admin action takes effect immediately without re-mounting anything.
+        app.use(createPortalGateMiddleware(() => this.portalKey, this.portalAbuseGuard, this, ['/api/v1/portal-key']));
         // Shared by both routers below - per-request signatures (createSignatureMiddleware) use
         // the "sig:" key prefix, distinct from CommandsService's own ReplayGuard for command
         // nonces, so one instance safely covers every signed endpoint across both routers.
         const signatureReplayGuard = new ReplayGuard(SIGNATURE_REPLAY_GUARD_TTL_MS);
+        // Deliberately unauthenticated (see createAppDistributionRouter's own doc) and mounted
+        // before express.json() - these are plain GETs, no body to parse either way.
+        app.use(
+            createAppDistributionRouter({
+                adapter: this,
+                publicUrl,
+                downloadRateLimiter: new RateLimiter(30),
+            }),
+        );
         // Mounted BEFORE express.json() below, deliberately: /tunnel/proxy needs the request body
         // as untouched raw bytes regardless of content-type (see createTunnelRouter's own docs -
         // a JSON-parse-then-reserialize round trip would corrupt whatever the tunneled page sent).
@@ -323,6 +367,7 @@ class MobileControlAdapter extends utils.Adapter {
                 authRateLimiter: new RateLimiter(config.authRateLimitPerMinute),
                 abuseGuard: this.abuseGuard,
                 signatureReplayGuard,
+                getPortalKey: () => this.portalKey,
             }),
         );
 
@@ -763,7 +808,24 @@ class MobileControlAdapter extends utils.Adapter {
                         bindAddress: netConfig.bindAddress,
                         publicUrl: netConfig.publicUrl,
                         localAddresses: getLocalAddresses(),
+                        portalKey: this.portalKey,
                     });
+                    break;
+                }
+
+                // Live-requested hardening (2026-07-30): lets the admin rotate the portal key from
+                // the UI instead of editing adapter config directly. Deliberately does NOT try to
+                // support a graceful transition window - every already-paired device (including
+                // ones mid-request right now) needs the NEW key on its very next request, the same
+                // way it already had to learn the very first key. Audited since this is a
+                // meaningful security-relevant action.
+                case 'regeneratePortalKey': {
+                    this.portalKey = randomBytes(24).toString('base64url');
+                    await this.extendForeignObjectAsync(`system.adapter.${this.namespace}`, {
+                        native: { portalKey: this.portalKey },
+                    });
+                    await this.auditService.log({ action: 'portalKey.regenerated', result: 'success' });
+                    respond({ portalKey: this.portalKey });
                     break;
                 }
 
@@ -771,7 +833,9 @@ class MobileControlAdapter extends utils.Adapter {
                 // security: "which IP tried what, how many times" - the log warning in
                 // router.ts only fires once per new block, this is the full current picture.
                 case 'listAbuseState':
-                    respond(this.abuseGuard?.snapshot() ?? []);
+                    // Merged from both trackers (see portalAbuseGuard's own doc for why they're
+                    // separate) - a given IP can legitimately appear twice, once per reason.
+                    respond([...(this.abuseGuard?.snapshot() ?? []), ...(this.portalAbuseGuard?.snapshot() ?? [])]);
                     break;
 
                 case 'listUrlEmbeds':

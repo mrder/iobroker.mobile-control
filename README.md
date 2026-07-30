@@ -44,14 +44,22 @@ dann nur getestete, freigegebene Stände. `main` existiert erst ab dem ersten Re
 
 ## Release-Prozess
 
-1. Version in `package.json` und `io-package.json` (`common.version`) anheben, in `io-package.json`
-   unter `common.news` einen neuen Eintrag für die Version ergänzen.
+1. Version in `package.json`, `io-package.json` (`common.version`, mit neuem `common.news`-Eintrag)
+   und `android-app/app/build.gradle.kts` (`versionCode`/`versionName`) anheben.
 2. `CHANGELOG.md` um einen Abschnitt `## [<version>]` mit den Änderungen ergänzen.
 3. `npm run verify:version` lokal laufen lassen – prüft, dass `package.json`, `io-package.json` und
    `CHANGELOG.md` dieselbe Version tragen (läuft auch automatisch in der CI, siehe
    [.github/workflows/ci.yml](.github/workflows/ci.yml)).
-4. Für einen Testbuild: Commit + Push auf `master` reicht, Nutzer installieren wie oben beschrieben.
-5. Für einen echten Release: `master` nach `main` mergen, dann einen Tag `v<version>` (z. B. `v0.1.0`,
+4. **App-Download aktuell halten** (manueller Schritt, keine CI-Automatisierung): die shrunk
+   `staging`-Variante bauen (`gradlew :app:assembleStaging`; nutzt das feste, committete
+   Debug-Keystore für stabile In-Place-Updates - siehe Kommentar in `build.gradle.kts`, ein echtes
+   Release-Signing existiert noch nicht) und die entstandene APK nach `app/mobile-control.apk`
+   kopieren. Diese Datei wird mit dem npm-Paket ausgeliefert und über `GET /app` (Installationsseite
+   mit QR-Code) bzw. `GET /app/download` direkt vom Adapter bereitgestellt - kein separates Hosting
+   nötig, jedes Adapter-Update bringt automatisch die passende App-Version mit. Hinweis: dadurch
+   wächst die Repo-Größe mit jedem Release um die APK-Größe (~15-25 MB, shrunk/minifiziert).
+5. Für einen Testbuild: Commit + Push auf `master` reicht, Nutzer installieren wie oben beschrieben.
+6. Für einen echten Release: `master` nach `main` mergen, dann einen Tag `v<version>` (z. B. `v0.1.0`,
    muss zur `main`-Versionsstufe 0.x.0 passen) pushen. Der Workflow
    [.github/workflows/release.yml](.github/workflows/release.yml) baut den Adapter, führt Tests +
    Versionsprüfung aus und veröffentlicht automatisch ein GitHub Release mit dem passenden

@@ -700,6 +700,20 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      description: |
+        Sent as "X-Device-Authorization: Bearer <token>" (NOT the standard "Authorization"
+        header, since v0.0.61) - "Authorization" is reserved for the separate portal-key gate
+        below, an independent outer layer in front of literally every request. Not modeled as
+        its own OpenAPI header param here since it applies uniformly to every protected route.
+    portalKeyAuth:
+      type: http
+      scheme: basic
+      description: |
+        Required on EVERY request to this server, including unauthenticated endpoints like
+        pairing/auth/app-download - see createPortalGateMiddleware (src/api/portalGate.ts) and
+        docs/SECURITY.md "Netzwerk". Username is ignored, only the password (the portal key,
+        shown/regenerable in the admin "Übersicht" tab) is checked. Not modeled per-route below
+        for the same reason as bearerAuth.
 
   responses:
     Error:

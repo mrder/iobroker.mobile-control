@@ -29,6 +29,7 @@ class SettingsDataStore @Inject constructor(
         val SERVER_FINGERPRINT = stringPreferencesKey("server_fingerprint")
         val PAIRED_AT = longPreferencesKey("paired_at")
         val CERTIFICATE_PIN = stringPreferencesKey("certificate_pin")
+        val PORTAL_KEY = stringPreferencesKey("portal_key")
 
         val APP_LOCK_ENABLED = booleanPreferencesKey("app_lock_enabled")
         val BIOMETRIC_ENABLED = booleanPreferencesKey("biometric_enabled")
@@ -49,6 +50,7 @@ class SettingsDataStore @Inject constructor(
             serverFingerprint = prefs[Keys.SERVER_FINGERPRINT].orEmpty(),
             pairedAt = prefs[Keys.PAIRED_AT] ?: 0L,
             certificatePin = prefs[Keys.CERTIFICATE_PIN],
+            portalKey = prefs[Keys.PORTAL_KEY],
         )
     }
 
@@ -65,7 +67,18 @@ class SettingsDataStore @Inject constructor(
             } else {
                 prefs.remove(Keys.CERTIFICATE_PIN)
             }
+            if (profile.portalKey != null) {
+                prefs[Keys.PORTAL_KEY] = profile.portalKey
+            } else {
+                prefs.remove(Keys.PORTAL_KEY)
+            }
         }
+    }
+
+    /** Persists just the portal key without touching the rest of the profile - used by
+     *  AuthRepositoryImpl's one-time bootstrap for a device paired before this existed. */
+    suspend fun setPortalKey(portalKey: String) {
+        context.dataStore.edit { prefs -> prefs[Keys.PORTAL_KEY] = portalKey }
     }
 
     suspend fun clearDeviceProfile() {
@@ -77,6 +90,7 @@ class SettingsDataStore @Inject constructor(
             prefs.remove(Keys.SERVER_FINGERPRINT)
             prefs.remove(Keys.PAIRED_AT)
             prefs.remove(Keys.CERTIFICATE_PIN)
+            prefs.remove(Keys.PORTAL_KEY)
             prefs.remove(Keys.START_DASHBOARD_ID)
         }
     }

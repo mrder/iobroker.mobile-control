@@ -22,6 +22,23 @@ const { mockAdapterCore } = require('@iobroker/testing/build/tests/unit/mocks/mo
 const TEST_PORT = 18099;
 const BASE_URL = `http://127.0.0.1:${TEST_PORT}`;
 const ADAPTER_CORE_PATH = require.resolve('@iobroker/adapter-core');
+const PORTAL_KEY = 'integration-test-portal-key';
+
+// Every request in this file now needs the portal-key gate's Basic Auth header (see
+// createPortalGateMiddleware) on top of whatever else it already sends - rather than touching
+// all ~25 fetch() call sites below individually, wrap the global fetch once here so it's added
+// automatically, unless a call already sets its own 'authorization' header for something else.
+{
+    const realFetch = global.fetch;
+    const portalAuthHeader = 'Basic ' + Buffer.from(`device:${PORTAL_KEY}`).toString('base64');
+    global.fetch = ((input: unknown, init: Record<string, unknown> = {}) => {
+        const headers = new Headers((init.headers as ConstructorParameters<typeof Headers>[0]) ?? {});
+        if (!headers.has('authorization')) {
+            headers.set('authorization', portalAuthHeader);
+        }
+        return realFetch(input as never, { ...init, headers } as never);
+    }) as typeof fetch;
+}
 
 interface MockAdapterLike {
     config: Record<string, unknown>;
@@ -81,6 +98,7 @@ async function main(): Promise<void> {
                 bindAddress: '127.0.0.1',
                 publicUrl: BASE_URL,
                 jwtSecret: 'integration-test-secret',
+                portalKey: PORTAL_KEY,
                 accessTokenTtlMinutes: 10,
                 refreshTokenTtlDays: 30,
                 pairingTtlMinutes: 10,
@@ -207,7 +225,7 @@ async function main(): Promise<void> {
     await step('the issued access token authenticates a real catalog request', async () => {
         const res = await fetch(`${BASE_URL}/api/v1/catalog`, {
             headers: {
-                authorization: `Bearer ${firstDeviceStatus.accessToken}`,
+                'x-device-authorization': `Bearer ${firstDeviceStatus.accessToken}`,
                 ...signRequest('GET', '/api/v1/catalog', undefined, firstDevicePrivateKey),
             },
         });
@@ -218,7 +236,7 @@ async function main(): Promise<void> {
         // delta support: passing the same version back must short-circuit to "unchanged"
         const deltaRes = await fetch(`${BASE_URL}/api/v1/catalog?version=${catalog.version}`, {
             headers: {
-                authorization: `Bearer ${firstDeviceStatus.accessToken}`,
+                'x-device-authorization': `Bearer ${firstDeviceStatus.accessToken}`,
                 // Query string is deliberately NOT part of the signed path (see
                 // requestSignature.ts) - signing "/api/v1/catalog" covers this call too.
                 ...signRequest('GET', '/api/v1/catalog', undefined, firstDevicePrivateKey),
@@ -232,7 +250,7 @@ async function main(): Promise<void> {
         // a stale/wrong version must fall back to the full catalog
         const staleRes = await fetch(`${BASE_URL}/api/v1/catalog?version=999999999`, {
             headers: {
-                authorization: `Bearer ${firstDeviceStatus.accessToken}`,
+                'x-device-authorization': `Bearer ${firstDeviceStatus.accessToken}`,
                 ...signRequest('GET', '/api/v1/catalog', undefined, firstDevicePrivateKey),
             },
         });
@@ -313,7 +331,7 @@ async function main(): Promise<void> {
         assert.equal(unauthedRes.status, 401);
 
         const authedRes = await fetch(`${BASE_URL}/api/v1/history?id=not-a-real-mapped-uuid`, {
-            headers: { authorization: `Bearer ${firstDeviceStatus.accessToken}` },
+            headers: { 'x-device-authorization': `Bearer ${firstDeviceStatus.accessToken}` },
         });
         // the original access token was already rotated away by the refresh-token step above,
         // so this also doubles as a check that a stale (but well-formed) JWT is rejected.
@@ -413,7 +431,7 @@ async function main(): Promise<void> {
             const tokenRes = await fetch(`${BASE_URL}/api/v1/tunnel-token/${embed.id}`, {
                 method: 'POST',
                 headers: {
-                    authorization: `Bearer ${status.accessToken}`,
+                    'x-device-authorization': `Bearer ${status.accessToken}`,
                     ...signRequest('POST', `/api/v1/tunnel-token/${embed.id}`, undefined, privateKey),
                 },
             });

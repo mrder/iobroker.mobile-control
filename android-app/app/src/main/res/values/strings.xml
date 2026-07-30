@@ -44,6 +44,8 @@
     <string name="dashboard_editor_add_widget">Widget hinzufügen</string>
     <string name="dashboard_editor_remove_widget">Widget entfernen</string>
     <string name="dashboard_editor_save">Speichern</string>
+    <string name="dashboard_editor_undo">Rückgängig</string>
+    <string name="dashboard_editor_redo">Wiederholen</string>
     <string name="dashboard_editor_revision_conflict_title">Server hat neuere Version</string>
     <string name="dashboard_editor_revision_conflict_body">Das Dashboard wurde inzwischen an anderer Stelle geändert. Möchtest du deine Änderungen trotzdem speichern (überschreiben) oder deine Änderungen verwerfen?</string>
     <string name="dashboard_editor_overwrite">Überschreiben</string>

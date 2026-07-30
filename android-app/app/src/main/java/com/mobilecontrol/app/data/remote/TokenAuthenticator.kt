@@ -47,7 +47,10 @@ class TokenAuthenticator @Inject constructor(
         if (responseCount(response) >= 2) return null // already retried once, give up to avoid loops
 
         val deviceId = serverConfigHolder.deviceId ?: return null
-        val failedToken = response.request.header("Authorization")?.removePrefix("Bearer ")
+        // "X-Device-Authorization", not "Authorization" - the latter now carries the portal-gate's
+        // Basic Auth (see PortalKeyInterceptor), a completely independent credential this
+        // Authenticator has nothing to do with.
+        val failedToken = response.request.header("X-Device-Authorization")?.removePrefix("Bearer ")
 
         synchronized(refreshLock) {
             // Another thread may have already refreshed the token while this one was waiting for
@@ -55,7 +58,7 @@ class TokenAuthenticator @Inject constructor(
             val currentToken = runBlocking { tokenStore.getAccessToken() }
             if (currentToken != null && currentToken != failedToken) {
                 return response.request.newBuilder()
-                    .header("Authorization", "Bearer $currentToken")
+                    .header("X-Device-Authorization", "Bearer $currentToken")
                     .build()
             }
 
@@ -70,7 +73,7 @@ class TokenAuthenticator @Inject constructor(
                 val expiresAt = System.currentTimeMillis() + refreshedBody.expiresIn * 1000
                 runBlocking { tokenStore.saveTokens(refreshedBody.accessToken, refreshedBody.refreshToken, expiresAt) }
                 return response.request.newBuilder()
-                    .header("Authorization", "Bearer ${refreshedBody.accessToken}")
+                    .header("X-Device-Authorization", "Bearer ${refreshedBody.accessToken}")
                     .build()
             }
 
@@ -86,7 +89,7 @@ class TokenAuthenticator @Inject constructor(
             val reLoginAccessToken = attemptReLogin(deviceId)
             if (reLoginAccessToken != null) {
                 return response.request.newBuilder()
-                    .header("Authorization", "Bearer $reLoginAccessToken")
+                    .header("X-Device-Authorization", "Bearer $reLoginAccessToken")
                     .build()
             }
 

@@ -118,6 +118,7 @@ export interface ConnectionInfo {
     bindAddress: string;
     publicUrl: string;
     localAddresses: string[];
+    portalKey: string;
 }
 
 export interface UrlEmbed {

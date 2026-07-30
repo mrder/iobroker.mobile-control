@@ -24,6 +24,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Redo
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ChevronRight
@@ -82,8 +84,10 @@ import com.mobilecontrol.app.ui.widgets.WidgetHost
 import com.mobilecontrol.app.ui.widgets.WidgetState
 import kotlin.math.roundToInt
 
-/** Row height per grid unit - matches the previous fixed per-widget height convention (120dp * h). */
-private val GRID_ROW_HEIGHT = 120.dp
+// Lowered from the original 120dp (live-requested, 2026-07-30: too coarse - only ~3 widget rows
+// fit on a tablet screen at once). 72dp still comfortably fits a widget's icon/title/value at
+// h=1 while letting noticeably more rows fit in the same space and giving finer resize steps.
+private val GRID_ROW_HEIGHT = 72.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -105,6 +109,12 @@ fun DashboardEditorScreen(
                 },
                 actions = {
                     if (state.editMode) {
+                        IconButton(onClick = { viewModel.undo() }, enabled = state.canUndo) {
+                            Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = stringResource(R.string.dashboard_editor_undo))
+                        }
+                        IconButton(onClick = { viewModel.redo() }, enabled = state.canRedo) {
+                            Icon(Icons.AutoMirrored.Filled.Redo, contentDescription = stringResource(R.string.dashboard_editor_redo))
+                        }
                         IconButton(onClick = { viewModel.showAddWidgetDialog(true) }) {
                             Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.dashboard_editor_add_widget))
                         }

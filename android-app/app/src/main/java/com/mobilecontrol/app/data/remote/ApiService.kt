@@ -14,6 +14,7 @@ import com.mobilecontrol.app.data.remote.dto.HistoryResponseDto
 import com.mobilecontrol.app.data.remote.dto.LoginRequestDto
 import com.mobilecontrol.app.data.remote.dto.PairingStatusResponseDto
 import com.mobilecontrol.app.data.remote.dto.RefreshRequestDto
+import com.mobilecontrol.app.data.remote.dto.PortalKeyResponseDto
 import com.mobilecontrol.app.data.remote.dto.StatesResponseDto
 import com.mobilecontrol.app.data.remote.dto.TokenResponseDto
 import com.mobilecontrol.app.data.remote.dto.TunnelTokenResponseDto
@@ -46,6 +47,13 @@ interface ApiService {
 
     @POST("api/v1/auth/refresh")
     suspend fun authRefresh(@Body body: RefreshRequestDto): Response<TokenResponseDto>
+
+    // Bootstrap for a device paired before the portal-key gate existed - see
+    // PortalKeyInterceptor and createPortalGateMiddleware's own docs. Fully protected by the
+    // normal Bearer token + request signature like any other route here, just exempted from the
+    // OUTER portal-key gate specifically so a device with no key yet can still reach it.
+    @GET("api/v1/portal-key")
+    suspend fun getPortalKey(): Response<PortalKeyResponseDto>
 
     @GET("api/v1/catalog")
     suspend fun getCatalog(): Response<CatalogResponseDto>

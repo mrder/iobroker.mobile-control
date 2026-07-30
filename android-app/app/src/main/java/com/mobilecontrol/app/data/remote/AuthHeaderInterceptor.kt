@@ -17,7 +17,11 @@ val UNAUTHENTICATED_PATHS = listOf(
     "auth/refresh",
 )
 
-/** Attaches the current access token as a bearer header, skipping the endpoints that precede authentication. */
+/** Attaches the current access token as a bearer header, skipping the endpoints that precede
+ *  authentication. Deliberately NOT the standard "Authorization" header - that one now carries
+ *  the portal-gate's Basic Auth (see PortalKeyInterceptor), an independent outer layer; the
+ *  device's own bearer token travels on "X-Device-Authorization" instead so the two credentials
+ *  never collide on the one header HTTP only gives you once per request. */
 class AuthHeaderInterceptor @Inject constructor(
     private val tokenStore: TokenStore,
 ) : Interceptor {
@@ -30,7 +34,7 @@ class AuthHeaderInterceptor @Inject constructor(
         }
         val token = runBlocking { tokenStore.getAccessToken() }
         val newRequest = if (token != null) {
-            request.newBuilder().header("Authorization", "Bearer $token").build()
+            request.newBuilder().header("X-Device-Authorization", "Bearer $token").build()
         } else {
             request
         }

@@ -11,6 +11,9 @@ import type { DevicesService } from '../devices';
 
 export interface PairingConfig {
     publicUrl: string;
+    /** Embedded in the QR payload so a newly-paired app learns it without any extra step - see
+     *  createPortalGateMiddleware's own doc for what this actually gates. */
+    portalKey: string;
     instanceId: string;
     serverFingerprint: string;
     inviteTtlMinutes: number;
@@ -25,6 +28,7 @@ export interface QrPayload {
     expiresAt: string;
     serverFingerprint: string;
     instanceId: string;
+    portalKey: string;
 }
 
 export interface CreatedInvite {
@@ -86,6 +90,7 @@ export class PairingService {
             expiresAt: new Date(expiresAt).toISOString(),
             serverFingerprint: this.config.serverFingerprint,
             instanceId: this.config.instanceId,
+            portalKey: this.config.portalKey,
         };
         const qrPngDataUrl = await QRCode.toDataURL(JSON.stringify(qrPayload));
 

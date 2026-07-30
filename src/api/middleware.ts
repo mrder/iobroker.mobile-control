@@ -72,8 +72,12 @@ export function createAuthMiddleware(auth: AuthService, sessions: SessionsServic
     return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
         req.isLocalNetwork = isPrivateIp(req.ip ?? req.socket.remoteAddress ?? '');
 
-        const header = req.headers.authorization;
-        if (!header || !header.startsWith('Bearer ')) {
+        // Deliberately NOT the standard "Authorization" header - that one now carries the portal
+        // key's HTTP Basic Auth (see createPortalGateMiddleware), an independent outer layer in
+        // front of this device-bearer-token check. Two different credentials, two different
+        // headers - HTTP only gives you one canonical Authorization value per request.
+        const header = req.headers['x-device-authorization'];
+        if (!header || Array.isArray(header) || !header.startsWith('Bearer ')) {
             sendError(res, new ApiError('AUTH_REQUIRED'));
             return;
         }
