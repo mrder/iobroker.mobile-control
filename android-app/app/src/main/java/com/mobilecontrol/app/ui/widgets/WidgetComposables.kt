@@ -50,6 +50,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
@@ -85,7 +86,9 @@ fun TextValueWidget(title: String, unit: String?, state: WidgetState, modifier: 
         val value = state.currentValue()
         Text(
             text = if (value != null) "$value${unit?.let { " $it" } ?: ""}" else "—",
-            style = MaterialTheme.typography.headlineSmall,
+            style = MaterialTheme.typography.headlineSmall.scaledForWidget(),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
@@ -96,7 +99,9 @@ fun TemperatureWidget(title: String, state: WidgetState, unit: String? = null, m
         val value = (state.currentValue() as? Number)?.toDouble()
         Text(
             text = if (value != null) String.format(Locale.getDefault(), "%.1f %s", value, unit ?: "°C") else "—",
-            style = MaterialTheme.typography.headlineSmall,
+            style = MaterialTheme.typography.headlineSmall.scaledForWidget(),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
@@ -107,7 +112,9 @@ fun HumidityWidget(title: String, state: WidgetState, unit: String? = null, modi
         val value = (state.currentValue() as? Number)?.toDouble()
         Text(
             text = if (value != null) String.format(Locale.getDefault(), "%.0f %s", value, unit ?: "%") else "—",
-            style = MaterialTheme.typography.headlineSmall,
+            style = MaterialTheme.typography.headlineSmall.scaledForWidget(),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
@@ -120,7 +127,13 @@ fun HumidityWidget(title: String, state: WidgetState, unit: String? = null, modi
 @Composable
 fun LabelWidget(title: String, modifier: Modifier = Modifier) {
     Column(modifier = modifier.fillMaxSize(), verticalArrangement = Arrangement.Center) {
-        Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium.scaledForWidget(),
+            fontWeight = FontWeight.Bold,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
         HorizontalDivider(modifier = Modifier.padding(top = 4.dp))
     }
 }
@@ -134,8 +147,15 @@ fun BooleanStatusWidget(title: String, state: WidgetState, modifier: Modifier = 
                 imageVector = if (on) Icons.Filled.CheckCircle else Icons.Filled.Circle,
                 contentDescription = null,
                 tint = if (on) StatusLive else StatusOffline,
+                modifier = Modifier.size(widgetIconSize()),
             )
-            Text(text = if (on) "Ein" else "Aus", modifier = Modifier, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = if (on) "Ein" else "Aus",
+                modifier = Modifier.padding(start = 4.dp),
+                style = MaterialTheme.typography.bodyLarge.scaledForWidget(),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
@@ -159,10 +179,11 @@ fun SwitchWidget(
 
 @Composable
 private fun CommandOverlayIcon(state: WidgetState) {
+    val style = MaterialTheme.typography.bodyLarge.scaledForWidget()
     when (state) {
-        is WidgetState.CommandPending -> Text(" …", color = Color.Gray)
-        is WidgetState.CommandConfirmed -> Text(" ✓", color = StatusLive)
-        is WidgetState.CommandFailed -> Text(" ✗", color = MaterialTheme.colorScheme.error)
+        is WidgetState.CommandPending -> Text(" …", color = Color.Gray, style = style)
+        is WidgetState.CommandConfirmed -> Text(" ✓", color = StatusLive, style = style)
+        is WidgetState.CommandFailed -> Text(" ✗", color = MaterialTheme.colorScheme.error, style = style)
         else -> Unit
     }
 }
@@ -220,8 +241,8 @@ fun HistoryWidget(
     // composable's own content() run for every load state.
     WidgetCard(title = title, state = WidgetState.Stale(null, 0L), modifier = modifier) {
         when (val current = loadState) {
-            HistoryLoadState.Loading -> Text("Lädt…", style = MaterialTheme.typography.bodyMedium)
-            HistoryLoadState.Unavailable -> Text("Kein Verlauf verfügbar", style = MaterialTheme.typography.bodyMedium)
+            HistoryLoadState.Loading -> Text("Lädt…", style = MaterialTheme.typography.bodyMedium.scaledForWidget())
+            HistoryLoadState.Unavailable -> Text("Kein Verlauf verfügbar", style = MaterialTheme.typography.bodyMedium.scaledForWidget())
             is HistoryLoadState.Success -> HistoryEntryList(current.entries, unit)
         }
     }
@@ -239,7 +260,9 @@ private fun HistoryEntryList(entries: List<HistoryEntry>, unit: String?) {
                 .format(historyTimeFormatter)
             Text(
                 text = "$time  ${entry.value}${unit?.let { " $it" } ?: ""}",
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodySmall.scaledForWidget(),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
@@ -270,7 +293,9 @@ fun MomentaryButtonWidget(
 ) {
     WidgetCard(title = title, state = state, modifier = modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Button(onClick = onPress, enabled = enabled) { Text("Auslösen") }
+            Button(onClick = onPress, enabled = enabled) {
+                Text("Auslösen", style = MaterialTheme.typography.labelLarge.scaledForWidget(), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
             CommandOverlayIcon(state)
         }
     }
@@ -326,7 +351,12 @@ fun SliderWidget(
                 enabled = enabled,
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(String.format(Locale.getDefault(), "%.1f", sliderPosition), style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    String.format(Locale.getDefault(), "%.1f", sliderPosition),
+                    style = MaterialTheme.typography.bodyMedium.scaledForWidget(),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
                 CommandOverlayIcon(state)
             }
         }
@@ -352,15 +382,21 @@ fun RollerShutterWidget(
             } else {
                 "—"
             }
-            Text(positionLabel, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                positionLabel,
+                style = MaterialTheme.typography.bodyMedium.scaledForWidget(),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            val buttonTextStyle = MaterialTheme.typography.labelLarge.scaledForWidget()
             Row(verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = { onSetPosition(min) }, enabled = enabled) { Text("Auf") }
+                TextButton(onClick = { onSetPosition(min) }, enabled = enabled) { Text("Auf", style = buttonTextStyle) }
                 // "Stopp" has no corresponding server command in the API contract - only an
                 // absolute position can be sent, there is no separate stop/halt state. This button
                 // is a deliberately UI-only affordance (familiar three-button shutter layout) and
                 // sends nothing to the server.
-                TextButton(onClick = { /* intentionally no-op, see comment above */ }, enabled = enabled) { Text("Stopp") }
-                TextButton(onClick = { onSetPosition(max) }, enabled = enabled) { Text("Ab") }
+                TextButton(onClick = { /* intentionally no-op, see comment above */ }, enabled = enabled) { Text("Stopp", style = buttonTextStyle) }
+                TextButton(onClick = { onSetPosition(max) }, enabled = enabled) { Text("Ab", style = buttonTextStyle) }
                 CommandOverlayIcon(state)
             }
         }
@@ -385,7 +421,9 @@ fun ThermostatWidget(
         Column {
             Text(
                 text = if (value != null) String.format(Locale.getDefault(), "%.1f °C", value) else "—",
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.headlineSmall.scaledForWidget(),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 TextButton(
@@ -442,6 +480,7 @@ fun AlarmWidget(
                     imageVector = if (active) Icons.Filled.Warning else Icons.Filled.CheckCircle,
                     contentDescription = null,
                     tint = tint,
+                    modifier = Modifier.size(widgetIconSize()),
                 )
                 Text(
                     text = when {
@@ -449,11 +488,16 @@ fun AlarmWidget(
                         acknowledged -> "Alarm (quittiert)"
                         else -> "Alarm aktiv"
                     },
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.bodyLarge.scaledForWidget(),
+                    modifier = Modifier.padding(start = 4.dp),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
             if (active && !acknowledged) {
-                TextButton(onClick = { objectId?.let(viewModel::acknowledge) }) { Text("Quittieren") }
+                TextButton(onClick = { objectId?.let(viewModel::acknowledge) }) {
+                    Text("Quittieren", style = MaterialTheme.typography.labelLarge.scaledForWidget())
+                }
             }
         }
     }
@@ -509,7 +553,7 @@ fun CameraWidget(
 
     WidgetCard(title = title, state = WidgetState.Stale(null, 0L), modifier = modifier) {
         when (val current = loadState) {
-            CameraLoadState.Loading -> Text("Lädt…", style = MaterialTheme.typography.bodyMedium)
+            CameraLoadState.Loading -> Text("Lädt…", style = MaterialTheme.typography.bodyMedium.scaledForWidget())
             CameraLoadState.Unavailable -> EmbedUnavailable(message = "Kein Snapshot verfügbar", onRetry = { refreshTrigger++ })
             is CameraLoadState.Success -> CameraSnapshotView(
                 bitmap = current.bitmap,
@@ -556,7 +600,9 @@ private fun CameraSnapshotView(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = historyTimeFormatter.format(Instant.ofEpochMilli(loadedAtMillis).atZone(ZoneId.systemDefault())),
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodySmall.scaledForWidget(),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
             IconButton(onClick = onRefresh) {
                 Icon(Icons.Filled.Refresh, contentDescription = "Aktualisieren")
@@ -574,8 +620,14 @@ private fun CameraSnapshotView(
 @Composable
 private fun EmbedUnavailable(message: String, onRetry: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(Icons.Filled.BrokenImage, contentDescription = null, tint = StatusError)
-        Text(text = message, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 4.dp))
+        Icon(Icons.Filled.BrokenImage, contentDescription = null, tint = StatusError, modifier = Modifier.size(widgetIconSize(20.dp)))
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodySmall.scaledForWidget(),
+            modifier = Modifier.padding(start = 4.dp),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
         IconButton(onClick = onRetry) {
             Icon(Icons.Filled.Refresh, contentDescription = "Erneut versuchen")
         }
@@ -628,7 +680,7 @@ fun UrlImageWidget(
 
     WidgetCard(title = title, state = WidgetState.Stale(null, 0L), modifier = modifier) {
         when (val current = loadState) {
-            UrlImageLoadState.Loading -> Text("Lädt…", style = MaterialTheme.typography.bodyMedium)
+            UrlImageLoadState.Loading -> Text("Lädt…", style = MaterialTheme.typography.bodyMedium.scaledForWidget())
             UrlImageLoadState.Unavailable -> EmbedUnavailable(message = "Kein Bild verfügbar", onRetry = { refreshTrigger++ })
             is UrlImageLoadState.Success -> CameraSnapshotView(
                 bitmap = current.bitmap,
@@ -730,7 +782,7 @@ fun WebPageWidget(
 
     WidgetCard(title = title, state = WidgetState.Stale(null, 0L), modifier = modifier) {
         when (val current = loadState) {
-            WebPageLoadState.Loading -> Text("Lädt…", style = MaterialTheme.typography.bodyMedium)
+            WebPageLoadState.Loading -> Text("Lädt…", style = MaterialTheme.typography.bodyMedium.scaledForWidget())
             WebPageLoadState.Unavailable -> EmbedUnavailable(message = "Seite nicht verfügbar", onRetry = { refreshTrigger++ })
             is WebPageLoadState.Resolved -> if (showLivePreview) {
                 Box(modifier = Modifier.fillMaxSize()) {

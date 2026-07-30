@@ -54,6 +54,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -74,6 +75,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mobilecontrol.app.R
+import com.mobilecontrol.app.domain.model.Dashboard
 import com.mobilecontrol.app.domain.model.ObjectCatalogItem
 import com.mobilecontrol.app.domain.model.ObjectTreeNode
 import com.mobilecontrol.app.domain.model.UrlEmbed
@@ -82,6 +84,7 @@ import com.mobilecontrol.app.domain.model.Widget
 import com.mobilecontrol.app.domain.model.WidgetType
 import com.mobilecontrol.app.domain.model.buildObjectTree
 import com.mobilecontrol.app.domain.repository.ConnectionState
+import com.mobilecontrol.app.ui.widgets.LocalWidgetTextScale
 import com.mobilecontrol.app.ui.widgets.WidgetHost
 import com.mobilecontrol.app.ui.widgets.WidgetState
 import kotlin.math.roundToInt
@@ -154,6 +157,15 @@ fun DashboardEditorScreen(
                     DashboardEditorViewModel.MIN_ROW_HEIGHT_DP,
                     DashboardEditorViewModel.MAX_ROW_HEIGHT_DP,
                 ).dp
+                // A denser grid (more columns and/or a shorter row height) previously only made
+                // widget text rewrap onto more lines, which then got clipped by the now-shorter
+                // cell instead of shrinking to fit (live-requested fix, 2026-07-30). Both axes are
+                // considered and the smaller factor wins, since a widget can be squeezed by either
+                // dimension; coerced to keep text legible even at the extremes of the sliders'
+                // range (see DashboardEditorViewModel.MIN/MAX_GRID_COLUMNS/ROW_HEIGHT_DP).
+                val widthFactor = DashboardEditorViewModel.MIN_GRID_COLUMNS.toFloat() / displayColumns.toFloat()
+                val heightFactor = displayRowHeight.value / Dashboard.DEFAULT_ROW_HEIGHT_DP.toFloat()
+                val textScale = minOf(widthFactor, heightFactor).coerceIn(0.6f, 1.25f)
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -161,27 +173,29 @@ fun DashboardEditorScreen(
                         .verticalScroll(rememberScrollState())
                         .padding(8.dp),
                 ) {
-                    DashboardGrid(
-                        widgets = layout.widgets,
-                        columns = displayColumns,
-                        rowHeight = displayRowHeight,
-                        editMode = state.editMode,
-                        onMoveWidget = viewModel::moveWidgetTo,
-                    ) { widget ->
-                        WidgetCell(
-                            widget = widget,
-                            state = state,
+                    CompositionLocalProvider(LocalWidgetTextScale provides textScale) {
+                        DashboardGrid(
+                            widgets = layout.widgets,
+                            columns = displayColumns,
+                            rowHeight = displayRowHeight,
                             editMode = state.editMode,
-                            maxColumns = displayColumns,
-                            modifier = Modifier.fillMaxSize(),
-                            onCommand = { value, confirmed ->
-                                widget.objectId?.let { id -> viewModel.sendCommand(id, value, confirmed) }
-                            },
-                            onRemove = { viewModel.removeWidget(widget.id) },
-                            onSaveEdit = { title, unit, w, h, previewMode, tunnel ->
-                                viewModel.updateWidget(widget.id, title, unit, w, h, previewMode, tunnel)
-                            },
-                        )
+                            onMoveWidget = viewModel::moveWidgetTo,
+                        ) { widget ->
+                            WidgetCell(
+                                widget = widget,
+                                state = state,
+                                editMode = state.editMode,
+                                maxColumns = displayColumns,
+                                modifier = Modifier.fillMaxSize(),
+                                onCommand = { value, confirmed ->
+                                    widget.objectId?.let { id -> viewModel.sendCommand(id, value, confirmed) }
+                                },
+                                onRemove = { viewModel.removeWidget(widget.id) },
+                                onSaveEdit = { title, unit, w, h, previewMode, tunnel ->
+                                    viewModel.updateWidget(widget.id, title, unit, w, h, previewMode, tunnel)
+                                },
+                            )
+                        }
                     }
                 }
             }

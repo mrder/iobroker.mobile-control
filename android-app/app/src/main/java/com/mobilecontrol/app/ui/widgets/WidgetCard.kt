@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Help
@@ -19,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.mobilecontrol.app.ui.theme.StatusError
 import com.mobilecontrol.app.ui.theme.StatusLive
@@ -49,14 +51,19 @@ fun WidgetCard(
         colors = CardDefaults.cardColors(),
     ) {
         Column(modifier = Modifier.padding(12.dp).fillMaxSize()) {
-            Text(text = title, style = MaterialTheme.typography.labelLarge)
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelLarge.scaledForWidget(),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
             Box(modifier = Modifier.padding(top = 4.dp), contentAlignment = Alignment.CenterStart) {
                 // Non-interactive states replace the widget body entirely. Command
                 // pending/confirmed/failed still render the widget's own content (e.g. the switch
                 // stays visible and usable) - those types are expected to show their own overlay
                 // icon for the command status, on top of the border color set above.
                 when (state) {
-                    WidgetState.Loading -> Text("…", style = MaterialTheme.typography.bodyMedium)
+                    WidgetState.Loading -> Text("…", style = MaterialTheme.typography.bodyMedium.scaledForWidget())
                     is WidgetState.Offline -> StatusRow(Icons.Filled.CloudOff, "Offline")
                     is WidgetState.NoPermission -> StatusRow(Icons.Filled.Lock, "Kein Zugriff")
                     is WidgetState.ObjectMissing -> StatusRow(Icons.Filled.Help, "Objekt nicht gefunden")
@@ -70,7 +77,13 @@ fun WidgetCard(
 @Composable
 private fun StatusRow(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, contentDescription = null, tint = StatusError)
-        Text(text = label, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 4.dp))
+        Icon(icon, contentDescription = null, tint = StatusError, modifier = Modifier.size(widgetIconSize(20.dp)))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall.scaledForWidget(),
+            modifier = Modifier.padding(start = 4.dp),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }

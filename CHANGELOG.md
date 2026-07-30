@@ -8,6 +8,17 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.64] - master, Testbuild
+
+Live-Wunsch, Korrektur zu v0.0.63: Die neuen Raster-Regler verkleinern die Zellen zwar korrekt,
+aber die Schrift in den Widgets blieb gleich groß - Texte wurden nur anders umbrochen und dann
+von der jetzt kürzeren Zelle abgeschnitten, wodurch Kerninformationen verschwanden.
+
+- Schrift- und Icon-Größe in Widgets skalieren jetzt mit der Rasterdichte (Spaltenzahl und
+  Zeilenhöhe, der stärker einschränkende Wert gewinnt), statt fix zu bleiben.
+- Titel und Hauptwerte fallen bei zu wenig Platz jetzt auf eine Zeile mit Auslassungspunkten
+  zurück, statt kommentarlos abgeschnitten zu werden.
+
 ## [0.0.63] - master, Testbuild
 
 Live-Wunsch nach der neuen Raster-Auflösung: Statt einer festen Vorgabe im Code kann jetzt jedes
