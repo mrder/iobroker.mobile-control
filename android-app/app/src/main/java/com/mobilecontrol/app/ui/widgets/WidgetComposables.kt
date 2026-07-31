@@ -210,6 +210,9 @@ fun HistoryWidget(
     title: String,
     objectId: String?,
     unit: String?,
+    /** true = draw an auto-scaling line/step chart instead of the text list (see [HistoryChart]) -
+     *  set via the widget's own "Als Diagramm anzeigen" edit-dialog toggle. */
+    chartMode: Boolean = false,
     modifier: Modifier = Modifier,
     viewModel: HistoryWidgetViewModel = hiltViewModel(),
 ) {
@@ -238,7 +241,11 @@ fun HistoryWidget(
         when (val current = loadState) {
             HistoryLoadState.Loading -> Text("Lädt…", style = MaterialTheme.typography.bodyMedium.scaledForWidget())
             HistoryLoadState.Unavailable -> Text("Kein Verlauf verfügbar", style = MaterialTheme.typography.bodyMedium.scaledForWidget())
-            is HistoryLoadState.Success -> HistoryEntryList(current.entries, unit)
+            is HistoryLoadState.Success -> if (chartMode) {
+                HistoryChart(current.entries, unit)
+            } else {
+                HistoryEntryList(current.entries, unit)
+            }
         }
     }
 }
@@ -246,7 +253,7 @@ fun HistoryWidget(
 private val historyTimeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 
 @Composable
-private fun HistoryEntryList(entries: List<HistoryEntry>, unit: String?) {
+internal fun HistoryEntryList(entries: List<HistoryEntry>, unit: String?) {
     val newestFirst = remember(entries) { entries.sortedByDescending { it.timestampMillis }.take(HISTORY_DISPLAY_COUNT) }
     Column {
         newestFirst.forEach { entry ->

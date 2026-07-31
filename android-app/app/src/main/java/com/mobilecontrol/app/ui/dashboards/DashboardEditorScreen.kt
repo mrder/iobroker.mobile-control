@@ -194,8 +194,8 @@ fun DashboardEditorScreen(
                                 widget.objectId?.let { id -> viewModel.sendCommand(id, value, confirmed) }
                             },
                             onRemove = { viewModel.removeWidget(widget.id) },
-                            onSaveEdit = { title, unit, w, h, previewMode, tunnel ->
-                                viewModel.updateWidget(widget.id, title, unit, w, h, previewMode, tunnel)
+                            onSaveEdit = { title, unit, w, h, previewMode, tunnel, chart ->
+                                viewModel.updateWidget(widget.id, title, unit, w, h, previewMode, tunnel, chart)
                             },
                         )
                     }
@@ -438,7 +438,7 @@ private fun WidgetCell(
     modifier: Modifier = Modifier,
     onCommand: (value: Any?, confirmed: Boolean) -> Unit,
     onRemove: () -> Unit,
-    onSaveEdit: (title: String, unit: String?, w: Int, h: Int, previewMode: String?, tunnel: String?) -> Unit,
+    onSaveEdit: (title: String, unit: String?, w: Int, h: Int, previewMode: String?, tunnel: String?, chart: String?) -> Unit,
 ) {
     val widgetState = deriveWidgetState(widget, state)
     val catalogItem = state.catalog.firstOrNull { it.id == widget.objectId }
@@ -474,9 +474,10 @@ private fun WidgetCell(
             showUnitField = widget.type in UNIT_CAPABLE_TYPES,
             showPreviewToggle = widget.type == WidgetType.WEB_VIEW,
             showTunnelToggle = widget.type == WidgetType.WEB_VIEW,
+            showChartToggle = widget.type == WidgetType.HISTORY,
             onDismiss = { showEditDialog = false },
-            onSave = { title, unit, w, h, previewMode, tunnel ->
-                onSaveEdit(title, unit, w, h, previewMode, tunnel)
+            onSave = { title, unit, w, h, previewMode, tunnel, chart ->
+                onSaveEdit(title, unit, w, h, previewMode, tunnel, chart)
                 showEditDialog = false
             },
         )
@@ -490,8 +491,9 @@ private fun WidgetEditDialog(
     showUnitField: Boolean,
     showPreviewToggle: Boolean,
     showTunnelToggle: Boolean,
+    showChartToggle: Boolean,
     onDismiss: () -> Unit,
-    onSave: (title: String, unit: String?, w: Int, h: Int, previewMode: String?, tunnel: String?) -> Unit,
+    onSave: (title: String, unit: String?, w: Int, h: Int, previewMode: String?, tunnel: String?, chart: String?) -> Unit,
 ) {
     var title by remember { mutableStateOf(widget.title) }
     var unit by remember { mutableStateOf(widget.config["unit"].orEmpty()) }
@@ -499,6 +501,7 @@ private fun WidgetEditDialog(
     var height by remember { mutableStateOf(widget.h.coerceIn(1, DashboardEditorViewModel.MAX_WIDGET_ROWS)) }
     var livePreview by remember { mutableStateOf(widget.config["previewMode"] != "button") }
     var tunnelEnabled by remember { mutableStateOf(widget.config["tunnel"] == "on") }
+    var chartEnabled by remember { mutableStateOf(widget.config["chartMode"] == "on") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -547,6 +550,18 @@ private fun WidgetEditDialog(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                if (showChartToggle) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.dashboard_editor_chart_label), modifier = Modifier.weight(1f))
+                        Switch(checked = chartEnabled, onCheckedChange = { chartEnabled = it })
+                    }
+                    Text(
+                        stringResource(R.string.dashboard_editor_chart_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 Spacer(modifier = Modifier.height(16.dp))
                 SizeStepper(
                     label = stringResource(R.string.dashboard_editor_width_label),
@@ -566,7 +581,8 @@ private fun WidgetEditDialog(
             TextButton(onClick = {
                 val previewMode = if (showPreviewToggle && !livePreview) "button" else null
                 val tunnel = if (showTunnelToggle && tunnelEnabled) "on" else null
-                onSave(title, unit.ifBlank { null }, width, height, previewMode, tunnel)
+                val chart = if (showChartToggle && chartEnabled) "on" else null
+                onSave(title, unit.ifBlank { null }, width, height, previewMode, tunnel, chart)
             }) { Text(stringResource(R.string.common_ok)) }
         },
         dismissButton = {

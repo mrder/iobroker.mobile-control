@@ -66,6 +66,8 @@
     <string name="dashboard_editor_live_preview_hint">Aus: nur ein Öffnen-Button, die Seite wird erst beim Antippen geladen.</string>
     <string name="dashboard_editor_tunnel_label">Tunnel (auch ohne WLAN/VPN)</string>
     <string name="dashboard_editor_tunnel_hint">Leitet die Seite über den Adapter statt direkt über das Netzwerk - nur für http://-Ziele, benötigt eine unterstützte WebView-Version.</string>
+    <string name="dashboard_editor_chart_label">Als Diagramm anzeigen</string>
+    <string name="dashboard_editor_chart_hint">Nur für Zahlen- und Schaltwerte verfügbar - passt sich automatisch an die Kachelgröße an.</string>
 
     <!-- Object browser -->
     <string name="objects_title">Objektkatalog</string>

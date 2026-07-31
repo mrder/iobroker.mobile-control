@@ -8,6 +8,20 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.68] - master, Testbuild
+
+Delegierte Design-Entscheidung, live gewünscht: Diagramm-Anzeige für das Verlauf-Widget.
+
+- Neuer Schalter "Als Diagramm anzeigen" (nur bei Verlauf-Widgets) zeichnet ein handgebautes
+  Compose-Liniendiagramm für Zahlenwerte bzw. ein Stufendiagramm für Bool-/Schaltwerte-Verläufe.
+- Skaliert automatisch mit der Kachelgröße, keine neue Diagramm-Bibliothek ergänzt (bewusste
+  Projekt-Entscheidung, siehe docs).
+- Min-/Max-Wert werden neben der Linie angezeigt; Objekte ohne Verlaufsdaten fallen weiterhin auf
+  den bestehenden "Kein Verlauf verfügbar"-Text zurück statt ein leeres Diagramm zu zeigen.
+- Live auf dem Tablet getestet: Schalter funktioniert, Fallback für Objekte ohne aktivierte
+  Verlaufsaufzeichnung auf dieser ioBroker-Instanz korrekt (serverseitige History-Adapter-Einstellung,
+  nicht Teil dieser Änderung). Die eigentliche Punktberechnung ist durch 8 neue Unit-Tests abgedeckt.
+
 ## [0.0.67] - master, Testbuild
 
 Live-Wunsch als Folge-Fix zu v0.0.66.

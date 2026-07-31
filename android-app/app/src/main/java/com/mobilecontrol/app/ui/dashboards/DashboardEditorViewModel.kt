@@ -172,7 +172,16 @@ class DashboardEditorViewModel @Inject constructor(
      * = default live preview. tunnel: "on" = route the page through the adapter's tunnel instead
      * of direct LAN navigation; null/blank = default direct navigation.
      */
-    fun updateWidget(widgetId: String, title: String, unit: String?, w: Int, h: Int, previewMode: String? = null, tunnel: String? = null) {
+    fun updateWidget(
+        widgetId: String,
+        title: String,
+        unit: String?,
+        w: Int,
+        h: Int,
+        previewMode: String? = null,
+        tunnel: String? = null,
+        chart: String? = null,
+    ) {
         updateLayout(local.value.sizeClass) { layout ->
             layout.copy(
                 widgets = layout.widgets.map { widget ->
@@ -180,6 +189,7 @@ class DashboardEditorViewModel @Inject constructor(
                     var config = if (unit.isNullOrBlank()) widget.config - "unit" else widget.config + ("unit" to unit)
                     config = if (previewMode.isNullOrBlank()) config - "previewMode" else config + ("previewMode" to previewMode)
                     config = if (tunnel.isNullOrBlank()) config - "tunnel" else config + ("tunnel" to tunnel)
+                    config = if (chart.isNullOrBlank()) config - "chartMode" else config + ("chartMode" to chart)
                     widget.copy(
                         title = title.ifBlank { widget.title },
                         w = w.coerceIn(1, layout.columns),
