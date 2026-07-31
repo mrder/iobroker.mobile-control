@@ -93,6 +93,19 @@ import kotlin.math.roundToInt
 // user-adjustable value instead (see DashboardEditorViewModel.updateGridSize / GridSizeDialog
 // below) - row height now comes from the layout itself, like columns already did.
 
+// Live-requested fix (2026-07-30, follow-up): text/icon scale is computed per widget in
+// [DashboardGrid] from that widget's own actual rendered size (cellWidth * w, rowHeight * h),
+// not from the dashboard's global column/row-height settings alone - a single-column widget on
+// an otherwise-unchanged 12-column grid is just as cramped as a "denser" grid would make it, and
+// a dashboard-wide scale never reacted to that case at all. These are the reference dimensions a
+// widget needs to show short text at full (unscaled) size - width matches
+// DashboardEditorViewModel.addWidget's own default new-widget width (2 columns on a typical
+// ~48dp/column phone screen), height matches Dashboard.DEFAULT_ROW_HEIGHT_DP.
+private const val REFERENCE_WIDGET_WIDTH_DP = 96f
+private val REFERENCE_WIDGET_HEIGHT_DP = Dashboard.DEFAULT_ROW_HEIGHT_DP.toFloat()
+private const val MIN_WIDGET_TEXT_SCALE = 0.55f
+private const val MAX_WIDGET_TEXT_SCALE = 1.15f
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardEditorScreen(
@@ -157,15 +170,6 @@ fun DashboardEditorScreen(
                     DashboardEditorViewModel.MIN_ROW_HEIGHT_DP,
                     DashboardEditorViewModel.MAX_ROW_HEIGHT_DP,
                 ).dp
-                // A denser grid (more columns and/or a shorter row height) previously only made
-                // widget text rewrap onto more lines, which then got clipped by the now-shorter
-                // cell instead of shrinking to fit (live-requested fix, 2026-07-30). Both axes are
-                // considered and the smaller factor wins, since a widget can be squeezed by either
-                // dimension; coerced to keep text legible even at the extremes of the sliders'
-                // range (see DashboardEditorViewModel.MIN/MAX_GRID_COLUMNS/ROW_HEIGHT_DP).
-                val widthFactor = DashboardEditorViewModel.MIN_GRID_COLUMNS.toFloat() / displayColumns.toFloat()
-                val heightFactor = displayRowHeight.value / Dashboard.DEFAULT_ROW_HEIGHT_DP.toFloat()
-                val textScale = minOf(widthFactor, heightFactor).coerceIn(0.6f, 1.25f)
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -173,29 +177,27 @@ fun DashboardEditorScreen(
                         .verticalScroll(rememberScrollState())
                         .padding(8.dp),
                 ) {
-                    CompositionLocalProvider(LocalWidgetTextScale provides textScale) {
-                        DashboardGrid(
-                            widgets = layout.widgets,
-                            columns = displayColumns,
-                            rowHeight = displayRowHeight,
+                    DashboardGrid(
+                        widgets = layout.widgets,
+                        columns = displayColumns,
+                        rowHeight = displayRowHeight,
+                        editMode = state.editMode,
+                        onMoveWidget = viewModel::moveWidgetTo,
+                    ) { widget ->
+                        WidgetCell(
+                            widget = widget,
+                            state = state,
                             editMode = state.editMode,
-                            onMoveWidget = viewModel::moveWidgetTo,
-                        ) { widget ->
-                            WidgetCell(
-                                widget = widget,
-                                state = state,
-                                editMode = state.editMode,
-                                maxColumns = displayColumns,
-                                modifier = Modifier.fillMaxSize(),
-                                onCommand = { value, confirmed ->
-                                    widget.objectId?.let { id -> viewModel.sendCommand(id, value, confirmed) }
-                                },
-                                onRemove = { viewModel.removeWidget(widget.id) },
-                                onSaveEdit = { title, unit, w, h, previewMode, tunnel ->
-                                    viewModel.updateWidget(widget.id, title, unit, w, h, previewMode, tunnel)
-                                },
-                            )
-                        }
+                            maxColumns = displayColumns,
+                            modifier = Modifier.fillMaxSize(),
+                            onCommand = { value, confirmed ->
+                                widget.objectId?.let { id -> viewModel.sendCommand(id, value, confirmed) }
+                            },
+                            onRemove = { viewModel.removeWidget(widget.id) },
+                            onSaveEdit = { title, unit, w, h, previewMode, tunnel ->
+                                viewModel.updateWidget(widget.id, title, unit, w, h, previewMode, tunnel)
+                            },
+                        )
                     }
                 }
             }
@@ -332,6 +334,11 @@ private fun DashboardGrid(
                     val clampedW = widget.w.coerceIn(1, columns)
                     val baseX = widget.x.coerceIn(0, (columns - clampedW).coerceAtLeast(0))
                     val baseOffsetPx = Offset(baseX * cellWidthPx, widget.y * rowHeightPx)
+                    val clampedH = widget.h.coerceAtLeast(1)
+                    val textScale = minOf(
+                        (cellWidth.value * clampedW) / REFERENCE_WIDGET_WIDTH_DP,
+                        (rowHeight.value * clampedH) / REFERENCE_WIDGET_HEIGHT_DP,
+                    ).coerceIn(MIN_WIDGET_TEXT_SCALE, MAX_WIDGET_TEXT_SCALE)
 
                     Box(
                         modifier = Modifier
@@ -341,7 +348,7 @@ private fun DashboardGrid(
                                     (baseOffsetPx.y + dragOffset.y).roundToInt(),
                                 )
                             }
-                            .size(cellWidth * clampedW, rowHeight * widget.h.coerceAtLeast(1))
+                            .size(cellWidth * clampedW, rowHeight * clampedH)
                             .zIndex(if (isDragging) 1f else 0f)
                             .then(
                                 if (editMode) {
@@ -401,7 +408,9 @@ private fun DashboardGrid(
                                 },
                             ),
                     ) {
-                        cellContent(widget)
+                        CompositionLocalProvider(LocalWidgetTextScale provides textScale) {
+                            cellContent(widget)
+                        }
                     }
                 }
             }

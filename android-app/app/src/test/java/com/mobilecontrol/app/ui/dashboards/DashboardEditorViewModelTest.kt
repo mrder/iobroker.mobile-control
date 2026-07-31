@@ -343,7 +343,7 @@ class DashboardEditorViewModelTest {
         collectUiState(viewModel)
         advanceUntilIdle()
 
-        assertEquals(12, viewModel.uiState.value.currentLayout!!.columns)
+        assertEquals(DashboardEditorViewModel.MIN_GRID_COLUMNS, viewModel.uiState.value.currentLayout!!.columns)
     }
 
     @Test

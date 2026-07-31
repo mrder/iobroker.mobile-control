@@ -84,11 +84,9 @@ private fun WidgetState.currentValue(): Any? = when (this) {
 fun TextValueWidget(title: String, unit: String?, state: WidgetState, modifier: Modifier = Modifier) {
     WidgetCard(title = title, state = state, modifier = modifier) {
         val value = state.currentValue()
-        Text(
+        AutoSizeText(
             text = if (value != null) "$value${unit?.let { " $it" } ?: ""}" else "—",
-            style = MaterialTheme.typography.headlineSmall.scaledForWidget(),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+            style = MaterialTheme.typography.headlineSmall,
         )
     }
 }
@@ -97,11 +95,9 @@ fun TextValueWidget(title: String, unit: String?, state: WidgetState, modifier: 
 fun TemperatureWidget(title: String, state: WidgetState, unit: String? = null, modifier: Modifier = Modifier) {
     WidgetCard(title = title, state = state, modifier = modifier) {
         val value = (state.currentValue() as? Number)?.toDouble()
-        Text(
+        AutoSizeText(
             text = if (value != null) String.format(Locale.getDefault(), "%.1f %s", value, unit ?: "°C") else "—",
-            style = MaterialTheme.typography.headlineSmall.scaledForWidget(),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+            style = MaterialTheme.typography.headlineSmall,
         )
     }
 }
@@ -110,11 +106,9 @@ fun TemperatureWidget(title: String, state: WidgetState, unit: String? = null, m
 fun HumidityWidget(title: String, state: WidgetState, unit: String? = null, modifier: Modifier = Modifier) {
     WidgetCard(title = title, state = state, modifier = modifier) {
         val value = (state.currentValue() as? Number)?.toDouble()
-        Text(
+        AutoSizeText(
             text = if (value != null) String.format(Locale.getDefault(), "%.0f %s", value, unit ?: "%") else "—",
-            style = MaterialTheme.typography.headlineSmall.scaledForWidget(),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+            style = MaterialTheme.typography.headlineSmall,
         )
     }
 }
@@ -419,11 +413,9 @@ fun ThermostatWidget(
         val effectiveStep = if (step <= 0.0) 0.5 else step
 
         Column {
-            Text(
+            AutoSizeText(
                 text = if (value != null) String.format(Locale.getDefault(), "%.1f °C", value) else "—",
-                style = MaterialTheme.typography.headlineSmall.scaledForWidget(),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.headlineSmall,
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 TextButton(

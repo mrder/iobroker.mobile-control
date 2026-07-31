@@ -8,6 +8,20 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.66] - master, Testbuild
+
+Echte Ursache für den weiterhin kaputten Widget-Text gefunden (v0.0.64/65 haben es live bestätigt
+nicht behoben).
+
+- Die Auto-Schrumpf-Logik prüfte Composes `didOverflowWidth`-Kennzeichen - das meldet aber "kein
+  Überlauf", sobald die Auslassungspunkte-Kürzung den Text bereits passend gemacht hat, sodass die
+  Schrumpf-Logik nie griff. Jetzt wird `isLineEllipsized()` geprüft, was direkt fragt, ob die
+  Zeile tatsächlich gekürzt wurde.
+- Live bestätigt: ein Feuchtigkeitswert, der als "88...." angezeigt wurde, zeigt jetzt vollständig
+  "86.9 %".
+- Minimale Spaltenzahl des Rasters von 12 auf 6 gesenkt, damit ein Widget bei Bedarf spürbar
+  breiter gemacht werden kann, nicht nur mit kleinerer Schrift.
+
 ## [0.0.65] - master, Testbuild
 
 Live-Wunsch: Der QR-Code zur App-Installation war nirgendwo auffindbar - er existierte bisher nur

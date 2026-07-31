@@ -315,15 +315,17 @@ class DashboardEditorViewModel @Inject constructor(
         private const val MAX_HISTORY_SIZE = 50
 
         /**
-         * Dashboards created before the grid was widened - first 4 to 8 columns, now 8 to 12
-         * (live-test feedback both times: too coarse, not enough widgets fit per row) - still
-         * carry the older, narrower `columns` value from the server. Rather than a one-off
-         * server-side migration, every dashboard is bumped up to this width the moment it's loaded
-         * into the editor - existing widgets keep their x/y/w/h (they just now occupy less of the
-         * row than before, and can be resized wider), and the wider value is persisted back on the
-         * next save.
+         * Floor for the columns slider (see [updateGridSize]/GridSizeDialog) and for the one-off
+         * "widen on load" migration below, for dashboards still carrying an older, narrower
+         * `columns` value from the server (this floor itself moved twice already - 4, then 8, then
+         * 12 - each time live-test feedback said the grid was too coarse). Live-requested
+         * (2026-07-30) to come back down from 12 to 6: at a fixed floor of 12, a single-column
+         * widget could never be wider than 1/12th of the screen no matter what, which for some
+         * value types (e.g. a humidity/temperature reading) wasn't enough room to stay legible even
+         * with auto-shrinking text (see AutoSizeText) - the real fix for that case is letting the
+         * user pick fewer, wider columns instead, not just smaller text.
          */
-        const val MIN_GRID_COLUMNS = 12
+        const val MIN_GRID_COLUMNS = 6
         /** Upper bound for the columns slider - a cell narrower than this on a phone-width screen
          *  stops being a usable touch target. */
         const val MAX_GRID_COLUMNS = 24

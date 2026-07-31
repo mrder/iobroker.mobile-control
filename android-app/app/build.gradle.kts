@@ -25,8 +25,8 @@ android {
         // Einstellungen always showed the same "0.1.0-debug" no matter which build was actually
         // installed, making it impossible to visually confirm which version was running).
         // versionCode just needs to strictly increase - bump by 1 each release alongside versionName.
-        versionCode = 11
-        versionName = "0.0.65"
+        versionCode = 12
+        versionName = "0.0.66"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
