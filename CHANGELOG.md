@@ -8,6 +8,18 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.67] - master, Testbuild
+
+Live-Wunsch als Folge-Fix zu v0.0.66.
+
+- Auch der Widget-Titel schrumpft jetzt automatisch passend (z.B. "Außenfeuchte" statt immer nur
+  "Außenf..."), mit derselben `isLineEllipsized()`-Korrektur.
+- Live gefundenen Fehler beim Web-Seite-Widget behoben: Bei ausgeschalteter Live-Vorschau wurde
+  der "Öffnen"-Button als große, einfarbige Ellipse dargestellt statt als normaler Button (Ursache:
+  Material3s prozentual gerundete Standardform bei unbegrenzter Höhe) - jetzt kompakt und zentriert.
+- Bekanntes Restproblem, bewusst nicht weiter geraten: Die Beschriftung dieses Buttons selbst
+  bleibt auf dem Testgerät unsichtbar, der Button ist aber weiterhin voll funktionsfähig.
+
 ## [0.0.66] - master, Testbuild
 
 Echte Ursache für den weiterhin kaputten Widget-Text gefunden (v0.0.64/65 haben es live bestätigt

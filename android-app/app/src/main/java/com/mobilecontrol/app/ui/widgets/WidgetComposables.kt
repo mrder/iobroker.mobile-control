@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -797,9 +798,25 @@ fun WebPageWidget(
                     }
                 }
             } else {
-                Button(onClick = { fullscreen = true }, modifier = Modifier.fillMaxWidth()) {
-                    Icon(Icons.Filled.Fullscreen, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Text("Öffnen", modifier = Modifier.padding(start = 8.dp))
+                // Live-reported (2026-07-31): a Modifier.fillMaxWidth() button here stretched to
+                // fill the widget's full cell height too (tall widgets especially) - Material3's
+                // default button shape is percentage-rounded, so a tall-but-narrow button
+                // rendered as a big solid oval. Sizing the button to its own natural (wrap)
+                // content and centering it in the available cell fixes that part, confirmed live.
+                // KNOWN REMAINING ISSUE: the "Öffnen" label/icon inside the (now correctly sized)
+                // button are still not visibly rendering on the live test device even with an
+                // explicit contentColor - live-diagnosed down to being specific to Button's own
+                // content, since a plain sibling Text at this same position rendered fine. Left
+                // as-is rather than guessing further; the button is still fully tappable/
+                // functional (onClick fires), just missing a visible label for now.
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Button(
+                        onClick = { fullscreen = true },
+                        colors = ButtonDefaults.buttonColors(contentColor = Color.White),
+                    ) {
+                        Icon(Icons.Filled.Fullscreen, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                        Text("Öffnen", color = Color.White, modifier = Modifier.padding(start = 8.dp))
+                    }
                 }
             }
         }

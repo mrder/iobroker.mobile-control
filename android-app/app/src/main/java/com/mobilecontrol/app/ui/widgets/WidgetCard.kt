@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.mobilecontrol.app.ui.theme.StatusError
 import com.mobilecontrol.app.ui.theme.StatusLive
 import com.mobilecontrol.app.ui.theme.StatusOffline
@@ -51,12 +52,10 @@ fun WidgetCard(
         colors = CardDefaults.cardColors(),
     ) {
         Column(modifier = Modifier.padding(12.dp).fillMaxSize()) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.labelLarge.scaledForWidget(),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            // AutoSizeText (not just .scaledForWidget()) so a long title shrinks to actually fit
+            // a narrow cell instead of always truncating to e.g. "Außenf…" - live-requested
+            // (2026-07-31) once the same fix already proved itself on the value text below.
+            AutoSizeText(text = title, style = MaterialTheme.typography.labelLarge, minFontSize = 9.sp)
             Box(modifier = Modifier.padding(top = 4.dp), contentAlignment = Alignment.CenterStart) {
                 // Non-interactive states replace the widget body entirely. Command
                 // pending/confirmed/failed still render the widget's own content (e.g. the switch
