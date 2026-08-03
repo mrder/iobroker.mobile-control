@@ -5,6 +5,7 @@ import java.io.OutputStream
 import java.net.InetAddress
 import java.net.ServerSocket
 import java.net.Socket
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -34,33 +35,50 @@ import okhttp3.RequestBody.Companion.toRequestBody
 private val HOP_BY_HOP_HEADERS = setOf("host", "connection", "proxy-connection", "content-length", "accept-encoding")
 
 /**
- * A tiny HTTP/1.1 forward-proxy server bound to 127.0.0.1 on an ephemeral port, for exactly one
- * purpose: androidx.webkit.ProxyController points WebView at it for the lifetime of one
- * Tunnel-enabled Web-Seite widget session, so every request the embedded page makes - not just
- * its initial navigation - gets a chance to route through the adapter's tunnel instead of
- * needing the phone to actually reach the target on the LAN. See HttpProxyRequest for the parsing
- * side and TunnelController for the ProxyController/token-lifecycle side.
+ * A tiny HTTP/1.1 forward-proxy server bound to 127.0.0.1 on an ephemeral port. androidx.webkit.
+ * ProxyController points WebView at it (process-wide, not per-WebView - see TunnelSessionManager's
+ * own docs) for the lifetime of at least one Tunnel-enabled Web-Seite widget session, so every
+ * request an embedded page makes - not just its initial navigation - gets a chance to route
+ * through the adapter's tunnel instead of needing the phone to actually reach the target on the
+ * LAN. See HttpProxyRequest for the parsing side and TunnelSessionManager for the ProxyController/
+ * token-lifecycle side.
  *
- * Scoped hard to [approvedHost]/[approvedPort]: any request whose own target doesn't match is
- * rejected locally (403) before it ever reaches the network - defense in depth on top of the
- * backend independently re-deriving the target from the token itself and never trusting a
- * client-supplied host (see TunnelService/forwardTunnelRequest.kt).
+ * Tracks one approved target *per embed id*, not a single global one: because ProxyController is
+ * process-wide, one shared server instance is started the moment the first Tunnel-mode widget
+ * needs it and kept alive as long as at least one still does (see TunnelSessionManager), serving
+ * every simultaneously-active embed's own approved origin out of the same local port. A request
+ * whose target doesn't match exactly one registered embed's origin is rejected locally (403) -
+ * defense in depth on top of the backend independently re-deriving the target from the token
+ * itself and never trusting a client-supplied host (see TunnelService/forwardTunnelRequest.kt).
+ *
+ * Live-reported (2026-07-31): this used to take a single approvedHost/approvedPort/tokenProvider
+ * for the server's entire lifetime, correct for exactly one active Tunnel-mode widget - but a
+ * dashboard can have more than one visible at once (how many varies per SizeClass layout, so this
+ * could differ between two devices showing the "same" dashboard at different screen sizes). Each
+ * widget independently starting/stopping its own tunnel meant a second widget's start silently
+ * replaced the first's approved target, and either widget's dispose-triggered stop could tear down
+ * whichever session happened to be active - not necessarily its own. Confirmed live: one widget
+ * got a 403 "Only the approved target is tunneled" (its target no longer matched whichever widget
+ * was currently registered) while another saw its connection broken mid-request by an unrelated
+ * widget's dispose. Fixed by keying targets per embed id instead of a single slot.
  *
  * A CONNECT request (what a proxied https:// navigation looks like) is answered with a plain
  * error rather than attempted - see this class's own module doc in docs/TODO.md for why HTTPS
  * targets aren't supported by this tunnel design.
  */
 class TunnelProxyServer(
-    private val approvedHost: String,
-    private val approvedPort: Int,
     private val tunnelProxyUrl: HttpUrl,
     private val httpClient: OkHttpClient,
-    /** Returns the current tunnel token, refreshing it first if it's close to expiring - null if
-     *  no valid token could be obtained (e.g. access was revoked). */
-    private val tokenProvider: suspend () -> String?,
 ) {
+    private data class Target(val host: String, val port: Int, val tokenProvider: suspend () -> String?)
+
+    private val targets = ConcurrentHashMap<String, Target>()
     private var serverSocket: ServerSocket? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /** True once at least one embed has a registered target - callers use this to decide whether
+     *  the shared server is still needed at all. */
+    val hasTargets: Boolean get() = targets.isNotEmpty()
 
     /** Starts listening and returns the ephemeral port it bound to. */
     fun start(): Int {
@@ -74,6 +92,19 @@ class TunnelProxyServer(
         scope.cancel()
         runCatching { serverSocket?.close() }
         serverSocket = null
+        targets.clear()
+    }
+
+    /** Registers (or updates) the one target [embedId]'s widget is allowed to reach through this
+     *  shared server - independent of whatever other embeds are also currently registered. */
+    fun registerTarget(embedId: String, host: String, port: Int, tokenProvider: suspend () -> String?) {
+        targets[embedId] = Target(host, port, tokenProvider)
+    }
+
+    /** Removes [embedId]'s target only - safe to call even if it was never registered, and never
+     *  affects any other embed's currently-registered target. */
+    fun unregisterTarget(embedId: String) {
+        targets.remove(embedId)
     }
 
     private suspend fun acceptLoop(socket: ServerSocket) {
@@ -96,11 +127,12 @@ class TunnelProxyServer(
                     writeSimpleResponse(output, 502, "HTTPS targets are not supported by the tunnel")
                     return
                 }
-                if (!request.matchesOrigin(approvedHost, approvedPort)) {
+                val target = findTarget(request)
+                if (target == null) {
                     writeSimpleResponse(output, 403, "Only the approved target is tunneled")
                     return
                 }
-                val token = tokenProvider()
+                val token = target.tokenProvider()
                 if (token == null) {
                     writeSimpleResponse(output, 502, "No valid tunnel token")
                     return
@@ -114,6 +146,16 @@ class TunnelProxyServer(
                 runCatching { writeSimpleResponse(output, 502, "Tunnel error: ${e.message}") }
             }
         }
+    }
+
+    /** Exactly one currently-registered target whose origin the request matches. A bare-path
+     *  (origin-form) request-target trivially "matches" every registered target (see
+     *  HttpProxyRequest.matchesOrigin) - unambiguous only when exactly one embed is active, which
+     *  is also handled correctly by requiring a single match here. Zero or multiple matches are
+     *  both rejected rather than guessed at. */
+    private fun findTarget(request: HttpProxyRequest): Target? {
+        val matches = targets.values.filter { request.matchesOrigin(it.host, it.port) }
+        return matches.singleOrNull()
     }
 
     private fun forward(request: HttpProxyRequest, token: String): okhttp3.Response {

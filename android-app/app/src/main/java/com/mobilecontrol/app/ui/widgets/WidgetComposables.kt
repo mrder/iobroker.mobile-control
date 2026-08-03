@@ -776,8 +776,11 @@ fun WebPageWidget(
     DisposableEffect(urlEmbedId, useTunnel) {
         // onDispose is a plain (non-suspend) callback, so stopping the tunnel - a suspend call -
         // has to be launched fire-and-forget on a scope that outlives this specific effect (the
-        // composable is already leaving composition by the time this runs).
-        onDispose { if (useTunnel) coroutineScope.launch { viewModel.stopTunnel() } }
+        // composable is already leaving composition by the time this runs). Stops only this
+        // widget's own embed id - see TunnelSessionManager, a shared proxy can have more than one
+        // Tunnel-mode widget's target registered at once, and disposing must never affect another
+        // still-active widget's session.
+        onDispose { if (useTunnel && urlEmbedId != null) coroutineScope.launch { viewModel.stopTunnel(urlEmbedId) } }
     }
 
     WidgetCard(title = title, state = WidgetState.Stale(null, 0L), modifier = modifier) {

@@ -44,6 +44,16 @@ fun ServerCheckScreen(
             Text(state.qrPayload?.serverUrl.orEmpty(), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
 
             when {
+                // Defense in depth: the QR-scan screen no longer navigates here without an
+                // accepted payload (see OnboardingViewModel.onQrCodeScanned), but this still
+                // covers any other path that could land here without one (e.g. process-death
+                // restoration) instead of silently showing nothing forever.
+                state.qrPayload == null -> Text(
+                    state.qrError ?: "Kein gültiger Pairing-Code vorhanden. Bitte zurückgehen und neu scannen.",
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(top = 16.dp),
+                )
+
                 state.fingerprintChecking -> CircularProgressIndicator(modifier = Modifier.padding(top = 24.dp))
 
                 state.fingerprintResult is FingerprintCheckResult.Match -> {

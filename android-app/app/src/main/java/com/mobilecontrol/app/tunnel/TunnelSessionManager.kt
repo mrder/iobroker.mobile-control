@@ -2,7 +2,6 @@ package com.mobilecontrol.app.tunnel
 
 import com.mobilecontrol.app.BuildConfig
 import com.mobilecontrol.app.data.remote.ServerConfigHolder
-import com.mobilecontrol.app.domain.model.TunnelToken
 import com.mobilecontrol.app.domain.repository.UrlEmbedRepository
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -18,11 +17,17 @@ import okhttp3.logging.HttpLoggingInterceptor
 private const val REFRESH_MARGIN_MS = 2 * 60_000L
 
 /**
- * Owns the single active Tunnel session for a Web-Seite widget in "Tunnel" mode: requests a
- * scoped tunnel token (POST /api/v1/tunnel-token/{id}), starts a local TunnelProxyServer bound to
- * the target's own origin, and points WebView at it via androidx.webkit.ProxyController - which
- * is process-wide, not per-WebView, so only one session is ever meaningful at a time (starting a
- * second one simply replaces the first).
+ * Owns the shared Tunnel proxy for however many Tunnel-mode Web-Seite widgets are currently
+ * active: requests a scoped tunnel token per embed (POST /api/v1/tunnel-token/{id}), and routes
+ * WebView's traffic through a single local TunnelProxyServer via androidx.webkit.ProxyController -
+ * which is process-wide, not per-WebView, so there is only ever one local proxy port, started the
+ * moment the first widget needs it and stopped once the last one no longer does. Each active
+ * embed gets its own registered target/token on that shared server (see TunnelProxyServer), so
+ * more than one Tunnel-mode widget can be visible on the same dashboard at once without them
+ * fighting over a single global target - confirmed live to be a real scenario (a dashboard's
+ * widget count/arrangement can differ per SizeClass, so two devices showing the "same" dashboard
+ * at different screen sizes don't necessarily have the same number of Tunnel widgets on screen
+ * simultaneously).
  *
  * Deliberately uses its own plain OkHttpClient rather than the app's shared one: that shared
  * client's interceptors (DynamicBaseUrlInterceptor, AuthHeaderInterceptor) exist to talk to the
@@ -35,6 +40,8 @@ class TunnelSessionManager @Inject constructor(
     private val urlEmbedRepository: UrlEmbedRepository,
     private val serverConfigHolder: ServerConfigHolder,
 ) {
+    private class TokenState(var token: String? = null, var expiresAt: Long = 0)
+
     private val lock = Mutex()
     private val httpClient = OkHttpClient.Builder()
         // Deliberately NOT callTimeout: that bounds the entire call including time spent waiting
@@ -54,70 +61,71 @@ class TunnelSessionManager @Inject constructor(
         .build()
 
     private var server: TunnelProxyServer? = null
-    private var activeEmbedId: String? = null
-    @Volatile private var currentToken: String? = null
-    @Volatile private var currentTokenExpiresAt: Long = 0
+    private val tokenStates = mutableMapOf<String, TokenState>()
 
     val isSupported: Boolean get() = WebViewProxyOverride.isSupported
 
     /**
-     * Starts (or, if a different embed was active, restarts) a tunnel session for [embedId] whose
-     * real target is [targetUrl]. Returns false without side effects if the platform doesn't
-     * support proxy override, the target isn't plain http://, or a token couldn't be obtained -
-     * callers are expected to fall back to today's direct-navigation behavior in that case.
+     * Registers [embedId] (whose real target is [targetUrl]) on the shared tunnel server,
+     * starting it first if this is the first active embed. Returns false without side effects if
+     * the platform doesn't support proxy override, the target isn't plain http://, or a token
+     * couldn't be obtained - callers are expected to fall back to today's direct-navigation
+     * behavior in that case. Safe to call again for an already-active embed (e.g. a recomposition
+     * with the same URL) - just re-registers its target and reuses its token if still fresh.
      */
     suspend fun start(embedId: String, targetUrl: String): Boolean = lock.withLock {
         if (!isSupported) return@withLock false
         val origin = targetUrl.toHttpUrlOrNull() ?: return@withLock false
         if (origin.scheme != "http") return@withLock false
-
-        if (activeEmbedId == embedId && server != null) {
-            return@withLock true
-        }
-        stopLocked()
-
         val adapterBase = serverConfigHolder.baseUrl ?: return@withLock false
-        // refreshToken() also populates currentToken/currentTokenExpiresAt as a side effect -
-        // no separate assignment needed here.
-        refreshToken(embedId) ?: return@withLock false
-        val tunnelUrl = adapterBase.newBuilder().addPathSegments("api/v1/tunnel/proxy").build()
 
-        val newServer = TunnelProxyServer(
-            approvedHost = origin.host,
-            approvedPort = origin.port,
-            tunnelProxyUrl = tunnelUrl,
-            httpClient = httpClient,
-            tokenProvider = { ensureFreshToken(embedId) },
-        )
-        val port = newServer.start()
-        WebViewProxyOverride.enable("127.0.0.1:$port")
-        server = newServer
-        activeEmbedId = embedId
+        val state = tokenStates.getOrPut(embedId) { TokenState() }
+        val fresh = state.token != null && System.currentTimeMillis() < state.expiresAt - REFRESH_MARGIN_MS
+        if (!fresh && !refreshTokenLocked(embedId, state)) {
+            tokenStates.remove(embedId)
+            return@withLock false
+        }
+
+        var srv = server
+        if (srv == null) {
+            srv = TunnelProxyServer(
+                tunnelProxyUrl = adapterBase.newBuilder().addPathSegments("api/v1/tunnel/proxy").build(),
+                httpClient = httpClient,
+            )
+            val port = srv.start()
+            server = srv
+            WebViewProxyOverride.enable("127.0.0.1:$port")
+        }
+        srv.registerTarget(embedId, origin.host, origin.port) { ensureFreshToken(embedId) }
         true
     }
 
-    suspend fun stop() = lock.withLock { stopLocked() }
-
-    private suspend fun stopLocked() {
-        server?.stop()
-        server = null
-        activeEmbedId = null
-        currentToken = null
-        currentTokenExpiresAt = 0
-        WebViewProxyOverride.disable()
+    /** Removes [embedId]'s target only - stops the shared server (and disables the WebView proxy
+     *  override) once no embed needs it anymore, and never affects any other currently-active
+     *  embed's own session. Safe to call even if [embedId] was never started. */
+    suspend fun stop(embedId: String) = lock.withLock {
+        tokenStates.remove(embedId)
+        val srv = server ?: return@withLock
+        srv.unregisterTarget(embedId)
+        if (!srv.hasTargets) {
+            srv.stop()
+            server = null
+            WebViewProxyOverride.disable()
+        }
     }
 
-    private suspend fun ensureFreshToken(embedId: String): String? {
-        val token = currentToken
-        if (token != null && System.currentTimeMillis() < currentTokenExpiresAt - REFRESH_MARGIN_MS) {
-            return token
-        }
-        return refreshToken(embedId)?.token
+    private suspend fun ensureFreshToken(embedId: String): String? = lock.withLock {
+        val state = tokenStates[embedId] ?: return@withLock null
+        val fresh = state.token != null && System.currentTimeMillis() < state.expiresAt - REFRESH_MARGIN_MS
+        if (fresh) return@withLock state.token
+        if (!refreshTokenLocked(embedId, state)) return@withLock null
+        state.token
     }
 
-    private suspend fun refreshToken(embedId: String): TunnelToken? =
-        urlEmbedRepository.requestTunnelToken(embedId).getOrNull()?.also {
-            currentToken = it.token
-            currentTokenExpiresAt = it.expiresAtEpochMs
-        }
+    private suspend fun refreshTokenLocked(embedId: String, state: TokenState): Boolean {
+        val result = urlEmbedRepository.requestTunnelToken(embedId).getOrNull() ?: return false
+        state.token = result.token
+        state.expiresAt = result.expiresAtEpochMs
+        return true
+    }
 }

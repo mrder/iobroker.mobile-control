@@ -8,6 +8,7 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
@@ -38,7 +39,7 @@ import com.mobilecontrol.app.R
 import java.util.concurrent.Executors
 
 @Composable
-fun QrScanScreen(onCodeScanned: (String) -> Unit) {
+fun QrScanScreen(qrError: String?, onCodeScanned: (String) -> Boolean) {
     val context = LocalContext.current
     var hasCameraPermission by remember {
         mutableStateOf(
@@ -62,22 +63,38 @@ fun QrScanScreen(onCodeScanned: (String) -> Unit) {
                     modifier = Modifier.padding(24.dp),
                 )
             }
-            Text(
-                stringResource(R.string.onboarding_scan_hint),
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(16.dp),
-            )
+            Column {
+                Text(
+                    stringResource(R.string.onboarding_scan_hint),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(16.dp),
+                )
+                // Live-reported (2026-07-31): an expired/invalid QR code used to be silently
+                // swallowed - scanning it navigated away to a dead-end screen with no feedback at
+                // all. Now shown right here, and the scanner (see CameraPreview below) keeps
+                // running so the user can immediately try a freshly-generated code.
+                if (qrError != null) {
+                    Text(
+                        qrError,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 16.dp),
+                    )
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun CameraPreview(onCodeScanned: (String) -> Unit) {
+private fun CameraPreview(onCodeScanned: (String) -> Boolean) {
     val context = LocalContext.current
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     val onCodeScannedState = rememberUpdatedState(onCodeScanned)
     val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
-    var alreadyDelivered by remember { mutableStateOf(false) }
+    // Only locked once a scan is actually accepted (about to navigate away) - a rejected code
+    // (expired/malformed) must leave scanning running so the user can retry without leaving.
+    var scanAccepted by remember { mutableStateOf(false) }
 
     DisposableEffect(Unit) {
         onDispose { cameraExecutor.shutdown() }
@@ -103,14 +120,15 @@ private fun CameraPreview(onCodeScanned: (String) -> Unit) {
                     .build()
                 analysis.setAnalyzer(cameraExecutor) { imageProxy ->
                     val mediaImage = imageProxy.image
-                    if (mediaImage != null && !alreadyDelivered) {
+                    if (mediaImage != null && !scanAccepted) {
                         val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
                         scanner.process(image)
                             .addOnSuccessListener { barcodes ->
                                 val value = barcodes.firstOrNull()?.rawValue
-                                if (value != null && !alreadyDelivered) {
-                                    alreadyDelivered = true
-                                    onCodeScannedState.value(value)
+                                if (value != null && !scanAccepted) {
+                                    if (onCodeScannedState.value(value)) {
+                                        scanAccepted = true
+                                    }
                                 }
                             }
                             .addOnCompleteListener { imageProxy.close() }

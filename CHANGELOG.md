@@ -8,6 +8,21 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.69] - master, Testbuild
+
+Drei live gemeldete Android-Probleme behoben.
+
+- Absturz ab Android 12 (bestätigt auf Samsung Galaxy S21) direkt beim Öffnen der Einrichtung:
+  direktes Auslesen des Bluetooth-Namens über `Settings.Secure` löst ab targetSdkVersion 31 eine
+  `SecurityException` aus. Umgestellt auf `Settings.Global.DEVICE_NAME`.
+- Abgelaufener/ungültiger Pairing-QR-Code führte zu einem toten Bildschirm ("Server wird geprüft"
+  für immer, ohne Fehler, ohne Weg zurück). Fehler wird jetzt direkt auf dem Scan-Bildschirm
+  gezeigt, die Kamera scannt währenddessen weiter.
+- Mehrere gleichzeitig sichtbare Tunnel-Web-Seite-Widgets haben sich um eine einzige globale
+  Tunnel-Sitzung gestritten (`androidx.webkit.ProxyController` ist prozessweit) - ein Widget bekam
+  403 "nur das freigegebene Ziel wird getunnelt", ein anderes eine abgebrochene Verbindung. Der
+  gemeinsame Proxy verwaltet jetzt ein Ziel pro Widget statt eines einzigen globalen.
+
 ## [0.0.68] - master, Testbuild
 
 Delegierte Design-Entscheidung, live gewünscht: Diagramm-Anzeige für das Verlauf-Widget.

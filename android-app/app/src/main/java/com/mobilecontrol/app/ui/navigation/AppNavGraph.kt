@@ -93,10 +93,15 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
         }
         composable(Routes.QR_SCAN) {
             val onboardingViewModel = onboardingViewModel(navController)
-            QrScanScreen(onCodeScanned = { raw ->
-                onboardingViewModel.onQrCodeScanned(raw)
-                navController.navigate(Routes.SERVER_CHECK)
-            })
+            val state by onboardingViewModel.uiState.collectAsState()
+            QrScanScreen(
+                qrError = state.qrError,
+                onCodeScanned = { raw ->
+                    val accepted = onboardingViewModel.onQrCodeScanned(raw)
+                    if (accepted) navController.navigate(Routes.SERVER_CHECK)
+                    accepted
+                },
+            )
         }
         composable(Routes.SERVER_CHECK) {
             val onboardingViewModel = onboardingViewModel(navController)

@@ -58,21 +58,30 @@ class OnboardingViewModel @Inject constructor(
 
     private var pollingJob: Job? = null
 
-    fun onQrCodeScanned(rawContent: String) {
+    /**
+     * Returns true if the scanned code was accepted (qrPayload set), false otherwise (qrError
+     * set instead). Live-reported (2026-07-31): the QR-scan screen used to navigate to the
+     * server-check screen unconditionally right after any scan, regardless of this return value -
+     * an expired or malformed code left qrPayload null, and the server-check screen had no branch
+     * for that case, so the user was stuck forever on a static "Server wird geprüft" title with no
+     * error, no spinner, and no way forward. Callers must now only navigate on a true result.
+     */
+    fun onQrCodeScanned(rawContent: String): Boolean {
         val payload = try {
             json.decodeFromString(PairingQrPayload.serializer(), rawContent)
         } catch (ex: SerializationException) {
             _uiState.update { it.copy(qrError = "QR-Code konnte nicht gelesen werden: ${ex.message}") }
-            return
+            return false
         }
         if (payload.isExpired(System.currentTimeMillis())) {
             _uiState.update { it.copy(qrError = "Der Pairing-Code ist abgelaufen. Bitte neu scannen.") }
-            return
+            return false
         }
         // Set as early as possible - checkServer() below makes the very first network call of the
         // whole pairing flow, and it (like everything else) is behind the portal-key gate now.
         serverConfigHolder.portalKey = payload.portalKey
         _uiState.update { it.copy(qrPayload = payload, qrError = null) }
+        return true
     }
 
     fun checkServer() {

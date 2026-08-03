@@ -17,5 +17,5 @@ class UrlEmbedWidgetViewModel @Inject constructor(
 
     /** See TunnelSessionManager.start - no-ops (returns false) if unsupported/not http://. */
     suspend fun startTunnel(id: String, targetUrl: String): Boolean = tunnelSessionManager.start(id, targetUrl)
-    suspend fun stopTunnel() = tunnelSessionManager.stop()
+    suspend fun stopTunnel(id: String) = tunnelSessionManager.stop(id)
 }
