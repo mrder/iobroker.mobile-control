@@ -8,6 +8,20 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.70] - master, Testbuild
+
+Echte Ursache der Tunnel-Widget-Fehler gefunden und behoben.
+
+- `TunnelSessionManager`s eigener OkHttp-Client hat den Basic-Auth-Header des Portal-Schlüssel-Gates
+  vergessen - jede Tunnel-Anfrage wurde vom Gate selbst mit einem nackten 401 abgelehnt, bevor sie
+  den eigentlichen Tunnel-Endpunkt je erreicht hat.
+- Chromium reicht ein nacktes 401 von einem Proxy nicht wie ein 403 an die Seite durch, sondern
+  zeigt das viel verwirrendere `net::ERR_HTTP_RESPONSE_CODE_FAILURE` - deshalb so schwer zu
+  diagnostizieren. Per Live-Diagnose-Logging gefunden (protocol=h2 code=401, leerer Body).
+- Live bestätigt: Beide vorher kaputten Tunnel-Widgets laden jetzt ihre echten Zielseiten korrekt.
+- Vollständiger manueller Regressionsdurchlauf über Dashboards, alle Widget-Typen, Objektkatalog,
+  Meldungen und Einstellungen mit live mitlaufendem Absturz-Log - keine Abstürze gefunden.
+
 ## [0.0.69] - master, Testbuild
 
 Drei live gemeldete Android-Probleme behoben.

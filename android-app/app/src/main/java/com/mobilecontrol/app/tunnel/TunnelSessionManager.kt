@@ -1,6 +1,7 @@
 package com.mobilecontrol.app.tunnel
 
 import com.mobilecontrol.app.BuildConfig
+import com.mobilecontrol.app.data.remote.PortalKeyInterceptor
 import com.mobilecontrol.app.data.remote.ServerConfigHolder
 import com.mobilecontrol.app.domain.repository.UrlEmbedRepository
 import java.util.concurrent.TimeUnit
@@ -34,11 +35,23 @@ private const val REFRESH_MARGIN_MS = 2 * 60_000L
  * normal bearer-token API against the placeholder base URL - the tunnel already builds an
  * absolute URL itself and authorizes purely via X-Tunnel-Token, so reusing the shared client
  * would just risk attaching irrelevant machinery to a request it was never designed for.
+ *
+ * Live-reported (2026-08-03) root cause of `net::ERR_HTTP_RESPONSE_CODE_FAILURE` on every
+ * Tunnel-mode widget: this client was missing the one piece of "irrelevant machinery" that is
+ * NOT actually optional - PortalKeyInterceptor. The portal-key gate wraps every single request to
+ * the adapter with no exemption list (see PortalKeyInterceptor's own doc), so every forward() call
+ * was rejected by the gate itself with a bare 401 before ever reaching the real tunnel endpoint -
+ * confirmed live via diagnostic logging (protocol=h2 code=401, empty body). Chromium's own proxy-
+ * response handling doesn't pass a bare 401 from something it's talking to as a proxy straight
+ * through to the page (unlike a 403, which rendered fine as plain text) - it surfaces the opaque
+ * net::ERR_HTTP_RESPONSE_CODE_FAILURE instead, which is what made this so hard to diagnose from
+ * the WebView error page alone.
  */
 @Singleton
 class TunnelSessionManager @Inject constructor(
     private val urlEmbedRepository: UrlEmbedRepository,
     private val serverConfigHolder: ServerConfigHolder,
+    portalKeyInterceptor: PortalKeyInterceptor,
 ) {
     private class TokenState(var token: String? = null, var expiresAt: Long = 0)
 
@@ -54,6 +67,7 @@ class TunnelSessionManager @Inject constructor(
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(50, TimeUnit.SECONDS)
         .writeTimeout(15, TimeUnit.SECONDS)
+        .addInterceptor(portalKeyInterceptor)
         // BASIC level (method/URL/response code/content-length, no headers or body - the tunnel
         // token itself must never land in logcat) so a live tunnel session is actually
         // diagnosable via `adb logcat` tag "OkHttp", same convention as NetworkModule's client.
