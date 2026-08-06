@@ -215,7 +215,22 @@ export class CommandsService extends EventEmitter {
         return executedRecord;
     }
 
-    /** Wired from main.ts's adapter.on('stateChange', ...) for every subscribed state. */
+    /**
+     * Wired from main.ts's adapter.on('stateChange', ...) for every subscribed state.
+     *
+     * Live-reported (2026-08-04) severe bug: a switch command was shown as "confirmed" (✓) in the
+     * app while the real actuator (a Zigbee light) never actually switched. Root cause: this only
+     * checked `state.ack` and treated ANY ack:true event on the pending stateId as confirmation -
+     * it never checked whether the acknowledged *value* actually matched what was commanded. An
+     * underlying adapter (Zigbee2MQTT etc.) can legitimately re-ack the state for reasons unrelated
+     * to this specific command - a periodic re-announce, a heartbeat, or simply reporting back the
+     * device's still-unchanged current value after a failed switch attempt - and any of those was
+     * being misread as "the command succeeded". recheckAfterTimeout below already got this right
+     * (it explicitly compares state.val against the expected value); this path was missing the
+     * exact same check. A mismatched ack is not treated as failure either - it's simply not proof
+     * of *this* command succeeding, so the pending wait continues (a later matching ack, or the
+     * timeout/recheck fallback, will still resolve it correctly).
+     */
     async handleForeignStateChange(stateId: string, state: ioBroker.State | null | undefined): Promise<void> {
         if (!state?.ack) {
             return;
@@ -224,13 +239,18 @@ export class CommandsService extends EventEmitter {
         if (!pending) {
             return;
         }
-        clearTimeout(pending.timer);
-        this.pendingByStateId.delete(stateId);
 
         const record = this.store.get(pending.commandId);
         if (!record || record.status !== 'executed') {
             return;
         }
+        if (state.val !== record.value) {
+            return;
+        }
+
+        clearTimeout(pending.timer);
+        this.pendingByStateId.delete(stateId);
+
         const confirmed: CommandRecord = { ...record, status: 'confirmed', updatedAt: Date.now() };
         await this.store.put(confirmed);
         await this.audit.log({

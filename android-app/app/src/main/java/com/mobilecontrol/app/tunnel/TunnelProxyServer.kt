@@ -47,9 +47,12 @@ private val HOP_BY_HOP_HEADERS = setOf("host", "connection", "proxy-connection",
  * process-wide, one shared server instance is started the moment the first Tunnel-mode widget
  * needs it and kept alive as long as at least one still does (see TunnelSessionManager), serving
  * every simultaneously-active embed's own approved origin out of the same local port. A request
- * whose target doesn't match exactly one registered embed's origin is rejected locally (403) -
- * defense in depth on top of the backend independently re-deriving the target from the token
- * itself and never trusting a client-supplied host (see TunnelService/forwardTunnelRequest.kt).
+ * whose origin (host:port) matches none of the registered embeds, or matches more than one
+ * *distinct* origin at once (only possible for an ambiguous bare-path request - see findTarget),
+ * is rejected locally (403) - defense in depth on top of the backend independently re-deriving the
+ * target from the token itself and never trusting a client-supplied host (see TunnelService/
+ * forwardTunnelRequest.kt). Two embeds sharing the *same* origin (e.g. one physical device serving
+ * more than one dashboard under different paths) is not treated as ambiguous - see findTarget.
  *
  * Live-reported (2026-07-31): this used to take a single approvedHost/approvedPort/tokenProvider
  * for the server's entire lifetime, correct for exactly one active Tunnel-mode widget - but a
@@ -148,14 +151,30 @@ class TunnelProxyServer(
         }
     }
 
-    /** Exactly one currently-registered target whose origin the request matches. A bare-path
-     *  (origin-form) request-target trivially "matches" every registered target (see
-     *  HttpProxyRequest.matchesOrigin) - unambiguous only when exactly one embed is active, which
-     *  is also handled correctly by requiring a single match here. Zero or multiple matches are
-     *  both rejected rather than guessed at. */
+    /**
+     * The registered target whose origin the request matches. Live-reported (2026-08-06): two
+     * different embeds (e.g. "Habpanel" and "Energie") can legitimately share the exact same
+     * host:port - one physical device serving more than one dashboard/app under different paths
+     * is a normal setup, not a conflict. Rejecting whenever more than one registered target shared
+     * an origin (the original rule here) broke every request to that origin as soon as a second
+     * such embed was active, including this device's own recurring background traffic (e.g. a
+     * socket.io long-poll) - confirmed live as the cause of some Tunnel widgets loading forever
+     * without completing while others on a different origin worked fine.
+     *
+     * This is actually safe to resolve without guessing: which embed's *token* accompanies the
+     * forwarded request doesn't change where it goes - the backend resolves the real target and
+     * appends the request's own path server-side from that token (see TunnelRouter/
+     * forwardTunnelRequest), independent of which embed "owns" it. So multiple targets sharing one
+     * origin are interchangeable for forwarding purposes; only a genuine origin mismatch (a bare-
+     * path request with more than one *distinct* host:port simultaneously registered - can't know
+     * which one it meant) is still rejected rather than guessed at.
+     */
     private fun findTarget(request: HttpProxyRequest): Target? {
         val matches = targets.values.filter { request.matchesOrigin(it.host, it.port) }
-        return matches.singleOrNull()
+        if (matches.isEmpty()) return null
+        val distinctOrigins = matches.map { it.host to it.port }.distinct()
+        if (distinctOrigins.size > 1) return null
+        return matches.first()
     }
 
     private fun forward(request: HttpProxyRequest, token: String): okhttp3.Response {

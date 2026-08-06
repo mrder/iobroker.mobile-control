@@ -6,7 +6,7 @@ import { CatalogService } from '../src/catalog';
 import { AuditService } from '../src/audit';
 import { RateLimiter } from '../src/security/rateLimiter';
 import { ReplayGuard } from '../src/security/replayGuard';
-import { CommandsService, type CommandExecutionContext } from '../src/commands';
+import { CommandsService, type CommandExecutionContext, type CommandResultEvent } from '../src/commands';
 import { ApiError } from '../src/lib/errors';
 import type { AuditEvent, CommandRecord, ExposureRule, PublicObjectMapping } from '../src/lib/types';
 import { createFakeAdapter } from './helpers/fakeAdapter';
@@ -236,6 +236,76 @@ describe('CommandsService actuator pipeline', () => {
                     { commandId: 'c1', objectId: mapping.id, value: true, timestamp: new Date().toISOString(), nonce: 'n1' },
                 ),
             (err: unknown) => err instanceof ApiError && err.code === 'LOCAL_ONLY',
+        );
+    });
+});
+
+describe('CommandsService.handleForeignStateChange (live confirmation)', () => {
+    it('confirms when the acked value matches what was actually commanded', async () => {
+        const { exposureStore, catalog, commands } = await setup();
+        await exposureStore.put(baseRule({ userId: 'u1', write: true }));
+        const mapping = await catalog.getOrCreateMapping(SWITCH_STATE_ID);
+        const events: CommandResultEvent[] = [];
+        commands.on('commandResult', (event: CommandResultEvent) => events.push(event));
+
+        await commands.execute(CTX, { commandId: 'c1', objectId: mapping.id, value: true, timestamp: new Date().toISOString(), nonce: 'n1' });
+        await commands.handleForeignStateChange(SWITCH_STATE_ID, { val: true, ack: true } as ioBroker.State);
+
+        assert.deepEqual(
+            events.map((e) => e.status),
+            ['executed', 'confirmed'],
+        );
+    });
+
+    it('does NOT confirm on an ack whose value does not match the commanded value - live-reported false-positive bug', async () => {
+        const { exposureStore, catalog, commands } = await setup();
+        await exposureStore.put(baseRule({ userId: 'u1', write: true }));
+        const mapping = await catalog.getOrCreateMapping(SWITCH_STATE_ID);
+        const events: CommandResultEvent[] = [];
+        commands.on('commandResult', (event: CommandResultEvent) => events.push(event));
+
+        // Commanded ON (true), but the actuator acks back false (e.g. a Zigbee heartbeat/
+        // re-announce reporting the real, unchanged - still off - value). This must NOT be
+        // read as "the command succeeded".
+        await commands.execute(CTX, { commandId: 'c1', objectId: mapping.id, value: true, timestamp: new Date().toISOString(), nonce: 'n1' });
+        await commands.handleForeignStateChange(SWITCH_STATE_ID, { val: false, ack: true } as ioBroker.State);
+
+        assert.deepEqual(
+            events.map((e) => e.status),
+            ['executed'],
+        );
+    });
+
+    it('still confirms correctly once a matching ack arrives after an earlier mismatched one', async () => {
+        const { exposureStore, catalog, commands } = await setup();
+        await exposureStore.put(baseRule({ userId: 'u1', write: true }));
+        const mapping = await catalog.getOrCreateMapping(SWITCH_STATE_ID);
+        const events: CommandResultEvent[] = [];
+        commands.on('commandResult', (event: CommandResultEvent) => events.push(event));
+
+        await commands.execute(CTX, { commandId: 'c1', objectId: mapping.id, value: true, timestamp: new Date().toISOString(), nonce: 'n1' });
+        await commands.handleForeignStateChange(SWITCH_STATE_ID, { val: false, ack: true } as ioBroker.State); // stale/unrelated ack, ignored
+        await commands.handleForeignStateChange(SWITCH_STATE_ID, { val: true, ack: true } as ioBroker.State); // the real one
+
+        assert.deepEqual(
+            events.map((e) => e.status),
+            ['executed', 'confirmed'],
+        );
+    });
+
+    it('ignores an ack:false state change entirely, matching value or not', async () => {
+        const { exposureStore, catalog, commands } = await setup();
+        await exposureStore.put(baseRule({ userId: 'u1', write: true }));
+        const mapping = await catalog.getOrCreateMapping(SWITCH_STATE_ID);
+        const events: CommandResultEvent[] = [];
+        commands.on('commandResult', (event: CommandResultEvent) => events.push(event));
+
+        await commands.execute(CTX, { commandId: 'c1', objectId: mapping.id, value: true, timestamp: new Date().toISOString(), nonce: 'n1' });
+        await commands.handleForeignStateChange(SWITCH_STATE_ID, { val: true, ack: false } as ioBroker.State);
+
+        assert.deepEqual(
+            events.map((e) => e.status),
+            ['executed'],
         );
     });
 });

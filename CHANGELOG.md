@@ -8,6 +8,28 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.71] - master, Testbuild
+
+Zwei weitere live gemeldete Fehler behoben.
+
+- Schaltaktor-Befehle konnten fälschlich als bestätigt (Häkchen) angezeigt werden, obwohl das echte
+  Gerät nie geschaltet hat: `handleForeignStateChange` hat jede `ack:true`-Rückmeldung auf dem
+  State als Bestätigung *dieses* Befehls gewertet, ohne je zu prüfen, ob der bestätigte Wert
+  überhaupt dem befohlenen Wert entspricht - eine fachfremde erneute Bestätigung (Heartbeat,
+  erneute Ankündigung des zugrundeliegenden Adapters, oder das Gerät meldet nach einem
+  fehlgeschlagenen Schaltversuch einfach seinen unveränderten Istwert zurück) wurde so als Erfolg
+  fehlinterpretiert. Jetzt wird der bestätigte Wert mit dem befohlenen Wert verglichen, bevor der
+  Befehl als bestätigt gilt.
+- Das Tunnel-Web-Seite-Widget "Energie" blieb auch nach dem Kollisions-Fix in v0.0.70 dauerhaft bei
+  "Loading Config and Values..." hängen. Per Live-Diagnose-Logging gefunden: Die
+  socket.io-Long-Polling-Verbindung der Zielseite stellt legitim 20-40 Anfragen/Sekunde, weit über
+  dem bisherigen Tunnel-Ratenlimit von 300 Anfragen/Minute (5/Sekunde) je Widget - das Widget lief
+  dadurch innerhalb weniger Sekunden dauerhaft ins Rate-Limit (`429`) und kam nie mehr heraus. Limit
+  auf 6000/Minute angehoben, schützt weiterhin vor einer wirklich außer Kontrolle geratenen
+  Anfrageschleife.
+- Hinweis: Der Aktor-Fix liegt im Backend-Adapter-Code und wird erst nach einem Update der echten,
+  laufenden ioBroker-Instanz wirksam (nicht Teil dieses Testbuilds allein).
+
 ## [0.0.70] - master, Testbuild
 
 Echte Ursache der Tunnel-Widget-Fehler gefunden und behoben.

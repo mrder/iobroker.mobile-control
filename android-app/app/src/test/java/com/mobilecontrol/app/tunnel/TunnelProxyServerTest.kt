@@ -111,4 +111,41 @@ class TunnelProxyServerTest {
         srv.unregisterTarget("embed-a")
         assertEquals(false, srv.hasTargets)
     }
+
+    /** Live-reported (2026-08-06): two different embeds (e.g. "Habpanel" and "Energie") pointing
+     *  at the exact same host:port - one physical device serving more than one dashboard under
+     *  different paths - used to be treated as ambiguous and rejected outright, breaking every
+     *  request to that shared origin (including a background socket.io long-poll that just kept
+     *  repeating the same rejected request forever, matching the reported "starts loading but
+     *  never finishes" symptom). Same origin is not actually ambiguous for forwarding purposes -
+     *  see findTarget's own doc for why either token is equally valid here. */
+    @Test
+    fun `two embeds sharing the exact same origin do not reject each other`() = runTest {
+        val srv = startServer()
+        val port = srv.start()
+        srv.registerTarget("embed-habpanel", "device-a.local", 80) { "token-habpanel" }
+        srv.registerTarget("embed-energie", "device-a.local", 80) { "token-energie" }
+
+        val response = sendRequest(port, "http://device-a.local/socket.io/?transport=polling")
+
+        assertTrue("shared-origin request should be forwarded, not rejected, got: $response", response.startsWith("HTTP/1.1 200"))
+    }
+
+    /** A bare-path (origin-form) request is only unambiguous when every currently-registered
+     *  target agrees on the same origin - if genuinely different origins are simultaneously
+     *  active, there is no way to know which one a bare path was meant for, so it must still be
+     *  rejected rather than guessed at (this is the one remaining case findTarget still rejects). */
+    @Test
+    fun `a bare-path request is rejected when distinct origins are simultaneously registered`() = runTest {
+        val srv = startServer()
+        val port = srv.start()
+        srv.registerTarget("embed-a", "device-a.local", 80) { "token-a" }
+        srv.registerTarget("embed-b", "device-b.local", 80) { "token-b" }
+
+        Socket("127.0.0.1", port).use { socket ->
+            socket.getOutputStream().write("GET /status HTTP/1.1\r\n\r\n".toByteArray(Charsets.ISO_8859_1))
+            val response = socket.getInputStream().readBytes().toString(Charsets.ISO_8859_1)
+            assertTrue("ambiguous bare-path request should be rejected, got: $response", response.startsWith("HTTP/1.1 403"))
+        }
+    }
 }

@@ -1,8 +1,12 @@
 {
   "common": {
     "name": "mobile-control",
-    "version": "0.0.70",
+    "version": "0.0.71",
     "news": {
+      "0.0.71": {
+        "en": "Fixed two more live-reported bugs. (1) A switch/actuator command could show as confirmed (checkmark) even though the real device never actually switched: the backend's confirmation handler only checked that some acknowledged value arrived for the state, without ever checking whether that value actually matched what was commanded - an unrelated re-ack (a heartbeat, a re-announce, or the device reporting back its still-unchanged value after a failed switch) was being misread as success. Now requires the acked value to match the commanded value before confirming. (2) The 'Energie' Tunnel-mode Web-Seite widget got stuck forever on its own 'Loading Config and Values...' screen even after the same-origin tunnel-collision fix in v0.0.70: its long-polling connection legitimately issues 20-40 requests/second once loaded, far above the tunnel's old anti-abuse budget of 300 requests/minute (5/second) per widget, so it started getting rate-limited within a few seconds of loading and never recovered. Raised the budget to comfortably cover this kind of chatty long-polling traffic while still guarding against a genuinely runaway request loop.",
+        "de": "Zwei weitere live gemeldete Fehler behoben. (1) Ein Schalter-/Aktorbefehl konnte als bestätigt (Häkchen) angezeigt werden, obwohl das echte Gerät nie tatsächlich geschaltet hat: Der Bestätigungs-Handler im Backend hat nur geprüft, ob irgendein bestätigter (ack) Wert für den State ankam, aber nie, ob dieser Wert auch tatsächlich dem befohlenen Wert entsprach - eine unabhängige erneute Bestätigung (Heartbeat, erneute Ankündigung, oder das Gerät meldet nach einem fehlgeschlagenen Schaltversuch einfach seinen unveränderten aktuellen Wert zurück) wurde fälschlich als Erfolg gewertet. Jetzt muss der bestätigte Wert mit dem befohlenen Wert übereinstimmen, bevor der Befehl als bestätigt gilt. (2) Das Tunnel-Web-Seite-Widget 'Energie' blieb auch nach dem Kollisions-Fix in v0.0.70 dauerhaft bei 'Loading Config and Values...' hängen: Seine Long-Polling-Verbindung stellt nach dem Laden legitim 20-40 Anfragen pro Sekunde - weit über dem bisherigen Anti-Missbrauchs-Budget des Tunnels von 300 Anfragen pro Minute (5/Sekunde) je Widget, wodurch es innerhalb weniger Sekunden ins Rate-Limit lief und sich nie mehr erholte. Das Budget wurde deutlich angehoben, um solchen chattigen Long-Polling-Verkehr komfortabel abzudecken, schützt aber weiterhin vor einer wirklich außer Kontrolle geratenen Anfrageschleife."
+      },
       "0.0.70": {
         "en": "Found and fixed the real root cause of the Tunnel-mode Web-Seite widget failures reported live (net::ERR_HTTP_RESPONSE_CODE_FAILURE / 'Only the approved target is tunneled'): TunnelSessionManager's own dedicated OkHttp client, built separately from the app's shared one on purpose, was missing the one thing that is never actually optional - the portal-key gate's Basic Auth header. Every tunnel forward request was silently rejected by the gate itself with a bare 401 before ever reaching the real tunnel endpoint; Chromium's own proxy-response handling doesn't pass a bare 401 from something acting as a proxy through to the page like it does a 403, it surfaces the much more confusing net::ERR_HTTP_RESPONSE_CODE_FAILURE instead - root-caused via live diagnostic logging (protocol=h2 code=401, empty body) after ruling out the widget-collision bug fixed in v0.0.69. Confirmed live: both previously-broken Tunnel widgets now load their real target pages correctly. Also completed a full manual regression pass across dashboards, all widget types, the object catalog, alerts and settings screens with live crash-log monitoring the whole time - zero crashes found.",
         "de": "Die eigentliche Ursache der live gemeldeten Tunnel-Web-Seite-Widget-Fehler gefunden und behoben (net::ERR_HTTP_RESPONSE_CODE_FAILURE bzw. 'Only the approved target is tunneled'): Der eigene, bewusst getrennt aufgebaute OkHttp-Client von TunnelSessionManager hat ausgerechnet den einen Header vergessen, der nie wirklich optional ist - den Basic-Auth-Header des Portal-Schlüssel-Gates. Jede Tunnel-Weiterleitungsanfrage wurde vom Gate selbst stillschweigend mit einem nackten 401 abgelehnt, bevor sie den eigentlichen Tunnel-Endpunkt je erreicht hat; Chromiums eigene Proxy-Antwort-Behandlung reicht ein nacktes 401 von etwas, das sie als Proxy behandelt, anders als ein 403 nicht an die Seite durch, sondern zeigt stattdessen das viel verwirrendere net::ERR_HTTP_RESPONSE_CODE_FAILURE an - per Live-Diagnose-Logging gefunden (protocol=h2 code=401, leerer Body), nachdem der in v0.0.69 behobene Widget-Kollisionsfehler als Ursache ausgeschlossen wurde. Live bestätigt: Beide vorher kaputten Tunnel-Widgets laden jetzt ihre echten Zielseiten korrekt. Außerdem einen vollständigen manuellen Regressionsdurchlauf über Dashboards, alle Widget-Typen, den Objektkatalog, Meldungen und Einstellungen mit durchgehend live mitlaufendem Absturz-Log gemacht - keine Abstürze gefunden."
@@ -78,10 +82,6 @@
       "0.0.52": {
         "en": "Found and fixed the real cause behind the app going completely dead (empty dashboards, empty object list, no error shown) after being idle for a while: the access token expires after a short time, and when the app tried to renew it using the refresh token, the server rejected that renewal too - and the app just gave up silently at that point, forever, with no way to recover on its own. Two fixes: (1) the app now falls back to a full sign-in using the device's already-established security key when a renewal is rejected - the same mechanism pairing ends with, just without needing to scan the QR code again, so it silently recovers on its own whenever the device is still authorized. Only if that also fails does it now correctly ask to re-pair. (2) Found the likely reason the renewal got rejected in the first place: two requests failing around the same moment could each independently try to renew using the same not-yet-rotated token, which the server's own replay-protection correctly (but unnecessarily) treated as a stolen token and revoked the whole session for it - renewal attempts are now serialized so this can't happen. Also: the previous update's database change wiped the on-device dashboard/object cache as a side effect (data was never lost on the server, only the phone's local copy) - the app no longer does that on future updates.",
         "de": "Die eigentliche Ursache dafür gefunden und behoben, dass die App nach einer Weile Inaktivität komplett tot wirkte (leere Dashboards, leere Objektliste, keine Fehlermeldung): Der Zugriffs-Token läuft nach kurzer Zeit ab, und als die App versucht hat, ihn über den Erneuerungs-Token zu erneuern, hat der Server auch diese Erneuerung abgelehnt - die App hat daraufhin einfach stillschweigend aufgegeben, für immer, ohne eigene Möglichkeit zur Erholung. Zwei Korrekturen: (1) Die App greift jetzt bei einer abgelehnten Erneuerung auf eine vollständige Neuanmeldung mit dem bereits vorhandenen Sicherheitsschlüssel des Geräts zurück - derselbe Mechanismus, mit dem auch die Kopplung endet, nur ohne erneutes Scannen des QR-Codes. Dadurch erholt sie sich von selbst, solange das Gerät noch berechtigt ist. Nur wenn auch das fehlschlägt, wird jetzt korrekt zur erneuten Kopplung aufgefordert. (2) Den wahrscheinlichen Grund gefunden, warum die Erneuerung überhaupt abgelehnt wurde: Zwei etwa gleichzeitig fehlschlagende Anfragen konnten unabhängig voneinander versuchen, mit demselben noch nicht erneuerten Token zu erneuern, was der eigene Wiederverwendungsschutz des Servers korrekterweise (aber unnötig) als gestohlenen Token gewertet und die ganze Sitzung dafür gesperrt hat - Erneuerungsversuche laufen jetzt nacheinander ab, damit das nicht mehr passieren kann. Außerdem: Die Datenbank-Änderung des letzten Updates hat als Nebeneffekt den Dashboard-/Objekt-Zwischenspeicher auf dem Gerät geleert (Daten gingen nie auf dem Server verloren, nur die lokale Kopie auf dem Handy) - die App macht das bei zukünftigen Updates nicht mehr."
-      },
-      "0.0.51": {
-        "en": "Found and fixed the real root cause behind the ongoing 'nothing works' / 'adapter shows disconnected' / 'object names still missing' reports: a genuine client-server protocol mismatch, not a flaky connection. The Android app's realtime WebSocket authenticated by attaching the login token as a URL parameter on the connection request, but the server (RealtimeGateway) never reads that - it only accepts authentication via an explicit message sent right after the socket opens, and force-closes any connection that doesn't send it within 5 seconds. The app never sent that message, so the realtime connection has never actually been authenticating: it looked 'open' but every live value update, command confirmation, and subscribe was silently rejected by the server the whole time - which is also why the adapter's connection indicator kept flipping back to disconnected (it only counts genuinely authenticated connections). The app now sends the required auth message and only treats the connection as ready once the server confirms it. Also fixed a related but separate bug: folder display names in the object tree were only ever kept in memory and reset to empty on every app restart, so a single failed catalog refresh (e.g. during exactly this connection problem) wiped them for the rest of the session, looking exactly like the earlier object-tree-names fix had regressed even though it hadn't. Folder names are now cached like the rest of the catalog and survive a failed refresh.",
-        "de": "Die eigentliche Ursache hinter den anhaltenden Meldungen 'nichts funktioniert' / 'Adapter zeigt nicht verbunden' / 'Objektnamen fehlen weiterhin' gefunden und behoben: ein echter Kontraktfehler zwischen App und Backend, keine wacklige Verbindung. Die Live-Verbindung (WebSocket) der Android-App hat sich bisher über den Anmelde-Token als URL-Parameter an der Verbindungsanfrage authentifiziert - das Backend (RealtimeGateway) liest diesen Parameter aber nie, sondern erwartet ausschließlich eine bestimmte Nachricht direkt nach dem Verbindungsaufbau, und schließt die Verbindung zwangsweise, wenn diese nicht innerhalb von 5 Sekunden ankommt. Die App hat diese Nachricht nie gesendet - die Live-Verbindung hat sich also faktisch noch nie wirklich authentifiziert: Sie wirkte 'verbunden', aber jede Live-Wert-Aktualisierung, Befehlsbestätigung und Abonnierung wurde die ganze Zeit vom Server stillschweigend abgelehnt - das erklärt auch, warum die Verbindungsanzeige des Adapters immer wieder auf 'nicht verbunden' zurückgesprungen ist (sie zählt nur echt authentifizierte Verbindungen). Die App sendet jetzt die nötige Auth-Nachricht und behandelt die Verbindung erst als bereit, wenn der Server sie bestätigt hat. Außerdem einen verwandten, aber eigenständigen Fehler behoben: Ordnernamen im Objektbaum wurden bisher nur im Arbeitsspeicher gehalten und bei jedem App-Neustart geleert - ein einziger fehlgeschlagener Katalog-Abruf (z. B. genau wegen dieses Verbindungsproblems) hat sie für den Rest der Sitzung gelöscht, was exakt wie ein Rückfall der bereits behobenen Objektbaum-Namen aussah, obwohl die eigentliche Lösung nie kaputt war. Ordnernamen werden jetzt wie der Rest des Katalogs zwischengespeichert und überstehen einen fehlgeschlagenen Abruf."
       }
     },
     "title": "Mobile Control",
@@ -162,7 +162,12 @@
     {
       "_id": "info",
       "type": "channel",
-      "common": { "name": { "en": "Information", "de": "Information" } },
+      "common": {
+        "name": {
+          "en": "Information",
+          "de": "Information"
+        }
+      },
       "native": {}
     },
     {
@@ -170,7 +175,10 @@
       "type": "state",
       "common": {
         "role": "indicator.connected",
-        "name": { "en": "Any device connected", "de": "Gerät verbunden" },
+        "name": {
+          "en": "Any device connected",
+          "de": "Gerät verbunden"
+        },
         "type": "boolean",
         "read": true,
         "write": false,
@@ -183,7 +191,10 @@
       "type": "state",
       "common": {
         "role": "indicator",
-        "name": { "en": "REST API status", "de": "REST-API-Status" },
+        "name": {
+          "en": "REST API status",
+          "de": "REST-API-Status"
+        },
         "type": "string",
         "read": true,
         "write": false,
@@ -196,7 +207,10 @@
       "type": "state",
       "common": {
         "role": "indicator",
-        "name": { "en": "WebSocket gateway status", "de": "WebSocket-Status" },
+        "name": {
+          "en": "WebSocket gateway status",
+          "de": "WebSocket-Status"
+        },
         "type": "string",
         "read": true,
         "write": false,
@@ -209,7 +223,10 @@
       "type": "state",
       "common": {
         "role": "value",
-        "name": { "en": "Active devices", "de": "Aktive Geräte" },
+        "name": {
+          "en": "Active devices",
+          "de": "Aktive Geräte"
+        },
         "type": "number",
         "read": true,
         "write": false,
@@ -222,7 +239,10 @@
       "type": "state",
       "common": {
         "role": "value",
-        "name": { "en": "Active sessions", "de": "Aktive Sitzungen" },
+        "name": {
+          "en": "Active sessions",
+          "de": "Aktive Sitzungen"
+        },
         "type": "number",
         "read": true,
         "write": false,
@@ -235,7 +255,10 @@
       "type": "state",
       "common": {
         "role": "indicator",
-        "name": { "en": "Security status", "de": "Sicherheitsstatus" },
+        "name": {
+          "en": "Security status",
+          "de": "Sicherheitsstatus"
+        },
         "type": "string",
         "read": true,
         "write": false,
@@ -246,7 +269,12 @@
     {
       "_id": "control",
       "type": "channel",
-      "common": { "name": { "en": "Control", "de": "Steuerung" } },
+      "common": {
+        "name": {
+          "en": "Control",
+          "de": "Steuerung"
+        }
+      },
       "native": {}
     },
     {
@@ -254,7 +282,10 @@
       "type": "state",
       "common": {
         "role": "switch.enable",
-        "name": { "en": "Adapter enabled", "de": "Adapter aktiviert" },
+        "name": {
+          "en": "Adapter enabled",
+          "de": "Adapter aktiviert"
+        },
         "type": "boolean",
         "read": true,
         "write": true,
@@ -267,7 +298,10 @@
       "type": "state",
       "common": {
         "role": "switch.enable",
-        "name": { "en": "Remote access enabled", "de": "Fernzugriff aktiviert" },
+        "name": {
+          "en": "Remote access enabled",
+          "de": "Fernzugriff aktiviert"
+        },
         "type": "boolean",
         "read": true,
         "write": true,
@@ -280,7 +314,10 @@
       "type": "state",
       "common": {
         "role": "button",
-        "name": { "en": "Revoke all sessions", "de": "Alle Sitzungen widerrufen" },
+        "name": {
+          "en": "Revoke all sessions",
+          "de": "Alle Sitzungen widerrufen"
+        },
         "type": "boolean",
         "read": false,
         "write": true,
@@ -291,31 +328,56 @@
     {
       "_id": "storage",
       "type": "channel",
-      "common": { "name": { "en": "Internal storage (do not edit)", "de": "Interner Speicher (nicht bearbeiten)" } },
+      "common": {
+        "name": {
+          "en": "Internal storage (do not edit)",
+          "de": "Interner Speicher (nicht bearbeiten)"
+        }
+      },
       "native": {}
     },
     {
       "_id": "devices",
       "type": "channel",
-      "common": { "name": { "en": "Devices", "de": "Geräte" } },
+      "common": {
+        "name": {
+          "en": "Devices",
+          "de": "Geräte"
+        }
+      },
       "native": {}
     },
     {
       "_id": "users",
       "type": "channel",
-      "common": { "name": { "en": "Users", "de": "Benutzer" } },
+      "common": {
+        "name": {
+          "en": "Users",
+          "de": "Benutzer"
+        }
+      },
       "native": {}
     },
     {
       "_id": "alarms",
       "type": "channel",
-      "common": { "name": { "en": "Alarms", "de": "Meldungen" } },
+      "common": {
+        "name": {
+          "en": "Alarms",
+          "de": "Meldungen"
+        }
+      },
       "native": {}
     },
     {
       "_id": "audit",
       "type": "channel",
-      "common": { "name": { "en": "Audit log", "de": "Audit-Protokoll" } },
+      "common": {
+        "name": {
+          "en": "Audit log",
+          "de": "Audit-Protokoll"
+        }
+      },
       "native": {}
     }
   ]

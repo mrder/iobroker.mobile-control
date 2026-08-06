@@ -333,7 +333,13 @@ class MobileControlAdapter extends utils.Adapter {
                 devices: this.devicesService,
                 tunnel: this.tunnelService,
                 audit: this.auditService,
-                tunnelRateLimiter: new RateLimiter(300),
+                // Live-reported (2026-08-06): a real target (an "energiefluss" vis app using
+                // socket.io long-polling with two simultaneous sessions) legitimately issues
+                // 20-40 requests/sec once loaded - far above the old 300/min (5/sec) budget. That
+                // caused a permanent 429 loop after the first few seconds, matching the reported
+                // "starts loading but never finishes" symptom. Raised well above realistic chatty
+                // long-polling traffic while still bounding a genuinely runaway/malicious loop.
+                tunnelRateLimiter: new RateLimiter(6000),
                 signatureReplayGuard,
             }),
         );
