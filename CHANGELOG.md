@@ -8,6 +8,30 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.72] - master, Testbuild
+
+Die eigentliche verbleibende Ursache des "Energie"-Widget-Problems aus v0.0.71 gefunden und behoben,
+plus Live-Bestätigung des Aktor-Fixes an einem echten Fehlerfall.
+
+- Das Anheben des Tunnel-Ratenlimits (v0.0.71) hat die Rate-Limit-Schleife behoben, aber ein neu
+  geöffnetes Tunnel-Web-Seite-Widget konnte weiterhin mit seiner eigenen Tunnel-Ziel-Registrierung
+  gegen die ersten Anfragen seines WebViews in einen Wettlauf geraten, sobald ein anderes
+  Tunnel-Widget auf demselben Dashboard den gemeinsamen lokalen Proxy bereits eingeschaltet hatte -
+  die Hauptseite lud einwandfrei, aber jede Folgeanfrage (Skript/CSS/socket.io) feuerte, bevor das
+  eigene Ziel dieses Widgets registriert war, und wurde mit 403 "Only the approved target is
+  tunneled" abgelehnt. Per Live-Diagnose-Logging bestätigt.
+- Behoben, indem der bisherige Fire-and-forget-Tunnelstart (bewusst so gewählt, siehe v0.0.6x-
+  Historie: ein plattformseitiger Proxy-Callback kann auf manchen WebView-Providern nie feuern) auf
+  eine 3-Sekunden-Wartezeit auf die Registrierung begrenzt wurde, bevor das WebView zu laden
+  beginnt - kann also weiterhin nicht für immer hängen bleiben, gewinnt aber jetzt im Normalfall den
+  Wettlauf. Live über mehrere Kaltstart-Wiederholungen mit mehreren gleichzeitigen Tunnel-Widgets
+  bestätigt: keine 403-Fehler mehr, alle drei Tunnel-Widgets (Habpanel, Growmonitor, Energie) laden
+  zuverlässig echte Inhalte.
+- Der Aktor-Bestätigungs-Fix aus v0.0.71 hat sich live an einem echten Fehlerfall bewährt: Ein
+  Schaltbefehl an einen Zigbee-Aktor scheiterte an einem echten Mesh-Zustellungsfehler ("Delivery
+  failed") - die App zeigte den Befehl korrekt als ausstehend/fehlgeschlagen an statt eines falschen
+  Häkchens. Die Ursache lag nachweislich am Zigbee-Funkmesh, nicht am Adapter-Code.
+
 ## [0.0.71] - master, Testbuild
 
 Zwei weitere live gemeldete Fehler behoben.

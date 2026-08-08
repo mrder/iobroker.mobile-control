@@ -71,6 +71,7 @@ import java.time.temporal.ChronoUnit
 import java.util.Locale
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 private fun WidgetState.currentValue(): Any? = when (this) {
     is WidgetState.Live -> value
@@ -757,16 +758,22 @@ fun WebPageWidget(
         loadState = WebPageLoadState.Loading
         loadState = viewModel.resolveUrl(urlEmbedId).fold(
             onSuccess = { url ->
-                // Deliberately NOT awaited here: the page itself is already resolved and ready to
-                // show at this point, and startTunnel() involves a platform callback
-                // (WebViewProxyOverride) that's been confirmed to sometimes never fire on some
-                // WebView provider builds - awaiting it here left the whole widget stuck on its
-                // loading state forever even though the page was ready long before. The tunnel
-                // still gets set up, just without blocking the page on it; a request made before
-                // it's ready simply goes direct instead (fine for the same-LAN case, and
-                // WebViewProxyOverride itself is timeout-bounded now too).
+                // Bounded wait (not a plain await, not fire-and-forget) for the tunnel target to
+                // actually be registered before the WebView starts loading. Live-reported
+                // (2026-08-06): with fire-and-forget, a Tunnel widget opened while another one on
+                // the same dashboard had already turned on the shared local proxy (WebViewProxy
+                // Override is process-wide) started firing requests into that already-active proxy
+                // before THIS widget's own target/token was registered yet - the main document
+                // request happened to land after registration finished, so the page shell loaded,
+                // but every one of its sub-resource requests (script/css/socket.io) fired earlier
+                // and got rejected with 403 "Only the approved target is tunneled", leaving the page
+                // permanently broken until a full reopen. A plain (unbounded) await was tried
+                // before and reverted (see WebViewProxyOverride's own doc: the platform callback
+                // can simply never fire on some WebView provider builds, which left the widget
+                // stuck on its loading state forever) - withTimeoutOrNull keeps that same guarantee
+                // (never longer than this bound) while still winning the race in the normal case.
                 if (useTunnel) {
-                    coroutineScope.launch { viewModel.startTunnel(urlEmbedId, url) }
+                    withTimeoutOrNull(3_000) { viewModel.startTunnel(urlEmbedId, url) }
                 }
                 WebPageLoadState.Resolved(url)
             },
