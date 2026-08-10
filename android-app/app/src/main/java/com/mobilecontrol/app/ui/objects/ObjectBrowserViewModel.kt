@@ -6,6 +6,7 @@ import com.mobilecontrol.app.domain.model.LiveValue
 import com.mobilecontrol.app.domain.model.ObjectCatalogItem
 import com.mobilecontrol.app.domain.model.ObjectTreeNode
 import com.mobilecontrol.app.domain.model.buildObjectTree
+import com.mobilecontrol.app.domain.model.matchesSearch
 import com.mobilecontrol.app.domain.repository.CommandRepository
 import com.mobilecontrol.app.domain.repository.ConnectionState
 import com.mobilecontrol.app.domain.repository.ObjectCatalogRepository
@@ -36,7 +37,7 @@ data class ObjectBrowserUiState(
 
     val filteredObjects: List<ObjectCatalogItem>
         get() = allObjects.filter { item ->
-            (searchQuery.isBlank() || item.name.contains(searchQuery, true) || item.path.joinToString("/").contains(searchQuery, true)) &&
+            item.matchesSearch(searchQuery, folderNames) &&
                 (selectedRoom == null || item.roomHeuristic == selectedRoom) &&
                 (selectedRole == null || item.role == selectedRole) &&
                 (!writableOnly || item.canWrite)

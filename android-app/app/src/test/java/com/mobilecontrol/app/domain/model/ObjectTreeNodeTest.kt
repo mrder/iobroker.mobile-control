@@ -74,6 +74,24 @@ class ObjectTreeNodeTest {
     }
 
     @Test
+    fun `matchesSearch finds an item by an ancestor folder's resolved display name`() {
+        // Live-reported (2026-08-09): searching "Erdspieß" for a Zigbee device named "Erdspieß
+        // Vorgarten" found nothing, even though the catalog clearly carried that exact name -
+        // it's only ever attached to the device's *folder* entry (folderNames), never to the
+        // leaf state's own name ("On/off state of the switch") or its raw id path.
+        val switchState = item("state", listOf("zigbee", "0", "60a423fffe0b54a7"), name = "On/off state of the switch")
+        val folderNames = mapOf("zigbee.0.60a423fffe0b54a7" to "Erdspieß Vorgarten")
+
+        assertTrue(switchState.matchesSearch("Erdspieß", folderNames))
+        assertTrue(switchState.matchesSearch("vorgarten", folderNames)) // case-insensitive
+        assertTrue(switchState.matchesSearch("switch", folderNames)) // still matches the item's own name
+        assertTrue(switchState.matchesSearch("60a423fffe0b54a7", folderNames)) // still matches the raw path
+        assertTrue(switchState.matchesSearch("", folderNames)) // blank query matches everything
+        assertTrue(!switchState.matchesSearch("Erdspieß", emptyMap())) // no folderNames at all - can't match
+        assertTrue(!switchState.matchesSearch("no such match", folderNames))
+    }
+
+    @Test
     fun `visibleLeafIds only includes items under expanded folders`() {
         val tree = buildObjectTree(
             listOf(

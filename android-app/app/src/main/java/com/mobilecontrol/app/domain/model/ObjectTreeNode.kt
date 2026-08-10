@@ -56,6 +56,31 @@ private fun MutableTreeNode.toImmutable(): ObjectTreeNode = ObjectTreeNode(
     items = items.sortedBy { it.name.lowercase() },
 )
 
+/**
+ * True if the search [query] matches this item's own name, its raw ioBroker id path, or any
+ * ancestor folder's resolved display name.
+ *
+ * Live-reported (2026-08-09): searching by a device's real-world name (e.g. "Erdspieß
+ * Vorgarten", a Zigbee device) never found anything, even though the catalog clearly carried
+ * that exact name - because it's only ever attached to the *folder* (via [folderNames], resolved
+ * server-side from the device/channel object's own common.name), never to the leaf state itself.
+ * A leaf's own `name` is just its own short label (e.g. "On/off state of the switch") and its
+ * `path` is raw ioBroker id segments (e.g. "zigbee/0/60a423fffe0b54a7") - neither contains the
+ * friendly device name at all, so the old two-field check could never match it.
+ */
+fun ObjectCatalogItem.matchesSearch(query: String, folderNames: Map<String, String>): Boolean {
+    if (query.isBlank()) return true
+    if (name.contains(query, ignoreCase = true)) return true
+    if (path.joinToString("/").contains(query, ignoreCase = true)) return true
+    var prefix = ""
+    for (segment in path) {
+        prefix = if (prefix.isEmpty()) segment else "$prefix.$segment"
+        val folderName = folderNames[prefix] ?: continue
+        if (folderName.contains(query, ignoreCase = true)) return true
+    }
+    return false
+}
+
 /** All leaf item ids currently rendered given which folder ids are expanded - collapsed folders
  *  hide their contents entirely, so only these need a live-value subscription. */
 fun ObjectTreeNode.visibleLeafIds(expanded: Set<String>): List<String> {

@@ -8,6 +8,24 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.73] - master, Testbuild
+
+Die eigentliche Ursache des live gemeldeten VG-Licht-Problems gefunden und behoben - ein
+Katalog-Suche-Bug, kein Fehler in der Aktor-Bestätigungslogik.
+
+- Die Objektkatalog-Suche fand ein Gerät nicht über seinen echten Anzeigenamen (z.B. "Erdspieß
+  Vorgarten"), obwohl der Katalog diesen Namen eindeutig enthielt - er hängt nur am aufgelösten
+  *Ordner*-Namen des Geräts, nie am Namen eines einzelnen Datenpunkts oder seinem rohen
+  ioBroker-Id-Pfad. Die Suche prüft jetzt zusätzlich den Anzeigenamen jedes übergeordneten Ordners
+  (in App und Dashboard-Editor gleichermaßen behoben, es gab zwei unabhängige Kopien derselben
+  Suchlogik).
+- Live root-caused: Das VG-Licht-Widget war durch eine frühere Dashboard-Wiederherstellung still an
+  eine unbeteiligte, nicht erreichbare Philips-Hue-Lampe gebunden statt an das eigentlich gemeinte
+  Zigbee-Gerät - vermutlich weil es zu dem Zeitpunkt im Objekt-Picker nicht per Name gefunden werden
+  konnte (derselbe Suche-Bug). Mit der reparierten Suche neu gebunden und live bestätigt: Der Schalter
+  reagiert jetzt zuverlässig und schnell (~4s) mit korrekter Bestätigung - die in v0.0.71 gefixte
+  Aktor-Bestätigungslogik war die ganze Zeit korrekt.
+
 ## [0.0.72] - master, Testbuild
 
 Die eigentliche verbleibende Ursache des "Energie"-Widget-Problems aus v0.0.71 gefunden und behoben,

@@ -83,6 +83,7 @@ import com.mobilecontrol.app.domain.model.ValueType
 import com.mobilecontrol.app.domain.model.Widget
 import com.mobilecontrol.app.domain.model.WidgetType
 import com.mobilecontrol.app.domain.model.buildObjectTree
+import com.mobilecontrol.app.domain.model.matchesSearch
 import com.mobilecontrol.app.domain.repository.ConnectionState
 import com.mobilecontrol.app.ui.widgets.LocalWidgetTextScale
 import com.mobilecontrol.app.ui.widgets.WidgetHost
@@ -707,10 +708,8 @@ private fun AddWidgetDialog(
     val typeFiltered = remember(catalog, typeFilter) {
         if (typeFilter == null) catalog else catalog.filter { it.valueType == typeFilter }
     }
-    val filtered = remember(typeFiltered, query) {
-        typeFiltered.filter { item ->
-            query.isBlank() || item.name.contains(query, true) || item.path.joinToString("/").contains(query, true)
-        }.take(200)
+    val filtered = remember(typeFiltered, query, folderNames) {
+        typeFiltered.filter { item -> item.matchesSearch(query, folderNames) }.take(200)
     }
     val tree = remember(typeFiltered, folderNames) { buildObjectTree(typeFiltered, folderNames) }
 
