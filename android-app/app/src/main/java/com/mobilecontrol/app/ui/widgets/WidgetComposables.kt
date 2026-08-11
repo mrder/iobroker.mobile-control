@@ -880,6 +880,50 @@ private fun EmbeddedWebView(url: String, modifier: Modifier = Modifier, onError:
                 settings.javaScriptEnabled = true
                 settings.domStorageEnabled = true
                 webViewClient = object : WebViewClient() {
+                    override fun onPageFinished(view: WebView, url: String?) {
+                        // Live-reported (2026-08-11): the "Energie" page (an ioBroker vis-style
+                        // energy-flow diagram, and presumably other embedded vis-style pages)
+                        // loaded, connected and applied its config successfully, but rendered
+                        // nothing - confirmed via live diagnostic logging that
+                        // document.body.clientHeight was 0 even though this WebView's own view
+                        // had a perfectly normal non-zero height, and that a <style> rule (even
+                        // !important) left the *computed* height at "0px" regardless. The page's
+                        // own CSS never gives html/body an explicit height (relying on being a
+                        // real top-level browser tab, where that's implicit) - inside an embedded
+                        // WebView with no surrounding chrome, that chain never resolves to
+                        // anything, so the script computing the flow-diagram's SVG paths from the
+                        // container's size got 0 and produced invalid path data ("d: ... none").
+                        // Setting inline style.height directly (highest priority, always wins,
+                        // unlike a stylesheet rule here) with an explicit pixel value from
+                        // window.innerHeight (which WebView reports correctly regardless of the
+                        // page's own CSS) fixes the size. The SVG computation already ran once
+                        // against height=0 by the time onPageFinished fires though, so the fix is
+                        // re-applied on a short interval and dispatches a real 'resize' event each
+                        // time - live-confirmed as necessary for this page's own redraw logic
+                        // (which only recomputes on an actual resize, not just a later style
+                        // change) to pick up the now-correct size and draw the diagram for real.
+                        view.evaluateJavascript(
+                            """
+                            (function(){
+                                function fix() {
+                                    var h = window.innerHeight + 'px';
+                                    document.documentElement.style.height = h;
+                                    document.body.style.height = h;
+                                }
+                                fix();
+                                window.addEventListener('resize', fix);
+                                var n = 0;
+                                var iv = setInterval(function(){
+                                    fix();
+                                    window.dispatchEvent(new Event('resize'));
+                                    n++;
+                                    if (n >= 5) clearInterval(iv);
+                                }, 400);
+                            })();
+                            """.trimIndent(),
+                            null,
+                        )
+                    }
                     override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
                         if (request.isForMainFrame) {
                             onError?.invoke()

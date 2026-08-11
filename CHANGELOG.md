@@ -8,6 +8,25 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 Noch nichts nach `main` released.
 
+## [0.0.74] - master, Testbuild
+
+Das "Energie"-Tunnel-Widget zeigt jetzt endlich wirklich das Energiefluss-Diagramm an (weißer
+Bildschirm behoben) - eine tiefere Ursache als der Tunnel-Race-Fix aus v0.0.72.
+
+- Live root-caused: Die eingebettete ioBroker-vis-Energiefluss-Seite gibt html/body in ihrem
+  eigenen CSS nie eine explizite Höhe (verlässt sich darauf, ein echter Browser-Tab zu sein) - in
+  unserem WebView ohne umgebendes Browser-Chrome löst sich diese Kette nie auf:
+  `document.body.clientHeight` war 0, obwohl das WebView selbst eine normale Größe hatte. Die
+  eigene Berechnung der SVG-Flusspfade der Seite bekam dadurch 0 als Containergröße und erzeugte
+  ungültige Pfaddaten.
+- Eine eingefügte Stylesheet-Regel (selbst mit `!important`) ließ die *berechnete* Höhe trotzdem
+  bei `0px` - behoben durch direktes Setzen von `style.height` (inline, höchste Priorität) aus
+  `window.innerHeight`, in kurzen Abständen wiederholt mit einem echten ausgelösten `resize`-Event,
+  da die Neuzeichnen-Logik der Seite nur auf ein echtes Resize reagiert, nicht auf eine spätere
+  Style-Änderung allein.
+- Live bestätigt: Das vollständige animierte Energiefluss-Diagramm (PV-Module, Batterie, Netz,
+  Verbrauch, Live-Flussanzeige) wird jetzt korrekt angezeigt.
+
 ## [0.0.73] - master, Testbuild
 
 Die eigentliche Ursache des live gemeldeten VG-Licht-Problems gefunden und behoben - ein
