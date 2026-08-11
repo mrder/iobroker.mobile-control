@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.semantics.Role
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BrokenImage
@@ -166,8 +167,22 @@ fun SwitchWidget(
 ) {
     WidgetCard(title = title, state = state, modifier = modifier) {
         val on = state.currentValue() as? Boolean ?: false
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Switch(checked = on, onCheckedChange = onToggle, enabled = enabled)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            // Live-reported (2026-08-11): on at least one real device (Galaxy S21 with a screen
+            // protector applied - confirmed via adb logcat to still be delivering real, if noisy,
+            // touch events) taps on this switch registered nothing, while every other app/widget on
+            // the same device worked fine. Root cause: Material3's Switch recognizes its own gesture
+            // via a *drag* detector on the thumb (to support drag-to-toggle), not a plain tap - drag
+            // recognition tracks a single pointer's path closely and is far more easily disrupted by
+            // rapid extra down/up pointer noise landing in the same spot (exactly what a marginal
+            // capacitive screen protector produces) than the simple "down+up within bounds" click
+            // handling every native Android button uses. Moving the tap handling here, to a plain
+            // clickable on the row, and passing onCheckedChange = null below (which makes the Switch
+            // purely visual - no gesture of its own) restores that simple, noise-tolerant tap model.
+            modifier = Modifier.clickable(enabled = enabled, role = Role.Switch) { onToggle(!on) },
+        ) {
+            Switch(checked = on, onCheckedChange = null, enabled = enabled)
             CommandOverlayIcon(state)
         }
     }

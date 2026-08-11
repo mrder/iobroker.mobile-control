@@ -92,6 +92,15 @@ class DashboardEditorViewModel @Inject constructor(
         viewModelScope.launch {
             catalogRepository.observeFolderNames().collect { names -> local.update { it.copy(folderNames = names) } }
         }
+        // Live-reported (2026-08-11): on a freshly paired device that never happened to open the
+        // Objekte tab (the only other place refreshCatalog() gets called, besides AlarmMonitor's
+        // one-shot, easily-lost-to-an-auth-race startup catch-up), the local Room cache this screen
+        // reads via observeCatalog() above stays empty forever - every widget's catalogItem lookup
+        // then misses, canWrite defaults to false, and every actuator (e.g. a Switch) silently
+        // renders disabled: taps do nothing, with no error shown anywhere. A dashboard showing
+        // actuators is exactly where a stale/missing catalog matters most, so it shouldn't depend on
+        // the user having incidentally visited a different screen first - fire a refresh here too.
+        viewModelScope.launch { catalogRepository.refreshCatalog() }
     }
 
     private fun subscribeCurrentLayoutObjects() {

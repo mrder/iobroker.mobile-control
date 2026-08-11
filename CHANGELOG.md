@@ -6,7 +6,24 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 ## [Unreleased]
 
-Noch nichts nach `main` released.
+Noch keine Änderungen seit dem `0.1.0`-Release.
+
+## [0.1.0] - main, Release
+
+Erstes veröffentlichtes Release (vorher nur `master`-Testbuilds bis 0.0.74). Inhaltlich identisch zum
+Stand von 0.0.74 plus zwei zusätzliche, live gefundene und behobene Bugs:
+
+- Schalter-Widget reagierte auf einem frisch gepairten Zweitgerät (Smartphone) überhaupt nicht auf
+  Tippen, obwohl die Touch-Events nachweislich sauber ankamen (per rohem Touchscreen-Log auf
+  Kernel-Ebene verifiziert - keine Geister-Touches, kein Hardware-/Folienproblem). Ursache: der lokale
+  Objektkatalog-Cache wurde bisher nur beim Öffnen des Objekte-Tabs (oder scheiternd beim
+  allerersten App-Start über den Alarm-Monitor) neu geladen, nie beim Öffnen eines Dashboards selbst.
+  Auf einem frischen Gerät blieb der Cache leer, wodurch `canWrite` für jedes Widget lokal auf
+  `false` fiel und der Schalter still (ohne jede Fehlermeldung) deaktiviert gerendert wurde. Das
+  Dashboard stößt jetzt beim Öffnen selbst ebenfalls einen Katalog-Refresh an.
+- Schalter-Widget nutzt jetzt einen einfachen Tap-Handler auf der gesamten Zeile statt sich auf die
+  eingebaute Drag-zum-Umschalten-Geste des Material3-`Switch` zu verlassen - robuster gegenüber
+  dicht aufeinanderfolgenden Touch-Events.
 
 ## [0.0.74] - master, Testbuild
 
