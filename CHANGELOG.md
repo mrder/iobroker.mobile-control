@@ -6,7 +6,23 @@ Zwischenversionen `0.0.x`, ein Release auf `main` erhält `0.x.0`.
 
 ## [Unreleased]
 
-Noch keine Änderungen seit dem `0.1.0`-Release.
+Noch nichts nach `main` released seit `0.1.0`.
+
+## [0.1.1] - master, Testbuild
+
+Live gemeldet direkt nach dem 0.1.0-Release: Auf dem Galaxy-Handy erschien nach längerem Laden
+plötzlich der Sperrbildschirm "Admin hat die Rechte entzogen", obwohl niemand etwas entzogen hatte.
+
+- Root-cause: `TokenAuthenticator` (kümmert sich ums automatische Erneuern des Zugriffstokens bei
+  401) behandelte jeden fehlgeschlagenen Refresh-Versuch gleich - egal ob der Server das Token aktiv
+  ablehnte (z.B. wirklich abgelaufen/widerrufen) oder ob der Aufruf schlicht an einer wackligen
+  Verbindung scheiterte (Netzwerk-Timeout, WLAN-Wechsel, ein 5xx vom Reverse-Proxy). Im zweiten Fall
+  wurde trotzdem sofort die komplette Sitzung gelöscht und der "Admin hat entzogen"-Bildschirm
+  gezeigt - ein reiner Verbindungsaussetzer reichte dafür aus.
+- Jetzt wird der tatsächliche Fehlercode aus der Serverantwort ausgewertet: Nur eine explizite
+  Ablehnung durch den Server (z.B. SESSION_REVOKED, TOKEN_EXPIRED, DEVICE_REVOKED) gilt als
+  Widerruf. Ein Netzwerkfehler, ein 5xx oder eine unlesbare Antwort bleibt jetzt folgenlos - die
+  bestehende Sitzung wird nicht angetastet, der nächste echte Request versucht es einfach erneut.
 
 ## [0.1.0] - main, Release
 
